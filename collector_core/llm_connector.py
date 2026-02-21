@@ -6,7 +6,7 @@ Example:
     from collector_core.llm_connector import LLMConnector
 
     async def main() -> None:
-        connector = LLMConnector(provider="openai", response_creativity=0.1)
+        connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
         summary = await connector.summarize(
             "Langer Quelltext fuer die Zusammenfassung ...",
             max_sentences=4,
@@ -41,22 +41,6 @@ RETRY_MAX_DELAY_SECONDS: float = 8.0
 RETRY_JITTER_MIN_SECONDS: float = 0.25
 RETRY_JITTER_MAX_SECONDS: float = 2.0
 
-
-class LLMProvider(StrEnum):
-    """Supported upstream LLM providers."""
-
-    OPENAI = "openai"
-    CLAUDE = "claude"
-    MISTRAL = "mistral"
-    BEDROCK = "bedrock"
-
-
-DEFAULT_MODELS: Final[dict[LLMProvider, str]] = {
-    LLMProvider.OPENAI: "openai/gpt-4o-mini",
-    LLMProvider.CLAUDE: "anthropic/claude-3-5-haiku-latest",
-    LLMProvider.MISTRAL: "mistral/mistral-small-latest",
-    LLMProvider.BEDROCK: "bedrock/anthropic.claude-3-5-haiku-20241022-v1:0",
-}
 
 DEFAULT_SYSTEM_PROMPT: Final[str] = (
     "Du bist ein präziser Assistent. Antworte klar, faktenorientiert und auf Deutsch."
@@ -158,8 +142,7 @@ class LLMConnector:
 
     def __init__(
         self,
-        provider: LLMProvider | str,
-        model: str | None = None,
+        model: str,
         api_key: str|None = None,
         temperature: float = 0.0,
         rate_limit_max_calls: int | None = RATE_LIMIT_MAX_CALLS,
@@ -170,7 +153,6 @@ class LLMConnector:
         """Initialize a provider-specific text generation connector.
 
         Args:
-            provider: Target LLM provider (`openai`, `claude`, `mistral`, `bedrock`).
             model: Optional model override. If omitted, a provider default is used.
             api_key: API key for the target provider. If `None`, relies on litellm's built-in provider key resolution.
             temperature: Temperature of generated text (maps to provider temperature).
@@ -180,12 +162,7 @@ class LLMConnector:
             timeout_seconds: Timeout per provider call in seconds.
             max_retries: Number of retry attempts for retryable provider errors.
         """
-        self.provider = self._parse_provider(provider)
-        self.model = (
-            self._require_non_empty_text(model, field_name="model")
-            if model is not None
-            else DEFAULT_MODELS[self.provider]
-        )
+        self.model = self._require_non_empty_text(model, field_name="model")
         self.api_key = api_key
         self.temperature = self._validate_temperature(temperature)
         self._validate_rate_limit_configuration(
@@ -203,8 +180,7 @@ class LLMConnector:
             else None
         )
         LOGGER.info(
-            "Initialized LLMConnector (provider=%s, model=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
-            self.provider.value,
+            "Initialized LLMConnector (model=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
             self.model,
             self._rate_limiter is not None,
             self.timeout_seconds,
@@ -229,8 +205,7 @@ class LLMConnector:
         request_kwargs = self._build_request(prompt=prompt, system_prompt=system_prompt)
         prompt_length = len(request_kwargs["messages"][1]["content"])
         LOGGER.debug(
-            "Starting text generation (provider=%s, model=%s, prompt_chars=%s, retries=%s)",
-            self.provider.value,
+            "Starting text generation (model=%s, prompt_chars=%s, retries=%s)",
             self.model,
             prompt_length,
             self.max_retries,
@@ -269,14 +244,17 @@ class LLMConnector:
                     self.timeout_seconds,
                 )
             except Exception as exc:
-                mapped_error = self._map_provider_exception(exc)
-                original_error = exc
                 LOGGER.warning(
-                    "Provider call failed (attempt=%s/%s, error_type=%s)",
+                    "Provider call failed (attempt=%s/%s, error_type=%s) %s",
                     attempt + 1,
                     self.max_retries + 1,
-                    type(mapped_error).__name__,
+                    type(exc).__name__,
+                    str(exc),
                 )
+                mapped_error: LLMProviderError = LLMTemporaryProviderError(
+                    "provider request failed"
+                )
+                original_error: Exception = exc
 
             should_retry: bool = attempt < self.max_retries and self._is_retryable_error(
                 mapped_error
@@ -371,36 +349,6 @@ class LLMConnector:
         return result
 
     @staticmethod
-    def _parse_provider(provider: LLMProvider | str) -> LLMProvider:
-        """Normalize and validate a provider value into `LLMProvider`.
-
-        Args:
-            provider: Provider enum value or provider string.
-
-        Returns:
-            Parsed provider enum value.
-
-        Raises:
-            ValueError: If provider is empty or unsupported.
-        """
-        if isinstance(provider, LLMProvider):
-            return provider
-
-        if not isinstance(provider, str):
-            raise ValueError("provider must be an LLMProvider or non-empty string")
-
-        normalized = provider.strip().lower()
-        if not normalized:
-            raise ValueError("provider must not be empty")
-        try:
-            return LLMProvider(normalized)
-        except ValueError as exc:
-            allowed = ", ".join(item.value for item in LLMProvider)
-            raise ValueError(
-                f"unsupported provider '{provider}', expected one of: {allowed}"
-            ) from exc
-
-    @staticmethod
     def _extract_text(response: Any) -> str:
         """Extract plain text content from a provider response object.
 
@@ -470,82 +418,6 @@ class LLMConnector:
         if isinstance(obj, dict):
             return obj.get(field)
         return getattr(obj, field, None)
-
-    @staticmethod
-    def _map_provider_exception(exc: Exception) -> LLMProviderError:
-        """Map raw provider exceptions to connector-specific error types.
-
-        Args:
-            exc: Raw exception raised by the provider/LiteLLM call.
-
-        Returns:
-            Mapped connector-specific provider error.
-        """
-        status_code = LLMConnector._extract_status_code(exc)
-        message = str(exc).lower()
-
-        if status_code in (401, 403) or any(
-            token in message
-            for token in ("unauthenticated", "unauthorized", "authentication", "invalid api key")
-        ):
-            LOGGER.debug(
-                "Mapped provider error to authentication error (status_code=%s)", status_code
-            )
-            return LLMAuthenticationError("provider authentication failed")
-
-        if (
-            status_code == 402
-            or "insufficient_quota" in message
-            or "quota exceeded" in message
-            or "budget" in message
-        ):
-            LOGGER.debug("Mapped provider error to quota exceeded (status_code=%s)", status_code)
-            return LLMQuotaExceededError("provider quota or budget exhausted")
-
-        if status_code == 429 or "rate limit" in message or "too many requests" in message:
-            LOGGER.debug("Mapped provider error to rate limit (status_code=%s)", status_code)
-            return LLMRateLimitError("provider rate limit exceeded")
-
-        if status_code in (408, 500, 502, 503, 504) or any(
-            token in message for token in ("timeout", "timed out", "temporarily unavailable")
-        ):
-            LOGGER.debug(
-                "Mapped provider error to temporary provider error (status_code=%s)", status_code
-            )
-            return LLMTemporaryProviderError("temporary provider failure")
-
-        LOGGER.debug(
-            "Mapped provider error to generic provider error (status_code=%s)", status_code
-        )
-        return LLMProviderError(f"provider request failed: {exc}")
-
-    @staticmethod
-    def _extract_status_code(exc: Exception) -> int | None:
-        """Extract an HTTP-like status code from known exception fields.
-
-        Args:
-            exc: Raw exception object.
-
-        Returns:
-            Extracted HTTP-like status code or `None` if unavailable.
-        """
-        status_candidates = (
-            getattr(exc, "status_code", None),
-            getattr(exc, "status", None),
-            getattr(exc, "http_status", None),
-        )
-
-        for candidate in status_candidates:
-            if isinstance(candidate, int):
-                return candidate
-
-        response = getattr(exc, "response", None)
-        if response is not None:
-            response_status = getattr(response, "status_code", None)
-            if isinstance(response_status, int):
-                return response_status
-
-        return None
 
     @staticmethod
     def _require_non_empty_text(value: str, field_name: str) -> str:
