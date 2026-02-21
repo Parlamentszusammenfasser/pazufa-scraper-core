@@ -160,6 +160,7 @@ class LLMConnector:
         self,
         provider: LLMProvider | str,
         model: str | None = None,
+        api_key: str|None = None,
         temperature: float = 0.0,
         rate_limit_max_calls: int | None = RATE_LIMIT_MAX_CALLS,
         rate_limit_window_seconds: float = RATE_LIMIT_WINDOW_SECONDS,
@@ -171,6 +172,7 @@ class LLMConnector:
         Args:
             provider: Target LLM provider (`openai`, `claude`, `mistral`, `bedrock`).
             model: Optional model override. If omitted, a provider default is used.
+            api_key: API key for the target provider. If `None`, relies on litellm's built-in provider key resolution.
             temperature: Temperature of generated text (maps to provider temperature).
                 temperature). Lower values are more deterministic.
             rate_limit_max_calls: Optional max number of async calls in the configured time window.
@@ -184,6 +186,7 @@ class LLMConnector:
             if model is not None
             else DEFAULT_MODELS[self.provider]
         )
+        self.api_key = api_key
         self.temperature = self._validate_temperature(temperature)
         self._validate_rate_limit_configuration(
             rate_limit_max_calls=rate_limit_max_calls,
@@ -246,7 +249,7 @@ class LLMConnector:
                     self.timeout_seconds,
                 )
                 response = await asyncio.wait_for(
-                    litellm.acompletion(**request_kwargs), timeout=self.timeout_seconds
+                    litellm.acompletion(**request_kwargs, api_key=self.api_key), timeout=self.timeout_seconds
                 )
                 LOGGER.debug(
                     "Provider call successful (attempt=%s/%s)",
