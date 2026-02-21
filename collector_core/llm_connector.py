@@ -43,7 +43,12 @@ RETRY_JITTER_MAX_SECONDS: float = 2.0
 
 
 DEFAULT_SYSTEM_PROMPT: Final[str] = (
-    "Du bist ein präziser Assistent. Antworte klar, faktenorientiert und auf Deutsch."
+    "Du bist ein präziser Assistent politische und juristische Texte. "
+    "Antworte klar, faktenorientiert. "
+    "Füge keine Foratierungen oder Hervorhebungen hinzu. " 
+    "Antworte nur mit dem reinen Text, ohne Einleitungen oder Erklärungen. "
+    "Die Antwort darf nur die direkt angeforderten Informationen enthalten. "
+    "Spekulationen oder Annahmen sind zu vermeiden."
 )
 
 
@@ -340,11 +345,7 @@ class LLMConnector:
             f"Fasse den folgenden Text in {normalized_language} zusammen. "
             f"Nenne nur die Kernaussagen in maximal {max_sentences} Sätzen.\n\n{source_text}"
         )
-        summary_system_prompt = (
-            "Du bist ein Assistent für politische und juristische Texte. "
-            "Schreibe nüchtern, präzise und ohne Spekulation."
-        )
-        result = await self.generate_text(prompt=prompt, system_prompt=summary_system_prompt)
+        result = await self.generate_text(prompt=prompt, system_prompt=DEFAULT_SYSTEM_PROMPT)
         LOGGER.debug("Summarization completed (output_chars=%s)", len(result))
         return result
 
