@@ -160,7 +160,7 @@ class LLMConnector:
         self,
         provider: LLMProvider | str,
         model: str | None = None,
-        response_creativity: float = 0.2,
+        temperature: float = 0.0,
         rate_limit_max_calls: int | None = RATE_LIMIT_MAX_CALLS,
         rate_limit_window_seconds: float = RATE_LIMIT_WINDOW_SECONDS,
         timeout_seconds: float = REQUEST_TIMEOUT_SECONDS,
@@ -171,7 +171,7 @@ class LLMConnector:
         Args:
             provider: Target LLM provider (`openai`, `claude`, `mistral`, `bedrock`).
             model: Optional model override. If omitted, a provider default is used.
-            response_creativity: Creativity/randomness of generated text (maps to provider
+            temperature: Temperature of generated text (maps to provider temperature).
                 temperature). Lower values are more deterministic.
             rate_limit_max_calls: Optional max number of async calls in the configured time window.
             rate_limit_window_seconds: Length of the async rate-limit window in seconds.
@@ -184,7 +184,7 @@ class LLMConnector:
             if model is not None
             else DEFAULT_MODELS[self.provider]
         )
-        self.response_creativity = self._validate_response_creativity(response_creativity)
+        self.temperature = self._validate_temperature(temperature)
         self._validate_rate_limit_configuration(
             rate_limit_max_calls=rate_limit_max_calls,
             rate_limit_window_seconds=rate_limit_window_seconds,
@@ -325,7 +325,7 @@ class LLMConnector:
         return {
             "model": self.model,
             "messages": messages,
-            "temperature": self.response_creativity,
+            "temperature": self.temperature,
         }
 
     async def summarize(self, text: str, max_sentences: int = 5, language: str = "Deutsch") -> str:
@@ -566,7 +566,7 @@ class LLMConnector:
         return normalized
 
     @staticmethod
-    def _validate_response_creativity(value: float) -> float:
+    def _validate_temperature(value: float) -> float:
         """Validate and normalize temperature-like creativity value.
 
         Args:
