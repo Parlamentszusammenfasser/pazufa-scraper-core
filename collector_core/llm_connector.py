@@ -186,8 +186,6 @@ class LLMConnector:
         self.temperature = float(temperature) if temperature is not None else None
         self.timeout_seconds: float = self._validate_timeout_seconds(timeout_seconds)
         self.max_retries: int = self._validate_max_retries(max_retries)
-        self.retry_base_delay_seconds: float = RETRY_BASE_DELAY_SECONDS
-        self.retry_max_delay_seconds: float = RETRY_MAX_DELAY_SECONDS
         self._validate_retry_delay_constants()
         self._rate_limiter: RateLimiter | None = self._initialize_rate_limiter(
             rate_limit_max_calls=rate_limit_max_calls,
@@ -544,11 +542,11 @@ class LLMConnector:
         Raises:
             ValueError: If configured retry-delay constants are invalid.
         """
-        if self.retry_base_delay_seconds <= 0:
+        if RETRY_BASE_DELAY_SECONDS <= 0:
             raise ValueError("retry_base_delay_seconds must be greater than 0")
-        if self.retry_max_delay_seconds <= 0:
+        if RETRY_MAX_DELAY_SECONDS <= 0:
             raise ValueError("retry_max_delay_seconds must be greater than 0")
-        if self.retry_base_delay_seconds > self.retry_max_delay_seconds:
+        if RETRY_BASE_DELAY_SECONDS > RETRY_MAX_DELAY_SECONDS:
             raise ValueError(
                 "retry_base_delay_seconds must be less than or equal to retry_max_delay_seconds"
             )
@@ -580,8 +578,8 @@ class LLMConnector:
         Returns:
             Retry delay in seconds.
         """
-        delay = self.retry_base_delay_seconds * (2**attempt)
-        capped_delay = float(min(delay, self.retry_max_delay_seconds))
+        delay = RETRY_BASE_DELAY_SECONDS * (2**attempt)
+        capped_delay = float(min(delay, RETRY_MAX_DELAY_SECONDS))
         jitter = random.uniform(RETRY_JITTER_MIN_SECONDS, RETRY_JITTER_MAX_SECONDS)
         total_delay = capped_delay + jitter
         LOGGER.debug(
