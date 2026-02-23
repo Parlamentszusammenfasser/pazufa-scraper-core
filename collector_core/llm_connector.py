@@ -169,7 +169,7 @@ class LLMConnector:
         """
         self.model = self._require_non_empty_text(model, field_name="model")
         self.api_key = api_key
-        self.temperature = self._validate_temperature(temperature)
+        self.temperature = float(temperature)
         self._validate_rate_limit_configuration(
             rate_limit_max_calls=rate_limit_max_calls,
             rate_limit_window_seconds=rate_limit_window_seconds,
@@ -439,28 +439,6 @@ class LLMConnector:
         normalized = value.strip()
         if not normalized:
             raise ValueError(f"{field_name} must not be empty")
-        return normalized
-
-    @staticmethod
-    def _validate_temperature(value: float) -> float:
-        """Validate and normalize temperature-like creativity value.
-
-        Args:
-            value: Creativity/temperature-like value.
-
-        Returns:
-            Validated float value.
-
-        Raises:
-            ValueError: If value is not numeric or outside the allowed range.
-        """
-        try:
-            normalized = float(value)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("response_creativity must be a number") from exc
-
-        if not 0.0 <= normalized <= 2.0:
-            raise ValueError("response_creativity must be between 0.0 and 2.0")
         return normalized
 
     @staticmethod
