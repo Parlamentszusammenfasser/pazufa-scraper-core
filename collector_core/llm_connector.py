@@ -9,7 +9,7 @@ Example:
         connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
         summary = await connector.summarize(
             "Langer Quelltext fuer die Zusammenfassung ...",
-            max_sentences=4,
+            sentences_count=4,
             language="Deutsch",
         )
         print(summary)
@@ -42,9 +42,9 @@ RETRY_JITTER_MAX_SECONDS: float = 2.0
 
 
 DEFAULT_SYSTEM_PROMPT: Final[str] = (
-    "Du bist ein präziser Assistent politische und juristische Texte. "
+    "Du bist ein präziser Assistent für politische und juristische Texte. "
     "Antworte klar, faktenorientiert. "
-    "Füge keine Foratierungen oder Hervorhebungen hinzu. " 
+    "Füge keine Formatierungen oder Hervorhebungen hinzu. "
     "Antworte nur mit dem reinen Text, ohne Einleitungen oder Erklärungen. "
     "Die Antwort darf nur die direkt angeforderten Informationen enthalten. "
     "Spekulationen oder Annahmen sind zu vermeiden."
@@ -101,7 +101,7 @@ class RateLimiter:
         if normalized_per_seconds <= 0:
             raise ValueError("per_seconds must be greater than 0")
 
-        self.max_calls: int = int(max_calls)
+        self.max_calls: int = max_calls
         self.per_seconds: float = normalized_per_seconds
         self._timestamps: deque[float] = deque()
         self._lock: asyncio.Lock = asyncio.Lock()
@@ -353,38 +353,80 @@ class LLMConnector:
             "temperature": self.temperature,
         }
 
-    async def summarize(self, text: str, max_sentences: int = 5, language: str = "Deutsch") -> str:
+    async def summarize(
+        self,
+        text: str,
+        language: str = "Deutsch",
+        sentences_count: int | None = None,
+        word_count: int | None = None,
+        character_count: int | None = None,
+    ) -> str:
         """Create a concise summary for an input text.
 
         Args:
             text: Source text to summarize.
-            max_sentences: Maximum sentence count for the summary.
             language: Target language for the summary output.
+            sentences_count: Optional upper bound for sentence count. Invalid values are
+                ignored.
+            word_count: Optional upper bound for word count. Invalid values are ignored.
+            character_count: Optional upper bound for character count. Invalid values are
+                ignored.
 
         Returns:
-            A concise generated summary.
+            A concise generated summary. Returns an empty string if `text` is empty.
 
         Raises:
-            ValueError: If input validation fails.
             LLMProviderError: If provider call fails and cannot be recovered by retries.
             LLMConnectorError: If provider response structure cannot be parsed.
+
+        Notes:
+            If `language` is empty/invalid, the default language (`Deutsch`) is used.
+            Count parameters are handled tolerant:
+            - positive `float` values are truncated via `int(...)`
+            - invalid values are ignored
         """
-        source_text = self._require_non_empty_text(text, field_name="text")
-        normalized_language = self._require_non_empty_text(language, field_name="language")
-        if max_sentences <= 0:
-            raise ValueError("max_sentences must be greater than 0")
+        try:
+            source_text = self._require_non_empty_text(text, field_name="text")
+        except ValueError:
+            LOGGER.warning("Empty input text for summarization; returning empty summary")
+            return ""
+
+        try:
+            language_normalized = self._require_non_empty_text(language, field_name="language")
+        except ValueError:
+            LOGGER.warning(
+                "Empty input language for summarization; using default language (Deutsch)"
+            )
+            language_normalized = "Deutsch"
+
+        sentences_count = self._normalize_positive_count("sentences_count", sentences_count)
+        word_count = self._normalize_positive_count("word_count", word_count)
+        character_count = self._normalize_positive_count("character_count", character_count)
         LOGGER.debug(
-            "Starting summarization (language=%s, max_sentences=%s, input_chars=%s)",
-            normalized_language,
-            max_sentences,
+            "Summarization request (language=%s, sentences=%s, words=%s, characters=%s, "
+            "source_chars=%s)",
+            language_normalized,
+            sentences_count,
+            word_count,
+            character_count,
             len(source_text),
         )
+        max_part = (
+            (f"{sentences_count} Sätzen, " if sentences_count is not None else "")
+            + (f"{word_count} Wörtern, " if word_count is not None else "")
+            + (f"{character_count} Zeichen" if character_count is not None else "")
+        )
+        max_part = "Antworte in maximal " + max_part.strip(", ") + ". " if max_part else ""
 
         prompt = (
-            f"Fasse den folgenden Text in {normalized_language} zusammen. "
-            f"Nenne nur die Kernaussagen in maximal {max_sentences} Sätzen.\n\n{source_text}"
+            f"Antworte in {language_normalized}, unabhängig von der Sprache des Quelltexts. "
+            + max_part
+            + "Fasse den folgenden Text prägnant und sachlich zusammen. "
+            + "Erhalte die wichtigsten Informationen und den Kontext:\n\n"
+            + source_text
         )
-        result = await self.generate_text(prompt=prompt, system_prompt=DEFAULT_SYSTEM_PROMPT)
+
+        result = await self.generate_text(prompt, DEFAULT_SYSTEM_PROMPT)
         LOGGER.debug("Summarization completed (output_chars=%s)", len(result))
         return result
 
@@ -494,13 +536,39 @@ class LLMConnector:
         if api_key is None:
             return None
         if not isinstance(api_key, str):
-            LOGGER.warning("API key is not a string (type=%s). Treating as no API key.", type(api_key).__name__)
+            LOGGER.warning(
+                "API key is not a string (type=%s). Treating as no API key.",
+                type(api_key).__name__,
+            )
             return None
         normalized_api_key = api_key.strip()
         if not normalized_api_key:
-            LOGGER.info("API key is empty or whitespace. Treating as no API key configured.")   
+            LOGGER.info("API key is empty or whitespace. Treating as no API key configured.")
             return None
         return normalized_api_key
+
+    @staticmethod
+    def _normalize_positive_count(name: str, value: object) -> int | None:
+        """Normalize optional size limits to positive integers.
+
+        Args:
+            name: Parameter name used for logging.
+            value: Raw user-provided value.
+
+        Returns:
+            Positive integer value, or `None` when value is missing/invalid.
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, (int, float)):
+            if value > 0:
+                if isinstance(value, float):
+                    LOGGER.debug("%s received float=%r, truncating to int", name, value)
+                return int(value)
+
+        LOGGER.warning("%s must be a positive integer. Ignoring value: %r", name, value)
+        return None
 
     @staticmethod
     def _validate_timeout_seconds(timeout_seconds: float) -> float:
