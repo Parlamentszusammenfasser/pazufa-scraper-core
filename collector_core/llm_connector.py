@@ -155,8 +155,8 @@ class LLMConnector:
     def __init__(
         self,
         model: str,
-        api_key: str|None = None,
-        temperature: float = 0.0,
+        api_key: str | None = None,
+        temperature: float | None = None,
         rate_limit_max_calls: int | None = RATE_LIMIT_MAX_CALLS,
         rate_limit_window_seconds: float = RATE_LIMIT_WINDOW_SECONDS,
         timeout_seconds: float = REQUEST_TIMEOUT_SECONDS,
@@ -165,10 +165,12 @@ class LLMConnector:
         """Initialize a provider-specific text generation connector.
 
         Args:
-            model: Optional model override. If omitted, a provider default is used.
-            api_key: API key for the target provider. If `None`, relies on litellm's built-in provider key resolution.
+            model: Fully-qualified model identifier (for example `openai/gpt-4o-mini`).
+            api_key: API key for the provider. If `None`, relies on litellm's built-in
+                provider key resolution. Empty/whitespace/non-string values are treated
+                like `None`.
             temperature: Temperature of generated text (maps to provider temperature).
-                temperature). Lower values are more deterministic.
+                Lower values are usually more deterministic.
             rate_limit_max_calls: Optional max number of async calls in the configured
                 time window.
             rate_limit_window_seconds: Length of the async rate-limit window in seconds.
@@ -180,8 +182,8 @@ class LLMConnector:
             configuration, rate-limiting is disabled (`self._rate_limiter = None`).
         """
         self.model = self._require_non_empty_text(model, field_name="model")
-        self.api_key = api_key
-        self.temperature = float(temperature)
+        self.api_key = self._validate_api_key(api_key)
+        self.temperature = float(temperature) if temperature is not None else None
         self.timeout_seconds: float = self._validate_timeout_seconds(timeout_seconds)
         self.max_retries: int = self._validate_max_retries(max_retries)
         self.retry_base_delay_seconds: float = RETRY_BASE_DELAY_SECONDS
@@ -193,8 +195,9 @@ class LLMConnector:
         )
 
         LOGGER.info(
-            "Initialized LLMConnector (model=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
+            "Initialized LLMConnector (model=%s, api_key_set=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
             self.model,
+            self.api_key is not None,
             self._rate_limiter is not None,
             self.timeout_seconds,
             self.max_retries,
@@ -478,6 +481,28 @@ class LLMConnector:
         if not normalized:
             raise ValueError(f"{field_name} must not be empty")
         return normalized
+
+    @staticmethod
+    def _validate_api_key(api_key: str | None) -> str | None:
+        """Validate and normalize an optional API key.
+
+        Args:
+            api_key: Explicit API key override.
+
+        Returns:
+            Stripped API key if provided; `None` when no explicit key is configured
+            (including empty/whitespace or non-string input).
+        """
+        if api_key is None:
+            return None
+        if not isinstance(api_key, str):
+            LOGGER.warning("API key is not a string (type=%s). Treating as no API key.", type(api_key).__name__)
+            return None
+        normalized_api_key = api_key.strip()
+        if not normalized_api_key:
+            LOGGER.info("API key is empty or whitespace. Treating as no API key configured.")   
+            return None
+        return normalized_api_key
 
     @staticmethod
     def _validate_timeout_seconds(timeout_seconds: float) -> float:
