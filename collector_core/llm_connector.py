@@ -25,7 +25,6 @@ import logging
 import random
 import time
 from collections import deque
-from enum import StrEnum
 from typing import Any, Final
 
 import litellm
@@ -87,17 +86,25 @@ class RateLimiter:
             per_seconds: Window size in seconds.
 
         Raises:
-            ValueError: If `max_calls` or `per_seconds` is not greater than zero.
+            ValueError: If `max_calls` is not a positive integer or `per_seconds`
+                is not a positive numeric value.
         """
+        if not isinstance(max_calls, int) or isinstance(max_calls, bool):
+            raise ValueError("max_calls must be an integer")
         if max_calls <= 0:
             raise ValueError("max_calls must be greater than 0")
-        if per_seconds <= 0:
+
+        try:
+            normalized_per_seconds: float = float(per_seconds)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("per_seconds must be a number") from exc
+        if normalized_per_seconds <= 0:
             raise ValueError("per_seconds must be greater than 0")
 
-        self.max_calls = max_calls
-        self.per_seconds = float(per_seconds)
+        self.max_calls: int = int(max_calls)
+        self.per_seconds: float = normalized_per_seconds
         self._timestamps: deque[float] = deque()
-        self._lock = asyncio.Lock()
+        self._lock: asyncio.Lock = asyncio.Lock()
         LOGGER.debug(
             "Initialized rate limiter (max_calls=%s, per_seconds=%s)",
             self.max_calls,
@@ -162,28 +169,29 @@ class LLMConnector:
             api_key: API key for the target provider. If `None`, relies on litellm's built-in provider key resolution.
             temperature: Temperature of generated text (maps to provider temperature).
                 temperature). Lower values are more deterministic.
-            rate_limit_max_calls: Optional max number of async calls in the configured time window.
+            rate_limit_max_calls: Optional max number of async calls in the configured
+                time window.
             rate_limit_window_seconds: Length of the async rate-limit window in seconds.
             timeout_seconds: Timeout per provider call in seconds.
             max_retries: Number of retry attempts for retryable provider errors.
+
+        Notes:
+            If local rate-limiter initialization fails due to invalid rate-limit
+            configuration, rate-limiting is disabled (`self._rate_limiter = None`).
         """
         self.model = self._require_non_empty_text(model, field_name="model")
         self.api_key = api_key
         self.temperature = float(temperature)
-        self._validate_rate_limit_configuration(
-            rate_limit_max_calls=rate_limit_max_calls,
-            rate_limit_window_seconds=rate_limit_window_seconds,
-        )
         self.timeout_seconds: float = self._validate_timeout_seconds(timeout_seconds)
         self.max_retries: int = self._validate_max_retries(max_retries)
         self.retry_base_delay_seconds: float = RETRY_BASE_DELAY_SECONDS
         self.retry_max_delay_seconds: float = RETRY_MAX_DELAY_SECONDS
         self._validate_retry_delay_constants()
-        self._rate_limiter = (
-            RateLimiter(max_calls=rate_limit_max_calls, per_seconds=rate_limit_window_seconds)
-            if rate_limit_max_calls is not None
-            else None
+        self._rate_limiter: RateLimiter | None = self._initialize_rate_limiter(
+            rate_limit_max_calls=rate_limit_max_calls,
+            rate_limit_window_seconds=rate_limit_window_seconds,
         )
+
         LOGGER.info(
             "Initialized LLMConnector (model=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
             self.model,
@@ -191,6 +199,36 @@ class LLMConnector:
             self.timeout_seconds,
             self.max_retries,
         )
+
+    def _initialize_rate_limiter(
+        self, rate_limit_max_calls: int | None, rate_limit_window_seconds: float
+    ) -> RateLimiter | None:
+        """Initialize local rate limiting and gracefully fall back to no limiter.
+
+        Args:
+            rate_limit_max_calls: Maximum calls within one local time window.
+                `None` disables local rate limiting.
+            rate_limit_window_seconds: Length of the local rate-limit window.
+
+        Returns:
+            A configured `RateLimiter` instance, or `None` if local limiting is disabled
+            or cannot be initialized from the provided values.
+        """
+        if rate_limit_max_calls is None:
+            LOGGER.info("Local rate limiting is disabled (max_calls=None)")
+            return None
+
+        try:
+            return RateLimiter(rate_limit_max_calls, rate_limit_window_seconds)
+        except ValueError as exc:
+            LOGGER.warning(
+                "Failed to initialize local rate limiter. Ignoring rate limiting "
+                "(max_calls=%s, window_seconds=%s): %s",
+                rate_limit_max_calls,
+                rate_limit_window_seconds,
+                exc,
+            )
+            return None
 
     async def generate_text(self, prompt: str, system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> str:
         """Generate text using the configured model.
@@ -440,24 +478,6 @@ class LLMConnector:
         if not normalized:
             raise ValueError(f"{field_name} must not be empty")
         return normalized
-
-    @staticmethod
-    def _validate_rate_limit_configuration(
-        rate_limit_max_calls: int | None, rate_limit_window_seconds: float
-    ) -> None:
-        """Validate local rate-limit configuration values.
-
-        Args:
-            rate_limit_max_calls: Max calls per window, or `None` to disable local limiting.
-            rate_limit_window_seconds: Window length in seconds.
-
-        Raises:
-            ValueError: If configuration values are invalid.
-        """
-        if rate_limit_max_calls is not None and rate_limit_max_calls <= 0:
-            raise ValueError("rate_limit_max_calls must be greater than 0")
-        if rate_limit_window_seconds <= 0:
-            raise ValueError("rate_limit_window_seconds must be greater than 0")
 
     @staticmethod
     def _validate_timeout_seconds(timeout_seconds: float) -> float:
