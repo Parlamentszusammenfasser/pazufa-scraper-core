@@ -231,7 +231,9 @@ class LLMConnector:
             )
             return None
 
-    async def generate_text(self, prompt: str, system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> str:
+    async def generate_text(
+        self, prompt: str, system_prompt: str | None = DEFAULT_SYSTEM_PROMPT
+    ) -> str:
         """Generate text using the configured model.
 
         Args:
@@ -246,18 +248,36 @@ class LLMConnector:
             LLMProviderError: If provider call fails and cannot be recovered by retries.
             LLMConnectorError: If provider response structure cannot be parsed.
         """
-        request_kwargs = self._build_request(prompt=prompt, system_prompt=system_prompt)
-        prompt_length = len(request_kwargs["messages"][1]["content"])
+        normalized_prompt = self._require_non_empty_text(prompt, field_name="prompt")
+        normalized_system_prompt: str | None = None
+        if system_prompt is not None:
+            if not isinstance(system_prompt, str):
+                raise ValueError("system_prompt must be a string or None")
+            stripped_system_prompt = system_prompt.strip()
+            if stripped_system_prompt:
+                normalized_system_prompt = stripped_system_prompt
+
+        messages: list[dict[str, str]] = [{"role": "user", "content": normalized_prompt}]
+        if normalized_system_prompt is not None:
+            messages.insert(0, {"role": "system", "content": normalized_system_prompt})
+
+        request_kwargs: dict[str, Any] = {
+            "model": self.model,
+            "api_key": self.api_key,
+            "messages": messages,
+            "temperature": self.temperature,
+            "timeout": self.timeout_seconds,
+        }
         LOGGER.debug(
             "Starting text generation (model=%s, prompt_chars=%s, retries=%s)",
             self.model,
-            prompt_length,
+            len(normalized_prompt),
             self.max_retries,
         )
 
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
-                LOGGER.debug("Waiting for local rate-limiter slot (attempt=%s)", attempt + 1)
+                LOGGER.debug("Waiting for local rate limiter slot (attempt=%s)", attempt + 1)
                 await self._rate_limiter.acquire_slot()
 
             try:
@@ -268,7 +288,8 @@ class LLMConnector:
                     self.timeout_seconds,
                 )
                 response = await asyncio.wait_for(
-                    litellm.acompletion(**request_kwargs, api_key=self.api_key), timeout=self.timeout_seconds
+                    litellm.acompletion(**request_kwargs),
+                    self.timeout_seconds * 1.05,
                 )
                 LOGGER.debug(
                     "Provider call successful (attempt=%s/%s)",
@@ -324,34 +345,6 @@ class LLMConnector:
             await asyncio.sleep(backoff_seconds)
 
         raise LLMConnectorError("unreachable retry loop state")
-
-    def _build_request(self, prompt: str, system_prompt: str) -> dict[str, Any]:
-        """Build a LiteLLM chat request payload from validated prompt data.
-
-        Args:
-            prompt: User prompt.
-            system_prompt: System instruction prompt.
-
-        Returns:
-            A LiteLLM-compatible request payload.
-
-        Raises:
-            ValueError: If prompt or system prompt is empty/invalid.
-        """
-        user_prompt = self._require_non_empty_text(prompt, field_name="prompt")
-        normalized_system_prompt = self._require_non_empty_text(
-            system_prompt, field_name="system_prompt"
-        )
-
-        messages: list[dict[str, str]] = [
-            {"role": "system", "content": normalized_system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-        return {
-            "model": self.model,
-            "messages": messages,
-            "temperature": self.temperature,
-        }
 
     async def summarize(
         self,
