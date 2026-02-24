@@ -52,6 +52,10 @@ DEFAULT_SYSTEM_PROMPT: Final[str] = (
 
 
 class LLMConnectorError(RuntimeError):
+    """Base exception for connector-level errors."""
+
+
+class LLMResponseParseError(LLMConnectorError):
     """Raised when a provider response cannot be parsed as text."""
 
 
@@ -247,7 +251,7 @@ class LLMConnector:
         Raises:
             ValueError: If prompt/system prompt validation fails.
             LLMProviderError: If provider call fails and cannot be recovered by retries.
-            LLMConnectorError: If provider response structure cannot be parsed.
+            LLMResponseParseError: If provider response structure cannot be parsed.
         """
         normalized_prompt = self._require_non_empty_text(prompt, field_name="prompt")
         normalized_system_prompt: str | None = None
@@ -377,7 +381,7 @@ class LLMConnector:
 
         Raises:
             LLMProviderError: If provider call fails and cannot be recovered by retries.
-            LLMConnectorError: If provider response structure cannot be parsed.
+            LLMResponseParseError: If provider response structure cannot be parsed.
 
         Notes:
             If `language` is empty/invalid, the default language (`Deutsch`) is used.
@@ -441,23 +445,27 @@ class LLMConnector:
             Extracted plain-text output.
 
         Raises:
-            LLMConnectorError: If expected response fields are missing or empty.
+            LLMResponseParseError: If expected response fields are missing or empty.
         """
         if not isinstance(response, litellm.ModelResponse):
-            raise LLMConnectorError(f"Unexpected provider response type: {type(response).__name__}")
+            raise LLMResponseParseError(
+                f"Unexpected provider response type: {type(response).__name__}"
+            )
 
         if response.object != "model.completion":
-            raise LLMConnectorError(f"Unexpected provider response object type: {response.object}")
+            raise LLMResponseParseError(
+                f"Unexpected provider response object type: {response.object}"
+            )
         choices: list[litellm.Choices] = response.choices  # type: ignore[assignment]
         LOGGER.debug("Extracting text from provider response (choices_count=%s)", len(choices))
 
         if not choices:
-            raise LLMConnectorError("provider response did not contain choices")
+            raise LLMResponseParseError("provider response did not contain choices")
         message: litellm.Message = choices[0].message
 
         content: str | None = message.content
         if content is None or (isinstance(content, str) and not content.strip()):
-            raise LLMConnectorError("provider response message did not contain content")
+            raise LLMResponseParseError("provider response message did not contain content")
         return content.strip()
 
     @staticmethod
