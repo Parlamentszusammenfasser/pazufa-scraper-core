@@ -60,7 +60,7 @@ class LLMProviderError(LLMConnectorError):
 
 
 class LLMAuthenticationError(LLMProviderError):
-    """Raised when provider authentication fails (e.g., invalid or missing API key)."""
+    """Raised when provider authentication or authorization fails."""
 
 
 class LLMQuotaExceededError(LLMProviderError):
@@ -72,7 +72,7 @@ class LLMRateLimitError(LLMProviderError):
 
 
 class LLMTemporaryProviderError(LLMProviderError):
-    """Raised for transient provider failures (timeout/5xx)."""
+    """Raised for transient provider failures (timeout/network/5xx)."""
 
 
 class RateLimiter:
@@ -238,7 +238,8 @@ class LLMConnector:
 
         Args:
             prompt: User input prompt for the model.
-            system_prompt: System-level instruction for model behavior.
+            system_prompt: Optional system-level instruction for model behavior.
+                If empty/whitespace or `None`, no system message is sent.
 
         Returns:
             The generated plain-text model output.
@@ -275,6 +276,7 @@ class LLMConnector:
             self.max_retries,
         )
 
+        response: Any | None = None
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
                 LOGGER.debug("Waiting for local rate limiter slot (attempt=%s)", attempt + 1)
@@ -289,15 +291,15 @@ class LLMConnector:
                 )
                 response = await asyncio.wait_for(
                     litellm.acompletion(**request_kwargs),
-                    self.timeout_seconds * 1.05,
+                    self.timeout_seconds + 0.5,
                 )
                 LOGGER.debug(
                     "Provider call successful (attempt=%s/%s)",
                     attempt + 1,
                     self.max_retries + 1,
                 )
-                return self._extract_text(response)
-            except asyncio.TimeoutError as exc:
+                break
+            except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
                 mapped_error: LLMProviderError = LLMTemporaryProviderError(
                     "provider request timed out"
                 )
@@ -309,20 +311,19 @@ class LLMConnector:
                     self.timeout_seconds,
                 )
             except Exception as exc:
+                mapped_error = self._map_provider_exception(exc)
+                original_error = exc
                 LOGGER.warning(
-                    "Provider call failed (attempt=%s/%s, error_type=%s) %s",
+                    "Provider call failed (attempt=%s/%s, error_type=%s, mapped_error_type=%s) %s",
                     attempt + 1,
                     self.max_retries + 1,
                     type(exc).__name__,
+                    type(mapped_error).__name__,
                     str(exc),
                 )
-                mapped_error: LLMProviderError = LLMTemporaryProviderError(
-                    "provider request failed"
-                )
-                original_error: Exception = exc
 
-            should_retry: bool = attempt < self.max_retries and self._is_retryable_error(
-                mapped_error
+            should_retry: bool = attempt < self.max_retries and (
+                isinstance(mapped_error, (LLMRateLimitError, LLMTemporaryProviderError))
             )
             if not should_retry:
                 LOGGER.error(
@@ -344,7 +345,9 @@ class LLMConnector:
 
             await asyncio.sleep(backoff_seconds)
 
-        raise LLMConnectorError("unreachable retry loop state")
+        if response is None:
+            raise LLMConnectorError("unreachable retry loop state")
+        return self._extract_text(response)
 
     async def summarize(
         self,
@@ -618,17 +621,33 @@ class LLMConnector:
                 "RETRY_JITTER_MAX_SECONDS must be greater than or equal to RETRY_JITTER_MIN_SECONDS"
             )
 
-    @staticmethod
-    def _is_retryable_error(error: LLMProviderError) -> bool:
-        """Return whether an error type should trigger a retry attempt.
+    def _map_provider_exception(self, error: Exception) -> LLMProviderError:
+        """Map a LiteLLM/provider exception to connector-specific error types."""
+        status_code = getattr(error, "status_code", None)
 
-        Args:
-            error: Mapped connector/provider error.
+        if isinstance(error, litellm.BudgetExceededError):
+            return LLMQuotaExceededError("provider budget or quota exceeded")
 
-        Returns:
-            `True` if retry logic should handle this error type, else `False`.
-        """
-        return isinstance(error, (LLMRateLimitError, LLMTemporaryProviderError))
+        if isinstance(
+            error, (litellm.AuthenticationError, litellm.PermissionDeniedError)
+        ) or status_code in (401, 403):
+            return LLMAuthenticationError("provider authentication or authorization failed")
+        if isinstance(error, litellm.RateLimitError) or status_code == 429:
+            return LLMRateLimitError("provider rate limit exceeded")
+
+        if isinstance(
+            error,
+            (
+                litellm.Timeout,
+                litellm.APIConnectionError,
+                litellm.InternalServerError,
+                litellm.ServiceUnavailableError,
+                litellm.BadGatewayError,
+            ),
+        ) or (isinstance(status_code, int) and 500 <= status_code < 600):
+            return LLMTemporaryProviderError("provider request failed temporarily")
+
+        return LLMProviderError("provider request failed")
 
     def _compute_retry_delay(self, attempt: int) -> float:
         """Compute exponential backoff with additive jitter.
