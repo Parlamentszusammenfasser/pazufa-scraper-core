@@ -276,7 +276,7 @@ class LLMConnector:
             self.max_retries,
         )
 
-        response: Any | None = None
+        response: litellm.ModelResponse | litellm.CustomStreamWrapper | None = None
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
                 LOGGER.debug("Waiting for local rate limiter slot (attempt=%s)", attempt + 1)
@@ -347,6 +347,10 @@ class LLMConnector:
 
         if response is None:
             raise LLMConnectorError("unreachable retry loop state")
+        if isinstance(response, (litellm.CustomStreamWrapper)):
+            raise LLMConnectorError(
+                f"Response type `CustomStreamWrapper` is not supported. Got: {type(response).__name__}"
+            )
         return self._extract_text(response)
 
     async def summarize(
@@ -427,7 +431,7 @@ class LLMConnector:
         return result
 
     @staticmethod
-    def _extract_text(response: Any) -> str:
+    def _extract_text(response: litellm.ModelResponse) -> str:
         """Extract plain text content from a provider response object.
 
         Args:
@@ -439,63 +443,22 @@ class LLMConnector:
         Raises:
             LLMConnectorError: If expected response fields are missing or empty.
         """
-        choices = LLMConnector._get_field(response, "choices")
-        if not isinstance(choices, list) or not choices:
+        if not isinstance(response, litellm.ModelResponse):
+            raise LLMConnectorError(f"Unexpected provider response type: {type(response).__name__}")
+
+        if response.object != "model.completion":
+            raise LLMConnectorError(f"Unexpected provider response object type: {response.object}")
+        choices: list[litellm.Choices] = response.choices  # type: ignore[assignment]
+        LOGGER.debug("Extracting text from provider response (choices_count=%s)", len(choices))
+
+        if not choices:
             raise LLMConnectorError("provider response did not contain choices")
+        message: litellm.Message = choices[0].message
 
-        message = LLMConnector._get_field(choices[0], "message")
-        content = LLMConnector._get_field(message, "content")
-        text = LLMConnector._normalize_content(content)
-        if not text:
-            raise LLMConnectorError("provider response did not contain text content")
-        return text
-
-    @staticmethod
-    def _normalize_content(content: Any) -> str:
-        """Normalize provider content blocks into a single plain-text string.
-
-        Args:
-            content: Provider response `message.content` field.
-
-        Returns:
-            Normalized text representation.
-        """
-        if isinstance(content, str):
-            return content.strip()
-
-        if isinstance(content, list):
-            parts: list[str] = []
-            for item in content:
-                if isinstance(item, str):
-                    item_text = item.strip()
-                    if item_text:
-                        parts.append(item_text)
-                    continue
-
-                item_text = LLMConnector._get_field(item, "text")
-                if isinstance(item_text, str):
-                    cleaned = item_text.strip()
-                    if cleaned:
-                        parts.append(cleaned)
-            return "\n".join(parts).strip()
-
-        LOGGER.warning("Unexpected content type from provider: %s", type(content).__name__)
-        return ""
-
-    @staticmethod
-    def _get_field(obj: Any, field: str) -> Any:
-        """Read a named field from dict-like or attribute-based objects.
-
-        Args:
-            obj: Source object.
-            field: Field name to read.
-
-        Returns:
-            Field value or `None` when absent.
-        """
-        if isinstance(obj, dict):
-            return obj.get(field)
-        return getattr(obj, field, None)
+        content: str | None = message.content
+        if content is None or (isinstance(content, str) and not content.strip()):
+            raise LLMConnectorError("provider response message did not contain content")
+        return content.strip()
 
     @staticmethod
     def _require_non_empty_text(value: str, field_name: str) -> str:
