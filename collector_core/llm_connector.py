@@ -579,7 +579,14 @@ class LLMConnector:
             )
             return None
 
-        normalized_temperature = float(temperature)
+        try:
+            normalized_temperature = float(temperature)
+        except OverflowError:
+            LOGGER.warning(
+                "temperature is out of range (type=%s). Treating it as no explicit temperature.",
+                type(temperature).__name__,
+            )
+            return None
         if not math.isfinite(normalized_temperature):
             LOGGER.warning(
                 "temperature must be a finite number. Treating %r as no explicit temperature.",
@@ -614,7 +621,15 @@ class LLMConnector:
                 timeout_seconds,
             )
             return REQUEST_TIMEOUT_SECONDS
-        normalized_timeout = float(timeout_seconds)
+        try:
+            normalized_timeout = float(timeout_seconds)
+        except OverflowError:
+            LOGGER.warning(
+                "timeout_seconds is out of range (type=%s). Using default timeout=%.1fs.",
+                type(timeout_seconds).__name__,
+                REQUEST_TIMEOUT_SECONDS,
+            )
+            return REQUEST_TIMEOUT_SECONDS
 
         if not math.isfinite(normalized_timeout) or normalized_timeout <= 0:
             LOGGER.warning(
