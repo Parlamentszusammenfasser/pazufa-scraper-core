@@ -6,26 +6,32 @@ Example:
     from collector_core.llm_connector import LLMConnector
 
     async def main() -> None:
-        connector = LLMConnector(provider="openai", response_creativity=0.1)
+        connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
         summary = await connector.summarize(
             "Langer Quelltext fuer die Zusammenfassung ...",
-            max_sentences=4,
+            sentences_count=4,
             language="Deutsch",
         )
         print(summary)
 
     asyncio.run(main())
     ```
+
+Tolerant API behavior:
+    Optional numeric connector settings are normalized defensively.
+    Invalid values for `timeout_seconds` or `max_retries` fall back to defaults.
+    Invalid values for `temperature` are treated like `None`.
+    All fallbacks are logged as warnings instead of raising configuration exceptions.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import random
 import time
 from collections import deque
-from enum import StrEnum
 from typing import Any, Final
 
 import litellm
@@ -42,28 +48,21 @@ RETRY_JITTER_MIN_SECONDS: float = 0.25
 RETRY_JITTER_MAX_SECONDS: float = 2.0
 
 
-class LLMProvider(StrEnum):
-    """Supported upstream LLM providers."""
-
-    OPENAI = "openai"
-    CLAUDE = "claude"
-    MISTRAL = "mistral"
-    BEDROCK = "bedrock"
-
-
-DEFAULT_MODELS: Final[dict[LLMProvider, str]] = {
-    LLMProvider.OPENAI: "openai/gpt-4o-mini",
-    LLMProvider.CLAUDE: "anthropic/claude-3-5-haiku-latest",
-    LLMProvider.MISTRAL: "mistral/mistral-small-latest",
-    LLMProvider.BEDROCK: "bedrock/anthropic.claude-3-5-haiku-20241022-v1:0",
-}
-
 DEFAULT_SYSTEM_PROMPT: Final[str] = (
-    "Du bist ein präziser Assistent. Antworte klar, faktenorientiert und auf Deutsch."
+    "Du bist ein präziser Assistent für politische und juristische Texte. "
+    "Antworte klar, faktenorientiert. "
+    "Füge keine Formatierungen oder Hervorhebungen hinzu. "
+    "Antworte nur mit dem reinen Text, ohne Einleitungen oder Erklärungen. "
+    "Die Antwort darf nur die direkt angeforderten Informationen enthalten. "
+    "Spekulationen oder Annahmen sind zu vermeiden."
 )
 
 
 class LLMConnectorError(RuntimeError):
+    """Base exception for connector-level errors."""
+
+
+class LLMResponseParseError(LLMConnectorError):
     """Raised when a provider response cannot be parsed as text."""
 
 
@@ -72,7 +71,7 @@ class LLMProviderError(LLMConnectorError):
 
 
 class LLMAuthenticationError(LLMProviderError):
-    """Raised when provider authentication fails (e.g., invalid or missing API key)."""
+    """Raised when provider authentication or authorization fails."""
 
 
 class LLMQuotaExceededError(LLMProviderError):
@@ -84,7 +83,7 @@ class LLMRateLimitError(LLMProviderError):
 
 
 class LLMTemporaryProviderError(LLMProviderError):
-    """Raised for transient provider failures (timeout/5xx)."""
+    """Raised for transient provider failures (timeout/network/5xx)."""
 
 
 class RateLimiter:
@@ -98,17 +97,25 @@ class RateLimiter:
             per_seconds: Window size in seconds.
 
         Raises:
-            ValueError: If `max_calls` or `per_seconds` is not greater than zero.
+            ValueError: If `max_calls` is not a positive integer or `per_seconds`
+                is not a positive numeric value.
         """
+        if not isinstance(max_calls, int) or isinstance(max_calls, bool):
+            raise ValueError("max_calls must be an integer")
         if max_calls <= 0:
             raise ValueError("max_calls must be greater than 0")
-        if per_seconds <= 0:
+
+        try:
+            normalized_per_seconds: float = float(per_seconds)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("per_seconds must be a number") from exc
+        if normalized_per_seconds <= 0:
             raise ValueError("per_seconds must be greater than 0")
 
-        self.max_calls = max_calls
-        self.per_seconds = float(per_seconds)
+        self.max_calls: int = max_calls
+        self.per_seconds: float = normalized_per_seconds
         self._timestamps: deque[float] = deque()
-        self._lock = asyncio.Lock()
+        self._lock: asyncio.Lock = asyncio.Lock()
         LOGGER.debug(
             "Initialized rate limiter (max_calls=%s, per_seconds=%s)",
             self.max_calls,
@@ -154,13 +161,19 @@ class RateLimiter:
 
 
 class LLMConnector:
-    """Thin provider-agnostic connector for async text generation via LiteLLM."""
+    """Thin provider-agnostic connector for async text generation via LiteLLM.
+
+    Notes:
+        Configuration is intentionally tolerant. Invalid `timeout_seconds` and
+        `max_retries` values are replaced by defaults. Invalid `temperature`
+        values are treated as `None`. All fallbacks are logged as warnings.
+    """
 
     def __init__(
         self,
-        provider: LLMProvider | str,
-        model: str | None = None,
-        response_creativity: float = 0.2,
+        model: str,
+        api_key: str | None = None,
+        temperature: float | None = None,
         rate_limit_max_calls: int | None = RATE_LIMIT_MAX_CALLS,
         rate_limit_window_seconds: float = RATE_LIMIT_WINDOW_SECONDS,
         timeout_seconds: float = REQUEST_TIMEOUT_SECONDS,
@@ -169,51 +182,84 @@ class LLMConnector:
         """Initialize a provider-specific text generation connector.
 
         Args:
-            provider: Target LLM provider (`openai`, `claude`, `mistral`, `bedrock`).
-            model: Optional model override. If omitted, a provider default is used.
-            response_creativity: Creativity/randomness of generated text (maps to provider
-                temperature). Lower values are more deterministic.
-            rate_limit_max_calls: Optional max number of async calls in the configured time window.
+            model: Fully-qualified model identifier (for example `openai/gpt-4o-mini`).
+            api_key: API key for the provider. If `None`, relies on litellm's built-in
+                provider key resolution. Empty/whitespace/non-string values are treated
+                like `None`.
+            temperature: Temperature of generated text (maps to provider temperature).
+                Lower values are usually more deterministic. Invalid values are
+                treated like `None`.
+            rate_limit_max_calls: Optional max number of async calls in the configured
+                time window.
             rate_limit_window_seconds: Length of the async rate-limit window in seconds.
-            timeout_seconds: Timeout per provider call in seconds.
+            timeout_seconds: Timeout per provider call in seconds. Invalid values
+                fall back to `REQUEST_TIMEOUT_SECONDS`.
             max_retries: Number of retry attempts for retryable provider errors.
+                Invalid values fall back to `MAX_RETRIES`.
+
+        Notes:
+            If local rate-limiter initialization fails due to invalid rate-limit
+            configuration, rate-limiting is disabled (`self._rate_limiter = None`).
         """
-        self.provider = self._parse_provider(provider)
-        self.model = (
-            self._require_non_empty_text(model, field_name="model")
-            if model is not None
-            else DEFAULT_MODELS[self.provider]
-        )
-        self.response_creativity = self._validate_response_creativity(response_creativity)
-        self._validate_rate_limit_configuration(
+        self.model = self._require_non_empty_text(model, field_name="model")
+        self.api_key = self._validate_api_key(api_key)
+        self.temperature: float | None = self._validate_temperature(temperature)
+        self.timeout_seconds: float = self._validate_timeout_seconds(timeout_seconds)
+        self.max_retries: int = self._validate_max_retries(max_retries)
+        self._validate_retry_delay_constants()
+        self._rate_limiter: RateLimiter | None = self._initialize_rate_limiter(
             rate_limit_max_calls=rate_limit_max_calls,
             rate_limit_window_seconds=rate_limit_window_seconds,
         )
-        self.timeout_seconds: float = self._validate_timeout_seconds(timeout_seconds)
-        self.max_retries: int = self._validate_max_retries(max_retries)
-        self.retry_base_delay_seconds: float = RETRY_BASE_DELAY_SECONDS
-        self.retry_max_delay_seconds: float = RETRY_MAX_DELAY_SECONDS
-        self._validate_retry_delay_constants()
-        self._rate_limiter = (
-            RateLimiter(max_calls=rate_limit_max_calls, per_seconds=rate_limit_window_seconds)
-            if rate_limit_max_calls is not None
-            else None
-        )
+
         LOGGER.info(
-            "Initialized LLMConnector (provider=%s, model=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
-            self.provider.value,
+            "Initialized LLMConnector (model=%s, api_key_set=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
             self.model,
+            self.api_key is not None,
             self._rate_limiter is not None,
             self.timeout_seconds,
             self.max_retries,
         )
 
-    async def generate_text(self, prompt: str, system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> str:
+    def _initialize_rate_limiter(
+        self, rate_limit_max_calls: int | None, rate_limit_window_seconds: float
+    ) -> RateLimiter | None:
+        """Initialize local rate limiting and gracefully fall back to no limiter.
+
+        Args:
+            rate_limit_max_calls: Maximum calls within one local time window.
+                `None` disables local rate limiting.
+            rate_limit_window_seconds: Length of the local rate-limit window.
+
+        Returns:
+            A configured `RateLimiter` instance, or `None` if local limiting is disabled
+            or cannot be initialized from the provided values.
+        """
+        if rate_limit_max_calls is None:
+            LOGGER.info("Local rate limiting is disabled (max_calls=None)")
+            return None
+
+        try:
+            return RateLimiter(rate_limit_max_calls, rate_limit_window_seconds)
+        except ValueError as exc:
+            LOGGER.warning(
+                "Failed to initialize local rate limiter. Ignoring rate limiting "
+                "(max_calls=%s, window_seconds=%s): %s",
+                rate_limit_max_calls,
+                rate_limit_window_seconds,
+                exc,
+            )
+            return None
+
+    async def generate_text(
+        self, prompt: str, system_prompt: str | None = DEFAULT_SYSTEM_PROMPT
+    ) -> str:
         """Generate text using the configured model.
 
         Args:
             prompt: User input prompt for the model.
-            system_prompt: System-level instruction for model behavior.
+            system_prompt: Optional system-level instruction for model behavior.
+                If empty/whitespace or `None`, no system message is sent.
 
         Returns:
             The generated plain-text model output.
@@ -221,21 +267,39 @@ class LLMConnector:
         Raises:
             ValueError: If prompt/system prompt validation fails.
             LLMProviderError: If provider call fails and cannot be recovered by retries.
-            LLMConnectorError: If provider response structure cannot be parsed.
+            LLMResponseParseError: If provider response structure cannot be parsed.
         """
-        request_kwargs = self._build_request(prompt=prompt, system_prompt=system_prompt)
-        prompt_length = len(request_kwargs["messages"][1]["content"])
+        normalized_prompt = self._require_non_empty_text(prompt, field_name="prompt")
+        normalized_system_prompt: str | None = None
+        if system_prompt is not None:
+            if not isinstance(system_prompt, str):
+                raise ValueError("system_prompt must be a string or None")
+            stripped_system_prompt = system_prompt.strip()
+            if stripped_system_prompt:
+                normalized_system_prompt = stripped_system_prompt
+
+        messages: list[dict[str, str]] = [{"role": "user", "content": normalized_prompt}]
+        if normalized_system_prompt is not None:
+            messages.insert(0, {"role": "system", "content": normalized_system_prompt})
+
+        request_kwargs: dict[str, Any] = {
+            "model": self.model,
+            "api_key": self.api_key,
+            "messages": messages,
+            "temperature": self.temperature,
+            "timeout": self.timeout_seconds,
+        }
         LOGGER.debug(
-            "Starting text generation (provider=%s, model=%s, prompt_chars=%s, retries=%s)",
-            self.provider.value,
+            "Starting text generation (model=%s, prompt_chars=%s, retries=%s)",
             self.model,
-            prompt_length,
+            len(normalized_prompt),
             self.max_retries,
         )
 
+        response: litellm.ModelResponse | litellm.CustomStreamWrapper | None = None
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
-                LOGGER.debug("Waiting for local rate-limiter slot (attempt=%s)", attempt + 1)
+                LOGGER.debug("Waiting for local rate limiter slot (attempt=%s)", attempt + 1)
                 await self._rate_limiter.acquire_slot()
 
             try:
@@ -246,15 +310,16 @@ class LLMConnector:
                     self.timeout_seconds,
                 )
                 response = await asyncio.wait_for(
-                    litellm.acompletion(**request_kwargs), timeout=self.timeout_seconds
+                    litellm.acompletion(**request_kwargs),
+                    self.timeout_seconds + 0.5,
                 )
                 LOGGER.debug(
                     "Provider call successful (attempt=%s/%s)",
                     attempt + 1,
                     self.max_retries + 1,
                 )
-                return self._extract_text(response)
-            except asyncio.TimeoutError as exc:
+                break
+            except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
                 mapped_error: LLMProviderError = LLMTemporaryProviderError(
                     "provider request timed out"
                 )
@@ -269,14 +334,16 @@ class LLMConnector:
                 mapped_error = self._map_provider_exception(exc)
                 original_error = exc
                 LOGGER.warning(
-                    "Provider call failed (attempt=%s/%s, error_type=%s)",
+                    "Provider call failed (attempt=%s/%s, error_type=%s, mapped_error_type=%s) %s",
                     attempt + 1,
                     self.max_retries + 1,
+                    type(exc).__name__,
                     type(mapped_error).__name__,
+                    str(exc),
                 )
 
-            should_retry: bool = attempt < self.max_retries and self._is_retryable_error(
-                mapped_error
+            should_retry: bool = attempt < self.max_retries and (
+                isinstance(mapped_error, (LLMRateLimitError, LLMTemporaryProviderError))
             )
             if not should_retry:
                 LOGGER.error(
@@ -298,107 +365,90 @@ class LLMConnector:
 
             await asyncio.sleep(backoff_seconds)
 
-        raise LLMConnectorError("unreachable retry loop state")
+        if response is None:
+            raise LLMConnectorError("unreachable retry loop state")
+        if isinstance(response, (litellm.CustomStreamWrapper)):
+            raise LLMConnectorError(
+                f"Response type `CustomStreamWrapper` is not supported. Got: {type(response).__name__}"
+            )
+        return self._extract_text(response)
 
-    def _build_request(self, prompt: str, system_prompt: str) -> dict[str, Any]:
-        """Build a LiteLLM chat request payload from validated prompt data.
-
-        Args:
-            prompt: User prompt.
-            system_prompt: System instruction prompt.
-
-        Returns:
-            A LiteLLM-compatible request payload.
-
-        Raises:
-            ValueError: If prompt or system prompt is empty/invalid.
-        """
-        user_prompt = self._require_non_empty_text(prompt, field_name="prompt")
-        normalized_system_prompt = self._require_non_empty_text(
-            system_prompt, field_name="system_prompt"
-        )
-
-        messages: list[dict[str, str]] = [
-            {"role": "system", "content": normalized_system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-        return {
-            "model": self.model,
-            "messages": messages,
-            "temperature": self.response_creativity,
-        }
-
-    async def summarize(self, text: str, max_sentences: int = 5, language: str = "Deutsch") -> str:
+    async def summarize(
+        self,
+        text: str,
+        language: str = "Deutsch",
+        sentences_count: int | None = None,
+        word_count: int | None = None,
+        character_count: int | None = None,
+    ) -> str:
         """Create a concise summary for an input text.
 
         Args:
             text: Source text to summarize.
-            max_sentences: Maximum sentence count for the summary.
             language: Target language for the summary output.
+            sentences_count: Optional upper bound for sentence count. Invalid values are
+                ignored.
+            word_count: Optional upper bound for word count. Invalid values are ignored.
+            character_count: Optional upper bound for character count. Invalid values are
+                ignored.
 
         Returns:
             A concise generated summary.
 
         Raises:
-            ValueError: If input validation fails.
+            ValueError: If `text` is empty/invalid.
             LLMProviderError: If provider call fails and cannot be recovered by retries.
-            LLMConnectorError: If provider response structure cannot be parsed.
+            LLMResponseParseError: If provider response structure cannot be parsed.
+
+        Notes:
+            If `language` is empty/invalid, the default language (`Deutsch`) is used.
+            Count parameters are handled tolerant:
+            - positive `float` values are truncated via `int(...)`
+            - invalid values are ignored
         """
         source_text = self._require_non_empty_text(text, field_name="text")
-        normalized_language = self._require_non_empty_text(language, field_name="language")
-        if max_sentences <= 0:
-            raise ValueError("max_sentences must be greater than 0")
+
+        try:
+            language_normalized = self._require_non_empty_text(language, field_name="language")
+        except ValueError:
+            LOGGER.warning(
+                "Empty input language for summarization; using default language (Deutsch)"
+            )
+            language_normalized = "Deutsch"
+
+        sentences_count = self._normalize_positive_count("sentences_count", sentences_count)
+        word_count = self._normalize_positive_count("word_count", word_count)
+        character_count = self._normalize_positive_count("character_count", character_count)
         LOGGER.debug(
-            "Starting summarization (language=%s, max_sentences=%s, input_chars=%s)",
-            normalized_language,
-            max_sentences,
+            "Summarization request (language=%s, sentences=%s, words=%s, characters=%s, "
+            "source_chars=%s)",
+            language_normalized,
+            sentences_count,
+            word_count,
+            character_count,
             len(source_text),
         )
+        max_part = (
+            (f"{sentences_count} Sätzen, " if sentences_count is not None else "")
+            + (f"{word_count} Wörtern, " if word_count is not None else "")
+            + (f"{character_count} Zeichen" if character_count is not None else "")
+        )
+        max_part = "Antworte in maximal " + max_part.strip(", ") + ". " if max_part else ""
 
         prompt = (
-            f"Fasse den folgenden Text in {normalized_language} zusammen. "
-            f"Nenne nur die Kernaussagen in maximal {max_sentences} Sätzen.\n\n{source_text}"
+            f"Antworte in {language_normalized}, unabhängig von der Sprache des Quelltexts. "
+            + max_part
+            + "Fasse den folgenden Text prägnant und sachlich zusammen. "
+            + "Erhalte die wichtigsten Informationen und den Kontext:\n\n"
+            + source_text
         )
-        summary_system_prompt = (
-            "Du bist ein Assistent für politische und juristische Texte. "
-            "Schreibe nüchtern, präzise und ohne Spekulation."
-        )
-        result = await self.generate_text(prompt=prompt, system_prompt=summary_system_prompt)
+
+        result = await self.generate_text(prompt, DEFAULT_SYSTEM_PROMPT)
         LOGGER.debug("Summarization completed (output_chars=%s)", len(result))
         return result
 
     @staticmethod
-    def _parse_provider(provider: LLMProvider | str) -> LLMProvider:
-        """Normalize and validate a provider value into `LLMProvider`.
-
-        Args:
-            provider: Provider enum value or provider string.
-
-        Returns:
-            Parsed provider enum value.
-
-        Raises:
-            ValueError: If provider is empty or unsupported.
-        """
-        if isinstance(provider, LLMProvider):
-            return provider
-
-        if not isinstance(provider, str):
-            raise ValueError("provider must be an LLMProvider or non-empty string")
-
-        normalized = provider.strip().lower()
-        if not normalized:
-            raise ValueError("provider must not be empty")
-        try:
-            return LLMProvider(normalized)
-        except ValueError as exc:
-            allowed = ", ".join(item.value for item in LLMProvider)
-            raise ValueError(
-                f"unsupported provider '{provider}', expected one of: {allowed}"
-            ) from exc
-
-    @staticmethod
-    def _extract_text(response: Any) -> str:
+    def _extract_text(response: litellm.ModelResponse) -> str:
         """Extract plain text content from a provider response object.
 
         Args:
@@ -408,141 +458,34 @@ class LLMConnector:
             Extracted plain-text output.
 
         Raises:
-            LLMConnectorError: If expected response fields are missing or empty.
+            LLMResponseParseError: If expected response fields are missing or empty.
+
+        Notes:
+            This parser only supports non-streaming chat-completion style responses.
+            If additional provider response schemas are needed, extend this method.
         """
-        choices = LLMConnector._get_field(response, "choices")
-        if not isinstance(choices, list) or not choices:
-            raise LLMConnectorError("provider response did not contain choices")
-
-        message = LLMConnector._get_field(choices[0], "message")
-        content = LLMConnector._get_field(message, "content")
-        text = LLMConnector._normalize_content(content)
-        if not text:
-            raise LLMConnectorError("provider response did not contain text content")
-        return text
-
-    @staticmethod
-    def _normalize_content(content: Any) -> str:
-        """Normalize provider content blocks into a single plain-text string.
-
-        Args:
-            content: Provider response `message.content` field.
-
-        Returns:
-            Normalized text representation.
-        """
-        if isinstance(content, str):
-            return content.strip()
-
-        if isinstance(content, list):
-            parts: list[str] = []
-            for item in content:
-                if isinstance(item, str):
-                    item_text = item.strip()
-                    if item_text:
-                        parts.append(item_text)
-                    continue
-
-                item_text = LLMConnector._get_field(item, "text")
-                if isinstance(item_text, str):
-                    cleaned = item_text.strip()
-                    if cleaned:
-                        parts.append(cleaned)
-            return "\n".join(parts).strip()
-
-        LOGGER.warning("Unexpected content type from provider: %s", type(content).__name__)
-        return ""
-
-    @staticmethod
-    def _get_field(obj: Any, field: str) -> Any:
-        """Read a named field from dict-like or attribute-based objects.
-
-        Args:
-            obj: Source object.
-            field: Field name to read.
-
-        Returns:
-            Field value or `None` when absent.
-        """
-        if isinstance(obj, dict):
-            return obj.get(field)
-        return getattr(obj, field, None)
-
-    @staticmethod
-    def _map_provider_exception(exc: Exception) -> LLMProviderError:
-        """Map raw provider exceptions to connector-specific error types.
-
-        Args:
-            exc: Raw exception raised by the provider/LiteLLM call.
-
-        Returns:
-            Mapped connector-specific provider error.
-        """
-        status_code = LLMConnector._extract_status_code(exc)
-        message = str(exc).lower()
-
-        if status_code in (401, 403) or any(
-            token in message
-            for token in ("unauthenticated", "unauthorized", "authentication", "invalid api key")
-        ):
-            LOGGER.debug(
-                "Mapped provider error to authentication error (status_code=%s)", status_code
+        if not isinstance(response, litellm.ModelResponse):
+            raise LLMResponseParseError(
+                f"Unexpected provider response type: {type(response).__name__}"
             )
-            return LLMAuthenticationError("provider authentication failed")
 
-        if (
-            status_code == 402
-            or "insufficient_quota" in message
-            or "quota exceeded" in message
-            or "budget" in message
-        ):
-            LOGGER.debug("Mapped provider error to quota exceeded (status_code=%s)", status_code)
-            return LLMQuotaExceededError("provider quota or budget exhausted")
-
-        if status_code == 429 or "rate limit" in message or "too many requests" in message:
-            LOGGER.debug("Mapped provider error to rate limit (status_code=%s)", status_code)
-            return LLMRateLimitError("provider rate limit exceeded")
-
-        if status_code in (408, 500, 502, 503, 504) or any(
-            token in message for token in ("timeout", "timed out", "temporarily unavailable")
-        ):
-            LOGGER.debug(
-                "Mapped provider error to temporary provider error (status_code=%s)", status_code
+        # Intentionally restricted to non-streaming completion objects.
+        # Stream responses like "chat.completion.chunk" are handled as unsupported.
+        if response.object not in ("chat.completion", "model.completion"):
+            raise LLMResponseParseError(
+                f"Unexpected provider response object type: {response.object}"
             )
-            return LLMTemporaryProviderError("temporary provider failure")
+        choices: list[litellm.Choices] = response.choices  # type: ignore[assignment]
+        LOGGER.debug("Extracting text from provider response (choices_count=%s)", len(choices))
 
-        LOGGER.debug(
-            "Mapped provider error to generic provider error (status_code=%s)", status_code
-        )
-        return LLMProviderError(f"provider request failed: {exc}")
+        if not choices:
+            raise LLMResponseParseError("provider response did not contain choices")
+        message: litellm.Message = choices[0].message
 
-    @staticmethod
-    def _extract_status_code(exc: Exception) -> int | None:
-        """Extract an HTTP-like status code from known exception fields.
-
-        Args:
-            exc: Raw exception object.
-
-        Returns:
-            Extracted HTTP-like status code or `None` if unavailable.
-        """
-        status_candidates = (
-            getattr(exc, "status_code", None),
-            getattr(exc, "status", None),
-            getattr(exc, "http_status", None),
-        )
-
-        for candidate in status_candidates:
-            if isinstance(candidate, int):
-                return candidate
-
-        response = getattr(exc, "response", None)
-        if response is not None:
-            response_status = getattr(response, "status_code", None)
-            if isinstance(response_status, int):
-                return response_status
-
-        return None
+        content: str | None = message.content
+        if content is None or (isinstance(content, str) and not content.strip()):
+            raise LLMResponseParseError("provider response message did not contain content")
+        return content.strip()
 
     @staticmethod
     def _require_non_empty_text(value: str, field_name: str) -> str:
@@ -566,78 +509,195 @@ class LLMConnector:
         return normalized
 
     @staticmethod
-    def _validate_response_creativity(value: float) -> float:
-        """Validate and normalize temperature-like creativity value.
+    def _validate_api_key(api_key: str | None) -> str | None:
+        """Validate and normalize an optional API key.
 
         Args:
-            value: Creativity/temperature-like value.
+            api_key: Explicit API key override.
 
         Returns:
-            Validated float value.
-
-        Raises:
-            ValueError: If value is not numeric or outside the allowed range.
+            Stripped API key if provided; `None` when no explicit key is configured
+            (including empty/whitespace or non-string input).
         """
-        try:
-            normalized = float(value)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("response_creativity must be a number") from exc
-
-        if not 0.0 <= normalized <= 2.0:
-            raise ValueError("response_creativity must be between 0.0 and 2.0")
-        return normalized
+        if api_key is None:
+            return None
+        if not isinstance(api_key, str):
+            LOGGER.warning(
+                "API key is not a string (type=%s). Treating as no API key.",
+                type(api_key).__name__,
+            )
+            return None
+        normalized_api_key = api_key.strip()
+        if not normalized_api_key:
+            LOGGER.info("API key is empty or whitespace. Treating as no API key configured.")
+            return None
+        return normalized_api_key
 
     @staticmethod
-    def _validate_rate_limit_configuration(
-        rate_limit_max_calls: int | None, rate_limit_window_seconds: float
-    ) -> None:
-        """Validate local rate-limit configuration values.
+    def _normalize_positive_count(name: str, value: object) -> int | None:
+        """Normalize optional size limits to positive integers.
 
         Args:
-            rate_limit_max_calls: Max calls per window, or `None` to disable local limiting.
-            rate_limit_window_seconds: Window length in seconds.
+            name: Parameter name used for logging.
+            value: Raw user-provided value.
 
-        Raises:
-            ValueError: If configuration values are invalid.
+        Returns:
+            Positive integer value, or `None` when value is missing/invalid.
         """
-        if rate_limit_max_calls is not None and rate_limit_max_calls <= 0:
-            raise ValueError("rate_limit_max_calls must be greater than 0")
-        if rate_limit_window_seconds <= 0:
-            raise ValueError("rate_limit_window_seconds must be greater than 0")
+        if value is None:
+            return None
+
+        if isinstance(value, bool):
+            LOGGER.warning("%s must be a positive integer. Ignoring value: %r", name, value)
+            return None
+
+        if isinstance(value, (int, float)):
+            if value > 0:
+                if isinstance(value, float):
+                    LOGGER.debug("%s received float=%r, truncating to int", name, value)
+                return int(value)
+
+        LOGGER.warning("%s must be a positive integer. Ignoring value: %r", name, value)
+        return None
 
     @staticmethod
-    def _validate_timeout_seconds(timeout_seconds: float) -> float:
+    def _validate_temperature(temperature: object) -> float | None:
+        """Validate and normalize optional generation temperature.
+
+        Args:
+            temperature: Temperature override for provider generation.
+
+        Returns:
+            Normalized temperature, or `None` for missing/invalid values.
+        """
+        if temperature is None:
+            return None
+        if isinstance(temperature, bool) or not isinstance(temperature, (int, float)):
+            LOGGER.warning(
+                "temperature must be a finite number. Treating %r as no explicit temperature.",
+                temperature,
+            )
+            return None
+
+        try:
+            normalized_temperature = float(temperature)
+        except OverflowError:
+            LOGGER.warning(
+                "temperature is out of range (type=%s). Treating it as no explicit temperature.",
+                type(temperature).__name__,
+            )
+            return None
+        if not math.isfinite(normalized_temperature):
+            LOGGER.warning(
+                "temperature must be a finite number. Treating %r as no explicit temperature.",
+                temperature,
+            )
+            return None
+        return normalized_temperature
+
+    @staticmethod
+    def _validate_timeout_seconds(timeout_seconds: object) -> float:
         """Validate and normalize per-request timeout.
 
         Args:
             timeout_seconds: Timeout in seconds.
 
         Returns:
-            Validated timeout.
-
-        Raises:
-            ValueError: If timeout is not greater than zero.
+            Validated timeout. Invalid values are replaced by
+            `REQUEST_TIMEOUT_SECONDS`.
         """
-        if timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be greater than 0")
-        return float(timeout_seconds)
+        if isinstance(timeout_seconds, bool):
+            LOGGER.warning(
+                "timeout_seconds must be a positive number. Using default timeout=%.1fs instead of %r.",
+                REQUEST_TIMEOUT_SECONDS,
+                timeout_seconds,
+            )
+            return REQUEST_TIMEOUT_SECONDS
+
+        if not isinstance(timeout_seconds, (int, float)):
+            LOGGER.warning(
+                "timeout_seconds must be a positive number. Using default timeout=%.1fs instead of %r.",
+                REQUEST_TIMEOUT_SECONDS,
+                timeout_seconds,
+            )
+            return REQUEST_TIMEOUT_SECONDS
+        try:
+            normalized_timeout = float(timeout_seconds)
+        except OverflowError:
+            LOGGER.warning(
+                "timeout_seconds is out of range (type=%s). Using default timeout=%.1fs.",
+                type(timeout_seconds).__name__,
+                REQUEST_TIMEOUT_SECONDS,
+            )
+            return REQUEST_TIMEOUT_SECONDS
+
+        if not math.isfinite(normalized_timeout) or normalized_timeout <= 0:
+            LOGGER.warning(
+                "timeout_seconds must be a finite number greater than 0. "
+                "Using default timeout=%.1fs instead of %r.",
+                REQUEST_TIMEOUT_SECONDS,
+                timeout_seconds,
+            )
+            return REQUEST_TIMEOUT_SECONDS
+
+        return normalized_timeout
 
     @staticmethod
-    def _validate_max_retries(max_retries: int) -> int:
+    def _validate_max_retries(max_retries: object) -> int:
         """Validate retry count configuration.
 
         Args:
             max_retries: Number of allowed retries.
 
         Returns:
-            Validated retry count.
+            Validated retry count. Invalid values are replaced by `MAX_RETRIES`.
 
-        Raises:
-            ValueError: If retry count is negative.
+        Notes:
+            Non-integer floats are truncated via `int(...)` (towards zero).
+            Alternatives like rounding or always rounding up are intentionally
+            not used here.
         """
-        if max_retries < 0:
-            raise ValueError("max_retries must be greater than or equal to 0")
-        return max_retries
+        if isinstance(max_retries, bool):
+            LOGGER.warning(
+                "max_retries must be a non-negative integer. Using default max_retries=%s instead of %r.",
+                MAX_RETRIES,
+                max_retries,
+            )
+            return MAX_RETRIES
+
+        if isinstance(max_retries, int):
+            normalized_retries = max_retries
+        elif isinstance(max_retries, float):
+            if not math.isfinite(max_retries):
+                LOGGER.warning(
+                    "max_retries must be a finite non-negative integer. Using default max_retries=%s instead of %r.",
+                    MAX_RETRIES,
+                    max_retries,
+                )
+                return MAX_RETRIES
+            if not max_retries.is_integer():
+                LOGGER.warning(
+                    "max_retries received float=%r, truncating to int.",
+                    max_retries,
+                )
+            normalized_retries = int(max_retries)
+        else:
+            LOGGER.warning(
+                "max_retries must be a non-negative integer. Using default max_retries=%s instead of %r.",
+                MAX_RETRIES,
+                max_retries,
+            )
+            return MAX_RETRIES
+
+        if normalized_retries < 0:
+            LOGGER.warning(
+                "max_retries must be greater than or equal to 0. Using default max_retries=%s instead of %r.",
+                MAX_RETRIES,
+                max_retries,
+            )
+            return MAX_RETRIES
+
+        return normalized_retries
 
     def _validate_retry_delay_constants(self) -> None:
         """Validate internal retry-delay constants.
@@ -645,11 +705,11 @@ class LLMConnector:
         Raises:
             ValueError: If configured retry-delay constants are invalid.
         """
-        if self.retry_base_delay_seconds <= 0:
+        if RETRY_BASE_DELAY_SECONDS <= 0:
             raise ValueError("retry_base_delay_seconds must be greater than 0")
-        if self.retry_max_delay_seconds <= 0:
+        if RETRY_MAX_DELAY_SECONDS <= 0:
             raise ValueError("retry_max_delay_seconds must be greater than 0")
-        if self.retry_base_delay_seconds > self.retry_max_delay_seconds:
+        if RETRY_BASE_DELAY_SECONDS > RETRY_MAX_DELAY_SECONDS:
             raise ValueError(
                 "retry_base_delay_seconds must be less than or equal to retry_max_delay_seconds"
             )
@@ -660,17 +720,33 @@ class LLMConnector:
                 "RETRY_JITTER_MAX_SECONDS must be greater than or equal to RETRY_JITTER_MIN_SECONDS"
             )
 
-    @staticmethod
-    def _is_retryable_error(error: LLMProviderError) -> bool:
-        """Return whether an error type should trigger a retry attempt.
+    def _map_provider_exception(self, error: Exception) -> LLMProviderError:
+        """Map a LiteLLM/provider exception to connector-specific error types."""
+        status_code = getattr(error, "status_code", None)
 
-        Args:
-            error: Mapped connector/provider error.
+        if isinstance(error, litellm.BudgetExceededError):
+            return LLMQuotaExceededError("provider budget or quota exceeded")
 
-        Returns:
-            `True` if retry logic should handle this error type, else `False`.
-        """
-        return isinstance(error, (LLMRateLimitError, LLMTemporaryProviderError))
+        if isinstance(
+            error, (litellm.AuthenticationError, litellm.PermissionDeniedError)
+        ) or status_code in (401, 403):
+            return LLMAuthenticationError("provider authentication or authorization failed")
+        if isinstance(error, litellm.RateLimitError) or status_code == 429:
+            return LLMRateLimitError("provider rate limit exceeded")
+
+        if isinstance(
+            error,
+            (
+                litellm.Timeout,
+                litellm.APIConnectionError,
+                litellm.InternalServerError,
+                litellm.ServiceUnavailableError,
+                litellm.BadGatewayError,
+            ),
+        ) or (isinstance(status_code, int) and 500 <= status_code < 600):
+            return LLMTemporaryProviderError("provider request failed temporarily")
+
+        return LLMProviderError("provider request failed")
 
     def _compute_retry_delay(self, attempt: int) -> float:
         """Compute exponential backoff with additive jitter.
@@ -681,8 +757,8 @@ class LLMConnector:
         Returns:
             Retry delay in seconds.
         """
-        delay = self.retry_base_delay_seconds * (2**attempt)
-        capped_delay = float(min(delay, self.retry_max_delay_seconds))
+        delay = RETRY_BASE_DELAY_SECONDS * (2**attempt)
+        capped_delay = float(min(delay, RETRY_MAX_DELAY_SECONDS))
         jitter = random.uniform(RETRY_JITTER_MIN_SECONDS, RETRY_JITTER_MAX_SECONDS)
         total_delay = capped_delay + jitter
         LOGGER.debug(

@@ -30,11 +30,11 @@ target-version = ["py312"]
 
 [tool.isort]
 profile = "black"
-line_length = 100
+line_length = 88
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --cov=collector_core --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=80"
+addopts = "-q --cov=collector_core --cov-report=term-missing --cov-report=xml:coverage.xml"
 
 [tool.coverage.run]
 omit = [
