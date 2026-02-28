@@ -187,7 +187,8 @@ class LLMConnector:
                 provider key resolution. Empty/whitespace/non-string values are treated
                 like `None`.
             temperature: Temperature of generated text (maps to provider temperature).
-                Lower values are usually more deterministic.
+                Lower values are usually more deterministic. Invalid values are
+                treated like `None`.
             rate_limit_max_calls: Optional max number of async calls in the configured
                 time window.
             rate_limit_window_seconds: Length of the async rate-limit window in seconds.
@@ -202,7 +203,7 @@ class LLMConnector:
         """
         self.model = self._require_non_empty_text(model, field_name="model")
         self.api_key = self._validate_api_key(api_key)
-        self.temperature = float(temperature) if temperature is not None else None
+        self.temperature: float | None = self._validate_temperature(temperature)
         self.timeout_seconds: float = self._validate_timeout_seconds(timeout_seconds)
         self.max_retries: int = self._validate_max_retries(max_retries)
         self._validate_retry_delay_constants()
@@ -558,6 +559,34 @@ class LLMConnector:
 
         LOGGER.warning("%s must be a positive integer. Ignoring value: %r", name, value)
         return None
+
+    @staticmethod
+    def _validate_temperature(temperature: object) -> float | None:
+        """Validate and normalize optional generation temperature.
+
+        Args:
+            temperature: Temperature override for provider generation.
+
+        Returns:
+            Normalized temperature, or `None` for missing/invalid values.
+        """
+        if temperature is None:
+            return None
+        if isinstance(temperature, bool) or not isinstance(temperature, (int, float)):
+            LOGGER.warning(
+                "temperature must be a finite number. Treating %r as no explicit temperature.",
+                temperature,
+            )
+            return None
+
+        normalized_temperature = float(temperature)
+        if not math.isfinite(normalized_temperature):
+            LOGGER.warning(
+                "temperature must be a finite number. Treating %r as no explicit temperature.",
+                temperature,
+            )
+            return None
+        return normalized_temperature
 
     @staticmethod
     def _validate_timeout_seconds(timeout_seconds: object) -> float:
