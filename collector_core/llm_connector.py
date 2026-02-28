@@ -19,14 +19,16 @@ Example:
 
 Tolerant API behavior:
     Optional numeric connector settings are normalized defensively.
-    Invalid values for `timeout_seconds` or `max_retries` fall back to defaults
-    with warning logs instead of raising configuration exceptions.
+    Invalid values for `timeout_seconds` or `max_retries` fall back to defaults.
+    Invalid values for `temperature` are treated like `None`.
+    All fallbacks are logged as warnings instead of raising configuration exceptions.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import random
 import time
 from collections import deque
@@ -163,7 +165,8 @@ class LLMConnector:
 
     Notes:
         Configuration is intentionally tolerant. Invalid `timeout_seconds` and
-        `max_retries` values are replaced by defaults and logged as warnings.
+        `max_retries` values are replaced by defaults. Invalid `temperature`
+        values are treated as `None`. All fallbacks are logged as warnings.
     """
 
     def __init__(
@@ -188,8 +191,10 @@ class LLMConnector:
             rate_limit_max_calls: Optional max number of async calls in the configured
                 time window.
             rate_limit_window_seconds: Length of the async rate-limit window in seconds.
-            timeout_seconds: Timeout per provider call in seconds.
+            timeout_seconds: Timeout per provider call in seconds. Invalid values
+                fall back to `REQUEST_TIMEOUT_SECONDS`.
             max_retries: Number of retry attempts for retryable provider errors.
+                Invalid values fall back to `MAX_RETRIES`.
 
         Notes:
             If local rate-limiter initialization fails due to invalid rate-limit
@@ -541,6 +546,10 @@ class LLMConnector:
         if value is None:
             return None
 
+        if isinstance(value, bool):
+            LOGGER.warning("%s must be a positive integer. Ignoring value: %r", name, value)
+            return None
+
         if isinstance(value, (int, float)):
             if value > 0:
                 if isinstance(value, float):
@@ -551,38 +560,100 @@ class LLMConnector:
         return None
 
     @staticmethod
-    def _validate_timeout_seconds(timeout_seconds: float) -> float:
+    def _validate_timeout_seconds(timeout_seconds: object) -> float:
         """Validate and normalize per-request timeout.
 
         Args:
             timeout_seconds: Timeout in seconds.
 
         Returns:
-            Validated timeout.
-
-        Raises:
-            ValueError: If timeout is not greater than zero.
+            Validated timeout. Invalid values are replaced by
+            `REQUEST_TIMEOUT_SECONDS`.
         """
-        if timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be greater than 0")
-        return float(timeout_seconds)
+        if isinstance(timeout_seconds, bool):
+            LOGGER.warning(
+                "timeout_seconds must be a positive number. Using default timeout=%.1fs instead of %r.",
+                REQUEST_TIMEOUT_SECONDS,
+                timeout_seconds,
+            )
+            return REQUEST_TIMEOUT_SECONDS
+
+        if not isinstance(timeout_seconds, (int, float)):
+            LOGGER.warning(
+                "timeout_seconds must be a positive number. Using default timeout=%.1fs instead of %r.",
+                REQUEST_TIMEOUT_SECONDS,
+                timeout_seconds,
+            )
+            return REQUEST_TIMEOUT_SECONDS
+        normalized_timeout = float(timeout_seconds)
+
+        if not math.isfinite(normalized_timeout) or normalized_timeout <= 0:
+            LOGGER.warning(
+                "timeout_seconds must be a finite number greater than 0. "
+                "Using default timeout=%.1fs instead of %r.",
+                REQUEST_TIMEOUT_SECONDS,
+                timeout_seconds,
+            )
+            return REQUEST_TIMEOUT_SECONDS
+
+        return normalized_timeout
 
     @staticmethod
-    def _validate_max_retries(max_retries: int) -> int:
+    def _validate_max_retries(max_retries: object) -> int:
         """Validate retry count configuration.
 
         Args:
             max_retries: Number of allowed retries.
 
         Returns:
-            Validated retry count.
+            Validated retry count. Invalid values are replaced by `MAX_RETRIES`.
 
-        Raises:
-            ValueError: If retry count is negative.
+        Notes:
+            Non-integer floats are truncated via `int(...)` (towards zero).
+            Alternatives like rounding or always rounding up are intentionally
+            not used here.
         """
-        if max_retries < 0:
-            raise ValueError("max_retries must be greater than or equal to 0")
-        return max_retries
+        if isinstance(max_retries, bool):
+            LOGGER.warning(
+                "max_retries must be a non-negative integer. Using default max_retries=%s instead of %r.",
+                MAX_RETRIES,
+                max_retries,
+            )
+            return MAX_RETRIES
+
+        if isinstance(max_retries, int):
+            normalized_retries = max_retries
+        elif isinstance(max_retries, float):
+            if not math.isfinite(max_retries):
+                LOGGER.warning(
+                    "max_retries must be a finite non-negative integer. Using default max_retries=%s instead of %r.",
+                    MAX_RETRIES,
+                    max_retries,
+                )
+                return MAX_RETRIES
+            if not max_retries.is_integer():
+                LOGGER.warning(
+                    "max_retries received float=%r, truncating to int.",
+                    max_retries,
+                )
+            normalized_retries = int(max_retries)
+        else:
+            LOGGER.warning(
+                "max_retries must be a non-negative integer. Using default max_retries=%s instead of %r.",
+                MAX_RETRIES,
+                max_retries,
+            )
+            return MAX_RETRIES
+
+        if normalized_retries < 0:
+            LOGGER.warning(
+                "max_retries must be greater than or equal to 0. Using default max_retries=%s instead of %r.",
+                MAX_RETRIES,
+                max_retries,
+            )
+            return MAX_RETRIES
+
+        return normalized_retries
 
     def _validate_retry_delay_constants(self) -> None:
         """Validate internal retry-delay constants.
