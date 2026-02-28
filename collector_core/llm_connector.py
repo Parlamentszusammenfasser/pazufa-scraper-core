@@ -16,6 +16,11 @@ Example:
 
     asyncio.run(main())
     ```
+
+Tolerant API behavior:
+    Optional numeric connector settings are normalized defensively.
+    Invalid values for `timeout_seconds` or `max_retries` fall back to defaults
+    with warning logs instead of raising configuration exceptions.
 """
 
 from __future__ import annotations
@@ -154,7 +159,12 @@ class RateLimiter:
 
 
 class LLMConnector:
-    """Thin provider-agnostic connector for async text generation via LiteLLM."""
+    """Thin provider-agnostic connector for async text generation via LiteLLM.
+
+    Notes:
+        Configuration is intentionally tolerant. Invalid `timeout_seconds` and
+        `max_retries` values are replaced by defaults and logged as warnings.
+    """
 
     def __init__(
         self,
@@ -377,9 +387,10 @@ class LLMConnector:
                 ignored.
 
         Returns:
-            A concise generated summary. Returns an empty string if `text` is empty.
+            A concise generated summary.
 
         Raises:
+            ValueError: If `text` is empty/invalid.
             LLMProviderError: If provider call fails and cannot be recovered by retries.
             LLMResponseParseError: If provider response structure cannot be parsed.
 
@@ -389,11 +400,7 @@ class LLMConnector:
             - positive `float` values are truncated via `int(...)`
             - invalid values are ignored
         """
-        try:
-            source_text = self._require_non_empty_text(text, field_name="text")
-        except ValueError:
-            LOGGER.warning("Empty input text for summarization; returning empty summary")
-            return ""
+        source_text = self._require_non_empty_text(text, field_name="text")
 
         try:
             language_normalized = self._require_non_empty_text(language, field_name="language")
@@ -446,13 +453,19 @@ class LLMConnector:
 
         Raises:
             LLMResponseParseError: If expected response fields are missing or empty.
+
+        Notes:
+            This parser only supports non-streaming chat-completion style responses.
+            If additional provider response schemas are needed, extend this method.
         """
         if not isinstance(response, litellm.ModelResponse):
             raise LLMResponseParseError(
                 f"Unexpected provider response type: {type(response).__name__}"
             )
 
-        if response.object != "model.completion":
+        # Intentionally restricted to non-streaming completion objects.
+        # Stream responses like "chat.completion.chunk" are handled as unsupported.
+        if response.object not in ("chat.completion", "model.completion"):
             raise LLMResponseParseError(
                 f"Unexpected provider response object type: {response.object}"
             )
