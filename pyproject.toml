@@ -9,7 +9,7 @@ packages = [{include = "collector_core"}]
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
 litellm = "^1.81.13"
-instructor = "^1.7.0"
+instructor = {extras = ["litellm"], version = "^1.14.0"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"

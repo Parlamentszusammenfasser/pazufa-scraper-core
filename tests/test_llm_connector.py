@@ -44,7 +44,8 @@ def _make_connector(**kwargs: object) -> LLMConnector:
         "max_retries": 3,
     }
     defaults.update(kwargs)
-    return LLMConnector(**defaults)  # type: ignore[arg-type]
+    with patch("instructor.from_litellm", return_value=MagicMock()):
+        return LLMConnector(**defaults)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -295,46 +296,13 @@ class TestExtractNetworkRetry:
 
 
 # ---------------------------------------------------------------------------
-# extract() — lazy Instructor client init
+# extract() — Instructor client init
 # ---------------------------------------------------------------------------
 
 
-class TestExtractLazyInit:
-    """Verify the Instructor client is lazily initialized."""
+class TestExtractInstructorInit:
+    """Verify the Instructor client is initialized during __init__."""
 
-    def test_instructor_client_none_after_init(self) -> None:
+    def test_instructor_client_set_after_init(self) -> None:
         connector = _make_connector()
-        assert connector._instructor_client is None
-
-    @pytest.mark.asyncio
-    async def test_instructor_client_initialized_on_first_extract(self) -> None:
-        connector = _make_connector()
-        expected = Keywords(sachgebiete=[], schlagworte=[])
-
-        mock_client = MagicMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=expected)
-
-        import instructor
-
-        with patch.object(instructor, "from_litellm", return_value=mock_client) as mock_from:
-            await connector.extract(prompt="test", response_model=Keywords)
-
-            mock_from.assert_called_once_with(litellm.acompletion, mode=instructor.Mode.TOOLS)
-            assert connector._instructor_client is mock_client
-
-    @pytest.mark.asyncio
-    async def test_instructor_client_reused_on_second_extract(self) -> None:
-        connector = _make_connector()
-        expected = Keywords(sachgebiete=[], schlagworte=[])
-
-        mock_client = MagicMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=expected)
-        connector._instructor_client = mock_client
-
-        import instructor
-
-        with patch.object(instructor, "from_litellm") as mock_from:
-            await connector.extract(prompt="test1", response_model=Keywords)
-            await connector.extract(prompt="test2", response_model=Keywords)
-
-            mock_from.assert_not_called()
+        assert connector._instructor_client is not None

@@ -56,6 +56,8 @@ import time
 from collections import deque
 from typing import Any, Final, TypeVar
 
+import instructor
+from instructor.core import InstructorRetryException
 import litellm
 from pydantic import BaseModel
 
@@ -240,7 +242,10 @@ class LLMConnector:
             rate_limit_max_calls=rate_limit_max_calls,
             rate_limit_window_seconds=rate_limit_window_seconds,
         )
-        self._instructor_client: Any | None = None
+        self._instructor_client = instructor.from_litellm(
+            litellm.acompletion, mode=instructor.Mode.TOOLS
+        )
+        LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
 
         LOGGER.info(
             "Initialized LLMConnector (model=%s, api_key_set=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
@@ -477,25 +482,6 @@ class LLMConnector:
         LOGGER.debug("Summarization completed (output_chars=%s)", len(result))
         return result
 
-    def _get_instructor_client(self) -> Any:
-        """Return the lazily-initialized Instructor client.
-
-        The client wraps :func:`litellm.acompletion` using
-        :pyfunc:`instructor.from_litellm` so that all provider routing
-        configured on this connector is preserved.
-
-        Returns:
-            Cached Instructor async client instance.
-        """
-        if self._instructor_client is None:
-            import instructor
-
-            self._instructor_client = instructor.from_litellm(
-                litellm.acompletion, mode=instructor.Mode.TOOLS
-            )
-            LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
-        return self._instructor_client
-
     async def extract(
         self,
         prompt: str,
@@ -512,10 +498,10 @@ class LLMConnector:
             prompt: User input prompt describing what to extract.
             response_model: Pydantic ``BaseModel`` subclass that defines the
                 expected output schema.
-            system_prompt: Optional system-level instruction.  Behaves
+            system_prompt: Optional system-level instruction. Behaves
                 identically to :meth:`generate_text`.
             validation_retries: How many times Instructor may re-prompt the
-                model when its output fails Pydantic validation.  This is
+                model when its output fails Pydantic validation. This is
                 separate from the network-level retry controlled by
                 ``max_retries``.
 
@@ -552,7 +538,7 @@ class LLMConnector:
         if normalized_system_prompt is not None:
             messages.insert(0, {"role": "system", "content": normalized_system_prompt})
 
-        client = self._get_instructor_client()
+        client = self._instructor_client
 
         LOGGER.debug(
             "Starting structured extraction (model=%s, response_model=%s, prompt_chars=%s, "
@@ -563,8 +549,6 @@ class LLMConnector:
             validation_retries,
             self.max_retries,
         )
-
-        from instructor.core import InstructorRetryException
 
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
