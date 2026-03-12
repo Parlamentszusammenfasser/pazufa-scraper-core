@@ -11,6 +11,7 @@ from .llm_connector import (
     LLMRateLimitError,
     LLMResponseParseError,
     LLMTemporaryProviderError,
+    LLMValidationError,
 )
 
 __version__ = "0.1.0"
@@ -25,4 +26,5 @@ __all__ = [
     "LLMQuotaExceededError",
     "LLMRateLimitError",
     "LLMTemporaryProviderError",
+    "LLMValidationError",
 ]

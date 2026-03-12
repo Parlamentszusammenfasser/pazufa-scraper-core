@@ -1,6 +1,7 @@
-"""Provider-agnostic async connector for LLM text generation and summarization.
+"""Provider-agnostic async connector for LLM text generation, summarization,
+and structured data extraction.
 
-Example:
+Example — free-text generation:
     ```python
     import asyncio
     from collector_core.llm_connector import LLMConnector
@@ -13,6 +14,27 @@ Example:
             language="Deutsch",
         )
         print(summary)
+
+    asyncio.run(main())
+    ```
+
+Example — structured extraction:
+    ```python
+    import asyncio
+    from pydantic import BaseModel
+    from collector_core.llm_connector import LLMConnector
+
+    class Keywords(BaseModel):
+        sachgebiete: list[str]
+        schlagworte: list[str]
+
+    async def main() -> None:
+        connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
+        result = await connector.extract(
+            prompt="Extrahiere Schlagworte aus diesem Text: ...",
+            response_model=Keywords,
+        )
+        print(result.sachgebiete, result.schlagworte)
 
     asyncio.run(main())
     ```
@@ -32,9 +54,14 @@ import math
 import random
 import time
 from collections import deque
-from typing import Any, Final
+from typing import Any, Final, TypeVar
 
+import instructor
+from instructor.core import InstructorRetryException
 import litellm
+from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +111,10 @@ class LLMRateLimitError(LLMProviderError):
 
 class LLMTemporaryProviderError(LLMProviderError):
     """Raised for transient provider failures (timeout/network/5xx)."""
+
+
+class LLMValidationError(LLMConnectorError):
+    """Raised when the model cannot produce output matching the response schema."""
 
 
 class RateLimiter:
@@ -211,6 +242,10 @@ class LLMConnector:
             rate_limit_max_calls=rate_limit_max_calls,
             rate_limit_window_seconds=rate_limit_window_seconds,
         )
+        self._instructor_client = instructor.from_litellm(
+            litellm.acompletion, mode=instructor.Mode.TOOLS
+        )
+        LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
 
         LOGGER.info(
             "Initialized LLMConnector (model=%s, api_key_set=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
@@ -446,6 +481,157 @@ class LLMConnector:
         result = await self.generate_text(prompt, DEFAULT_SYSTEM_PROMPT)
         LOGGER.debug("Summarization completed (output_chars=%s)", len(result))
         return result
+
+    async def extract(
+        self,
+        prompt: str,
+        response_model: type[T],
+        system_prompt: str | None = DEFAULT_SYSTEM_PROMPT,
+        validation_retries: int = 2,
+    ) -> T:
+        """Extract structured data from text using the configured model.
+
+        Uses `Instructor <https://python.useinstructor.com/>`_ on top of
+        LiteLLM to coerce model output into *response_model*.
+
+        Args:
+            prompt: User input prompt describing what to extract.
+            response_model: Pydantic ``BaseModel`` subclass that defines the
+                expected output schema.
+            system_prompt: Optional system-level instruction. Behaves
+                identically to :meth:`generate_text`.
+            validation_retries: How many times Instructor may re-prompt the
+                model when its output fails Pydantic validation. This is
+                separate from the network-level retry controlled by
+                ``max_retries``.
+
+        Returns:
+            A validated instance of *response_model*.
+
+        Raises:
+            ValueError: If *prompt* is empty/invalid, *response_model* is not
+                a ``BaseModel`` subclass, or *validation_retries* is negative.
+            LLMValidationError: If the model cannot produce valid output after
+                all validation retries.
+            LLMProviderError: If the provider call fails and cannot be
+                recovered by retries.
+        """
+        normalized_prompt = self._require_non_empty_text(prompt, field_name="prompt")
+
+        if not isinstance(response_model, type) or not issubclass(response_model, BaseModel):
+            raise ValueError("response_model must be a Pydantic BaseModel subclass")
+
+        if not isinstance(validation_retries, int) or isinstance(validation_retries, bool):
+            raise ValueError("validation_retries must be a non-negative integer")
+        if validation_retries < 0:
+            raise ValueError("validation_retries must be a non-negative integer")
+
+        normalized_system_prompt: str | None = None
+        if system_prompt is not None:
+            if not isinstance(system_prompt, str):
+                raise ValueError("system_prompt must be a string or None")
+            stripped_system_prompt = system_prompt.strip()
+            if stripped_system_prompt:
+                normalized_system_prompt = stripped_system_prompt
+
+        messages: list[dict[str, str]] = [{"role": "user", "content": normalized_prompt}]
+        if normalized_system_prompt is not None:
+            messages.insert(0, {"role": "system", "content": normalized_system_prompt})
+
+        client = self._instructor_client
+
+        LOGGER.debug(
+            "Starting structured extraction (model=%s, response_model=%s, prompt_chars=%s, "
+            "validation_retries=%s, network_retries=%s)",
+            self.model,
+            response_model.__name__,
+            len(normalized_prompt),
+            validation_retries,
+            self.max_retries,
+        )
+
+        last_error: Exception | None = None
+        for attempt in range(self.max_retries + 1):
+            if self._rate_limiter is not None:
+                LOGGER.debug("Waiting for local rate limiter slot (attempt=%s)", attempt + 1)
+                await self._rate_limiter.acquire_slot()
+
+            try:
+                LOGGER.debug(
+                    "Calling Instructor (attempt=%s/%s, timeout=%.1fs)",
+                    attempt + 1,
+                    self.max_retries + 1,
+                    self.timeout_seconds,
+                )
+                result = await asyncio.wait_for(
+                    client.chat.completions.create(
+                        model=self.model,
+                        api_key=self.api_key,
+                        messages=messages,
+                        response_model=response_model,
+                        temperature=self.temperature,
+                        timeout=self.timeout_seconds,
+                        max_retries=validation_retries,
+                    ),
+                    self.timeout_seconds + 0.5,
+                )
+                LOGGER.debug(
+                    "Structured extraction successful (attempt=%s/%s)",
+                    attempt + 1,
+                    self.max_retries + 1,
+                )
+                return result  # type: ignore[no-any-return]
+            except InstructorRetryException as exc:
+                raise LLMValidationError(
+                    f"Model could not produce valid {response_model.__name__} "
+                    f"after {validation_retries} validation retries"
+                ) from exc
+            except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
+                mapped_error: LLMProviderError = LLMTemporaryProviderError(
+                    "provider request timed out"
+                )
+                last_error = exc
+                LOGGER.warning(
+                    "Provider timeout (attempt=%s/%s, timeout=%.1fs)",
+                    attempt + 1,
+                    self.max_retries + 1,
+                    self.timeout_seconds,
+                )
+            except Exception as exc:
+                mapped_error = self._map_provider_exception(exc)
+                last_error = exc
+                LOGGER.warning(
+                    "Provider call failed (attempt=%s/%s, error_type=%s, mapped_error_type=%s) %s",
+                    attempt + 1,
+                    self.max_retries + 1,
+                    type(exc).__name__,
+                    type(mapped_error).__name__,
+                    str(exc),
+                )
+
+            should_retry = attempt < self.max_retries and isinstance(
+                mapped_error, (LLMRateLimitError, LLMTemporaryProviderError)
+            )
+            if not should_retry:
+                LOGGER.error(
+                    "Extraction failed without retry (attempt=%s/%s, error_type=%s)",
+                    attempt + 1,
+                    self.max_retries + 1,
+                    type(mapped_error).__name__,
+                )
+                raise mapped_error from last_error
+
+            backoff_seconds = self._compute_retry_delay(attempt)
+            LOGGER.info(
+                "Retrying extraction in %.2fs (next_attempt=%s/%s, error_type=%s)",
+                backoff_seconds,
+                attempt + 2,
+                self.max_retries + 1,
+                type(mapped_error).__name__,
+            )
+            await asyncio.sleep(backoff_seconds)
+
+        raise LLMConnectorError("unreachable retry loop state")
 
     @staticmethod
     def _extract_text(response: litellm.ModelResponse) -> str:
