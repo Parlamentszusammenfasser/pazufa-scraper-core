@@ -13,13 +13,17 @@ from .sachgebiete_taxonomy import SACHGEBIETE_SET
 class KurztitelResult(BaseModel):
     """Short title for a Vorgang."""
 
-    kurztitel: str = Field(description="Short, descriptive title (5-10 words) in German.")
+    kurztitel: str = Field(
+        min_length=1, description="Short, descriptive title (5-10 words) in German."
+    )
 
 
 class ZusammenfassungResult(BaseModel):
     """Summary of a parliamentary document."""
 
-    zusammenfassung: str = Field(description="150-250 word summary of the document in German.")
+    zusammenfassung: str = Field(
+        min_length=1, description="150-250 word summary of the document in German."
+    )
 
 
 class SchlagworteResult(BaseModel):
@@ -44,7 +48,8 @@ class SchlagworteResult(BaseModel):
     @field_validator("sachgebiete")
     @classmethod
     def validate_sachgebiete(cls, v: list[str]) -> list[str]:
-        """Reject invalid Sachgebiete so Instructor triggers a retry."""
+        """Deduplicate and reject invalid Sachgebiete so Instructor triggers a retry."""
+        v = list(dict.fromkeys(v))
         invalid = [sg for sg in v if sg not in SACHGEBIETE_SET]
         if invalid:
             raise ValueError(
@@ -64,6 +69,7 @@ class MeinungResult(BaseModel):
         ),
     )
     begruendung: str = Field(
+        min_length=1,
         description="Brief reasoning for the score, in German (1-2 sentences).",
     )
 
@@ -75,5 +81,6 @@ class VerfassungsaenderndResult(BaseModel):
         description="True if this law amends the state constitution (Landesverfassung).",
     )
     begruendung: str = Field(
+        min_length=1,
         description="Brief reasoning for the determination, in German.",
     )

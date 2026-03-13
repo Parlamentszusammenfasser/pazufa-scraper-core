@@ -138,5 +138,5 @@ Text (Auszug):
 
 
 def format_sachgebiete_list() -> str:
-    """Format the taxonomy as a bulleted list for prompt injection."""
+    """Format the taxonomy as a bulleted list for prompt formatting."""
     return "\n".join(f"- {name}" for name in SACHGEBIETE_NAMES)

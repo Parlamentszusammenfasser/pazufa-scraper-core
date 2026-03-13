@@ -17,6 +17,10 @@ class TestKurztitelResult:
         r = KurztitelResult(kurztitel="Stärkung der Kinderrechte")
         assert r.kurztitel == "Stärkung der Kinderrechte"
 
+    def test_empty_kurztitel_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            KurztitelResult(kurztitel="")
+
     def test_serialization(self) -> None:
         r = KurztitelResult(kurztitel="Test")
         d = r.model_dump()
@@ -27,6 +31,10 @@ class TestZusammenfassungResult:
     def test_valid(self) -> None:
         r = ZusammenfassungResult(zusammenfassung="Eine Zusammenfassung.")
         assert r.zusammenfassung == "Eine Zusammenfassung."
+
+    def test_empty_zusammenfassung_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            ZusammenfassungResult(zusammenfassung="")
 
     def test_serialization(self) -> None:
         r = ZusammenfassungResult(zusammenfassung="Text")
@@ -66,6 +74,13 @@ class TestSchlagworteResult:
         )
         assert len(r.sachgebiete) == 4
 
+    def test_duplicate_sachgebiete_deduped(self) -> None:
+        r = SchlagworteResult(
+            sachgebiete=["Bildung", "Schulen", "Bildung"],
+            schlagworte=["test"],
+        )
+        assert r.sachgebiete == ["Bildung", "Schulen"]
+
     def test_serialization(self) -> None:
         r = SchlagworteResult(sachgebiete=["Bildung"], schlagworte=["test"])
         d = r.model_dump()
@@ -82,6 +97,10 @@ class TestMeinungResult:
     def test_invalid_scores(self, score: int) -> None:
         with pytest.raises(ValidationError):
             MeinungResult(meinung=score, begruendung="Begründung.")
+
+    def test_empty_begruendung_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            MeinungResult(meinung=3, begruendung="")
 
     def test_serialization(self) -> None:
         r = MeinungResult(meinung=3, begruendung="Neutral.")
@@ -103,6 +122,10 @@ class TestVerfassungsaenderndResult:
             begruendung="Kein Verfassungsbezug.",
         )
         assert r.ist_verfassungsaendernd is False
+
+    def test_empty_begruendung_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            VerfassungsaenderndResult(ist_verfassungsaendernd=True, begruendung="")
 
     def test_serialization(self) -> None:
         r = VerfassungsaenderndResult(ist_verfassungsaendernd=False, begruendung="Test.")
