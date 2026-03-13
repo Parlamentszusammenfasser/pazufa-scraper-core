@@ -1,5 +1,16 @@
-"""Shared LLM enrichment models, taxonomy, and prompt templates."""
+"""Shared LLM enrichment models, taxonomy, prompt templates, and connector."""
 
+from .llm_connector import (
+    LLMAuthenticationError,
+    LLMConnector,
+    LLMConnectorError,
+    LLMProviderError,
+    LLMQuotaExceededError,
+    LLMRateLimitError,
+    LLMResponseParseError,
+    LLMTemporaryProviderError,
+    LLMValidationError,
+)
 from .models import (
     KurztitelResult,
     MeinungResult,
@@ -18,6 +29,16 @@ from .prompts import (
 from .sachgebiete_taxonomy import SACHGEBIETE, SACHGEBIETE_NAMES, SACHGEBIETE_SET
 
 __all__ = [
+    # LLM Connector
+    "LLMConnector",
+    "LLMConnectorError",
+    "LLMResponseParseError",
+    "LLMProviderError",
+    "LLMAuthenticationError",
+    "LLMQuotaExceededError",
+    "LLMRateLimitError",
+    "LLMTemporaryProviderError",
+    "LLMValidationError",
     # Models
     "KurztitelResult",
     "ZusammenfassungResult",

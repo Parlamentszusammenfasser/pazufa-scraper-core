@@ -1,6 +1,6 @@
 """Tests for enrichment prompt templates."""
 
-from collector_core.enrichment.prompts import (
+from collector_core.llm.prompts import (
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
     SCHLAGWORTE_PROMPT,
@@ -8,7 +8,7 @@ from collector_core.enrichment.prompts import (
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
 )
-from collector_core.enrichment.sachgebiete_taxonomy import SACHGEBIETE_NAMES
+from collector_core.llm.sachgebiete_taxonomy import SACHGEBIETE_NAMES
 
 
 class TestPromptFormatting:

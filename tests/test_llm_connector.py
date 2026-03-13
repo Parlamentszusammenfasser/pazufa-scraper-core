@@ -7,7 +7,7 @@ import litellm
 import pytest
 from pydantic import BaseModel, Field
 
-from collector_core.llm_connector import (
+from collector_core.llm.llm_connector import (
     RETRY_BASE_DELAY_SECONDS,
     RETRY_JITTER_MAX_SECONDS,
     RETRY_JITTER_MIN_SECONDS,
@@ -250,7 +250,7 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch("collector_core.llm_connector.asyncio.sleep", new_callable=AsyncMock):
+        with patch("collector_core.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
             result = await connector.extract(prompt="test", response_model=Keywords)
 
         assert result.sachgebiete == ["Justiz"]
@@ -288,7 +288,7 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch("collector_core.llm_connector.asyncio.sleep", new_callable=AsyncMock):
+        with patch("collector_core.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
             with pytest.raises(LLMTemporaryProviderError):
                 await connector.extract(prompt="test", response_model=Keywords)
 

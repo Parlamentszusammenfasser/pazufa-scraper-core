@@ -2,7 +2,7 @@
 collector_core - Core library for collecting parliamentary data
 """
 
-from .enrichment import (
+from .llm import (
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
     SACHGEBIETE,
@@ -12,13 +12,6 @@ from .enrichment import (
     VERFASSUNGSAENDERND_PROMPT,
     ZUSAMMENFASSUNG_PROMPT,
     KurztitelResult,
-    MeinungResult,
-    SchlagworteResult,
-    VerfassungsaenderndResult,
-    ZusammenfassungResult,
-    format_sachgebiete_list,
-)
-from .llm_connector import (
     LLMAuthenticationError,
     LLMConnector,
     LLMConnectorError,
@@ -28,6 +21,11 @@ from .llm_connector import (
     LLMResponseParseError,
     LLMTemporaryProviderError,
     LLMValidationError,
+    MeinungResult,
+    SchlagworteResult,
+    VerfassungsaenderndResult,
+    ZusammenfassungResult,
+    format_sachgebiete_list,
 )
 
 __version__ = "0.1.0"
@@ -44,7 +42,7 @@ __all__ = [
     "LLMRateLimitError",
     "LLMTemporaryProviderError",
     "LLMValidationError",
-    # Enrichment models
+    # Models
     "KurztitelResult",
     "ZusammenfassungResult",
     "SchlagworteResult",

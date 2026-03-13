@@ -4,7 +4,7 @@ and structured data extraction.
 Example — free-text generation:
     ```python
     import asyncio
-    from collector_core.llm_connector import LLMConnector
+    from collector_core.llm import LLMConnector
 
     async def main() -> None:
         connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
@@ -22,7 +22,7 @@ Example — structured extraction:
     ```python
     import asyncio
     from pydantic import BaseModel
-    from collector_core.llm_connector import LLMConnector
+    from collector_core.llm import LLMConnector
 
     class Keywords(BaseModel):
         sachgebiete: list[str]

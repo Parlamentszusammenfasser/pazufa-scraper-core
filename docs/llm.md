@@ -1,4 +1,4 @@
-# collector_core.enrichment
+# collector_core.llm
 
 Shared Pydantic response models, prompt templates, and the Parlamentsspiegel
 Sachgebiete taxonomy for LLM-based enrichment of parliamentary documents.
@@ -10,7 +10,7 @@ Designed for use with `LLMConnector.extract()` from `collector_core`.
 ```python
 import asyncio
 from collector_core import LLMConnector
-from collector_core.enrichment import (
+from collector_core.llm import (
     SCHLAGWORTE_PROMPT,
     ZUSAMMENFASSUNG_PROMPT,
     SchlagworteResult,

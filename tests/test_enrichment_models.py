@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from collector_core.enrichment.models import (
+from collector_core.llm.models import (
     KurztitelResult,
     MeinungResult,
     SchlagworteResult,
