@@ -4,19 +4,19 @@ Thanks for your interest in the PaZuFa collector core.
 
 ## Quick Start
 
+Use [README.md](README.md) for installation and library usage. Contributor and
+maintainer commands live here.
+
+Install Poetry first if it is not already available:
+[python-poetry.org/docs/#installation](https://python-poetry.org/docs/#installation)
+
 ```bash
 git clone https://codeberg.org/PaZuFa/pazufa-collector-core.git
 cd pazufa-collector-core
 poetry install --with dev
-poetry run pytest
-poetry run mypy .
-```
 
-Useful local checks before opening a PR:
-
-```bash
-poetry run black --check .
-poetry run isort --check-only .
+poetry run black .
+poetry run isort .
 poetry run mypy .
 poetry run pytest
 ```
@@ -50,8 +50,8 @@ Before starting larger work, check existing issues or open one first to avoid du
 
 Some files are generated and should usually not be edited by hand:
 
-- `collector_core/api_model.py` from `datamodel-codegen`
-- `collector_core/api_client/` from `openapi-python-client`
+- [collector_core/api_model.py](collector_core/api_model.py) from `datamodel-codegen`
+- [collector_core/api_client/](collector_core/api_client/) from `openapi-python-client`
 
 If you change API-related behavior, prefer updating the OpenAPI source or generator configuration and then regenerate:
 
@@ -59,6 +59,15 @@ If you change API-related behavior, prefer updating the OpenAPI source or genera
 poetry run datamodel-codegen
 poetry run python tools/generate_openapi_client.py
 ```
+
+Relevant generator configuration lives in
+[openapi.yaml](openapi.yaml),
+[pyproject.toml](pyproject.toml),
+[tools/openapi-python-client.yaml](tools/openapi-python-client.yaml) and
+[tools/generate_openapi_client.py](tools/generate_openapi_client.py).
+For later API revisions, track the main project spec at
+[codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml](https://codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml)
+Suggestions can be incorporated there, but usually with a larger time lag.
 
 ## Project Context
 

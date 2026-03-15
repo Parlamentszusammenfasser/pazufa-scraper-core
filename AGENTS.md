@@ -54,7 +54,7 @@ poetry run python tools/generate_openapi_client.py
 - **pytest**, **pytest-asyncio**, **pytest-cov** for testing
 - **mypy**, **black**, **isort** for static checks and formatting
 - **LiteLLM** + **Instructor** for provider-agnostic LLM integration
-- **Woodpecker CI** CI for e.g. format, type-check, and test verification
+- **Woodpecker CI** for e.g. format, type-check, and test verification
 
 ## Code Style
 
@@ -79,31 +79,31 @@ poetry run python tools/generate_openapi_client.py
 
 These paths are generated and should not be hand-edited unless the task explicitly requires it:
 
-- `collector_core/api_model.py`
-- `collector_core/api_client/`
+- [collector_core/api_model.py](collector_core/api_model.py)
+- [collector_core/api_client/](collector_core/api_client/)
 
 Prefer changing one of these inputs instead:
 
-- `openapi.yaml`
-- `pyproject.toml` (`tool.datamodel-codegen`)
-- `tools/openapi-python-client.yaml`
-- `tools/generate_openapi_client.py`
+- [openapi.yaml](openapi.yaml) - fixed for the current API version
+- [pyproject.toml](pyproject.toml) - `tool.datamodel-codegen`
+- [tools/openapi-python-client.yaml](tools/openapi-python-client.yaml)
+- [tools/generate_openapi_client.py](tools/generate_openapi_client.py)
+
+For later API revisions, track the main project spec at
+[codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml](https://codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml).
+Suggestions can be incorporated there, but usually with a larger time lag.
 
 Then regenerate and review the diff carefully.
 
 ## Project Structure
 
-```text
-collector_core/
-  __init__.py          # public package exports
-  api_model.py         # generated Pydantic models
-  api_client/          # generated OpenAPI client
-  llm/                 # prompts, models, taxonomy, connector
-  scraper/             # shared scraper-side helpers
-tests/                 # unit tests and scraper tests
-docs/                  # module-level documentation
-tools/                 # code generation helpers
-```
+- [collector_core/__init__.py](collector_core/__init__.py) - public package exports
+- [collector_core/llm_connector.py](collector_core/llm_connector.py) - current LLM entrypoint; LLM-related code is expected to move into `collector_core/llm/`
+- [collector_core/api_model.py](collector_core/api_model.py) - generated Pydantic models
+- [collector_core/api_client/](collector_core/api_client/) - generated OpenAPI client
+- [tests/](tests/) - unit tests
+- [docs/](docs/) - module-level documentation
+- [tools/](tools/) - code generation helpers
 
 ## Key Domain Concepts
 
@@ -115,6 +115,6 @@ tools/                 # code generation helpers
 
 ## Related Repos
 
-- Upstream monorepo: `codeberg.org/PaZuFa/parlamentszusammenfasser`
-- Website: `codeberg.org/PaZuFa/pazufa-website`
-- Shared library: `codeberg.org/PaZuFa/pazufa-collector-core`
+- Main project repo: [codeberg.org/PaZuFa/parlamentszusammenfasser](https://codeberg.org/PaZuFa/parlamentszusammenfasser)
+- Website: [codeberg.org/PaZuFa/pazufa-website](https://codeberg.org/PaZuFa/pazufa-website)
+- Shared library: [codeberg.org/PaZuFa/pazufa-collector-core](https://codeberg.org/PaZuFa/pazufa-collector-core)
