@@ -1,30 +1,12 @@
 """
 collector_core - Core library for collecting parliamentary data
-"""
 
-from .llm_connector import (
-    LLMAuthenticationError,
-    LLMConnector,
-    LLMConnectorError,
-    LLMProviderError,
-    LLMQuotaExceededError,
-    LLMRateLimitError,
-    LLMResponseParseError,
-    LLMTemporaryProviderError,
-    LLMValidationError,
-)
+LLM enrichment functionality is available via the ``collector_core.llm``
+subpackage (models, prompts, taxonomy, and connector).
+"""
 
 __version__ = "0.1.0"
 
 __all__ = [
     "__version__",
-    "LLMConnector",
-    "LLMConnectorError",
-    "LLMResponseParseError",
-    "LLMProviderError",
-    "LLMAuthenticationError",
-    "LLMQuotaExceededError",
-    "LLMRateLimitError",
-    "LLMTemporaryProviderError",
-    "LLMValidationError",
 ]
