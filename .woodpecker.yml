@@ -1,0 +1,37 @@
+when:
+  - event: [push, pull_request]
+
+# Route this workflow to the generic PaZuFa agents.
+labels:
+  pazufa_scope: generic
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      depth: 1
+
+steps:
+  - name: setup
+    image: python:3.12-slim
+    environment:
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+      POETRY_INSTALLER_PARALLEL: "true"
+    commands:
+      - python -m pip install --upgrade pip
+      - python -m pip install poetry~=2.3.0
+      - poetry install --with dev --no-interaction --sync
+
+  - name: format-and-type-check
+    image: python:3.12-slim
+    depends_on: [setup]
+    commands:
+      - .venv/bin/black --check .
+      - .venv/bin/isort --check-only .
+      - .venv/bin/mypy .
+
+  - name: test
+    image: python:3.12-slim
+    depends_on: [setup]
+    commands:
+      - .venv/bin/pytest
