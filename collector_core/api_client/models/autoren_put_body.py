@@ -71,7 +71,9 @@ class AutorenPutBody:
         if _replacing is not UNSET:
             replacing = []
             for replacing_item_data in _replacing:
-                replacing_item = AutorenPutBodyReplacingItem.from_dict(replacing_item_data)
+                replacing_item = AutorenPutBodyReplacingItem.from_dict(
+                    replacing_item_data
+                )
 
                 replacing.append(replacing_item)
 

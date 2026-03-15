@@ -115,7 +115,9 @@ class Dokument:
         if not isinstance(self.touched_by, Unset):
             touched_by = []
             for componentsschemastouched_by_item_data in self.touched_by:
-                componentsschemastouched_by_item = componentsschemastouched_by_item_data.to_dict()
+                componentsschemastouched_by_item = (
+                    componentsschemastouched_by_item_data.to_dict()
+                )
                 touched_by.append(componentsschemastouched_by_item)
 
         drucksnr = self.drucksnr

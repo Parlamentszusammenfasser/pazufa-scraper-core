@@ -57,8 +57,8 @@ from collections import deque
 from typing import Any, Final, TypeVar
 
 import instructor
-from instructor.core import InstructorRetryException
 import litellm
+from instructor.core import InstructorRetryException
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
@@ -248,7 +248,8 @@ class LLMConnector:
         LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
 
         LOGGER.info(
-            "Initialized LLMConnector (model=%s, api_key_set=%s, rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
+            "Initialized LLMConnector (model=%s, api_key_set=%s, "
+            "rate_limit_enabled=%s, timeout=%.1fs, max_retries=%s)",
             self.model,
             self.api_key is not None,
             self._rate_limiter is not None,
@@ -313,7 +314,9 @@ class LLMConnector:
             if stripped_system_prompt:
                 normalized_system_prompt = stripped_system_prompt
 
-        messages: list[dict[str, str]] = [{"role": "user", "content": normalized_prompt}]
+        messages: list[dict[str, str]] = [
+            {"role": "user", "content": normalized_prompt}
+        ]
         if normalized_system_prompt is not None:
             messages.insert(0, {"role": "system", "content": normalized_system_prompt})
 
@@ -334,7 +337,9 @@ class LLMConnector:
         response: litellm.ModelResponse | litellm.CustomStreamWrapper | None = None
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
-                LOGGER.debug("Waiting for local rate limiter slot (attempt=%s)", attempt + 1)
+                LOGGER.debug(
+                    "Waiting for local rate limiter slot (attempt=%s)", attempt + 1
+                )
                 await self._rate_limiter.acquire_slot()
 
             try:
@@ -369,7 +374,8 @@ class LLMConnector:
                 mapped_error = self._map_provider_exception(exc)
                 original_error = exc
                 LOGGER.warning(
-                    "Provider call failed (attempt=%s/%s, error_type=%s, mapped_error_type=%s) %s",
+                    "Provider call failed (attempt=%s/%s, error_type=%s, "
+                    "mapped_error_type=%s) %s",
                     attempt + 1,
                     self.max_retries + 1,
                     type(exc).__name__,
@@ -382,7 +388,8 @@ class LLMConnector:
             )
             if not should_retry:
                 LOGGER.error(
-                    "Provider request failed without retry (attempt=%s/%s, error_type=%s)",
+                    "Provider request failed without retry (attempt=%s/%s, "
+                    "error_type=%s)",
                     attempt + 1,
                     self.max_retries + 1,
                     type(mapped_error).__name__,
@@ -404,7 +411,8 @@ class LLMConnector:
             raise LLMConnectorError("unreachable retry loop state")
         if isinstance(response, (litellm.CustomStreamWrapper)):
             raise LLMConnectorError(
-                f"Response type `CustomStreamWrapper` is not supported. Got: {type(response).__name__}"
+                f"Response type `CustomStreamWrapper` is not supported. "
+                f"Got: {type(response).__name__}"
             )
         return self._extract_text(response)
 
@@ -424,8 +432,8 @@ class LLMConnector:
             sentences_count: Optional upper bound for sentence count. Invalid values are
                 ignored.
             word_count: Optional upper bound for word count. Invalid values are ignored.
-            character_count: Optional upper bound for character count. Invalid values are
-                ignored.
+            character_count: Optional upper bound for character count. Invalid values
+                are ignored.
 
         Returns:
             A concise generated summary.
@@ -444,16 +452,23 @@ class LLMConnector:
         source_text = self._require_non_empty_text(text, field_name="text")
 
         try:
-            language_normalized = self._require_non_empty_text(language, field_name="language")
+            language_normalized = self._require_non_empty_text(
+                language, field_name="language"
+            )
         except ValueError:
             LOGGER.warning(
-                "Empty input language for summarization; using default language (Deutsch)"
+                "Empty input language for summarization; using default language "
+                "(Deutsch)"
             )
             language_normalized = "Deutsch"
 
-        sentences_count = self._normalize_positive_count("sentences_count", sentences_count)
+        sentences_count = self._normalize_positive_count(
+            "sentences_count", sentences_count
+        )
         word_count = self._normalize_positive_count("word_count", word_count)
-        character_count = self._normalize_positive_count("character_count", character_count)
+        character_count = self._normalize_positive_count(
+            "character_count", character_count
+        )
         LOGGER.debug(
             "Summarization request (language=%s, sentences=%s, words=%s, characters=%s, "
             "source_chars=%s)",
@@ -468,10 +483,13 @@ class LLMConnector:
             + (f"{word_count} Wörtern, " if word_count is not None else "")
             + (f"{character_count} Zeichen" if character_count is not None else "")
         )
-        max_part = "Antworte in maximal " + max_part.strip(", ") + ". " if max_part else ""
+        max_part = (
+            "Antworte in maximal " + max_part.strip(", ") + ". " if max_part else ""
+        )
 
         prompt = (
-            f"Antworte in {language_normalized}, unabhängig von der Sprache des Quelltexts. "
+            f"Antworte in {language_normalized}, unabhängig von der Sprache des "
+            + "Quelltexts. "
             + max_part
             + "Fasse den folgenden Text prägnant und sachlich zusammen. "
             + "Erhalte die wichtigsten Informationen und den Kontext:\n\n"
@@ -518,10 +536,14 @@ class LLMConnector:
         """
         normalized_prompt = self._require_non_empty_text(prompt, field_name="prompt")
 
-        if not isinstance(response_model, type) or not issubclass(response_model, BaseModel):
+        if not isinstance(response_model, type) or not issubclass(
+            response_model, BaseModel
+        ):
             raise ValueError("response_model must be a Pydantic BaseModel subclass")
 
-        if not isinstance(validation_retries, int) or isinstance(validation_retries, bool):
+        if not isinstance(validation_retries, int) or isinstance(
+            validation_retries, bool
+        ):
             raise ValueError("validation_retries must be a non-negative integer")
         if validation_retries < 0:
             raise ValueError("validation_retries must be a non-negative integer")
@@ -534,15 +556,17 @@ class LLMConnector:
             if stripped_system_prompt:
                 normalized_system_prompt = stripped_system_prompt
 
-        messages: list[dict[str, str]] = [{"role": "user", "content": normalized_prompt}]
+        messages: list[dict[str, str]] = [
+            {"role": "user", "content": normalized_prompt}
+        ]
         if normalized_system_prompt is not None:
             messages.insert(0, {"role": "system", "content": normalized_system_prompt})
 
         client = self._instructor_client
 
         LOGGER.debug(
-            "Starting structured extraction (model=%s, response_model=%s, prompt_chars=%s, "
-            "validation_retries=%s, network_retries=%s)",
+            "Starting structured extraction (model=%s, response_model=%s, "
+            "prompt_chars=%s, validation_retries=%s, network_retries=%s)",
             self.model,
             response_model.__name__,
             len(normalized_prompt),
@@ -553,7 +577,9 @@ class LLMConnector:
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
-                LOGGER.debug("Waiting for local rate limiter slot (attempt=%s)", attempt + 1)
+                LOGGER.debug(
+                    "Waiting for local rate limiter slot (attempt=%s)", attempt + 1
+                )
                 await self._rate_limiter.acquire_slot()
 
             try:
@@ -601,7 +627,8 @@ class LLMConnector:
                 mapped_error = self._map_provider_exception(exc)
                 last_error = exc
                 LOGGER.warning(
-                    "Provider call failed (attempt=%s/%s, error_type=%s, mapped_error_type=%s) %s",
+                    "Provider call failed (attempt=%s/%s, error_type=%s, "
+                    "mapped_error_type=%s) %s",
                     attempt + 1,
                     self.max_retries + 1,
                     type(exc).__name__,
@@ -662,7 +689,9 @@ class LLMConnector:
                 f"Unexpected provider response object type: {response.object}"
             )
         choices: list[litellm.Choices] = response.choices  # type: ignore[assignment]
-        LOGGER.debug("Extracting text from provider response (choices_count=%s)", len(choices))
+        LOGGER.debug(
+            "Extracting text from provider response (choices_count=%s)", len(choices)
+        )
 
         if not choices:
             raise LLMResponseParseError("provider response did not contain choices")
@@ -670,7 +699,9 @@ class LLMConnector:
 
         content: str | None = message.content
         if content is None or (isinstance(content, str) and not content.strip()):
-            raise LLMResponseParseError("provider response message did not contain content")
+            raise LLMResponseParseError(
+                "provider response message did not contain content"
+            )
         return content.strip()
 
     @staticmethod
@@ -715,7 +746,9 @@ class LLMConnector:
             return None
         normalized_api_key = api_key.strip()
         if not normalized_api_key:
-            LOGGER.info("API key is empty or whitespace. Treating as no API key configured.")
+            LOGGER.info(
+                "API key is empty or whitespace. Treating as no API key configured."
+            )
             return None
         return normalized_api_key
 
@@ -734,7 +767,9 @@ class LLMConnector:
             return None
 
         if isinstance(value, bool):
-            LOGGER.warning("%s must be a positive integer. Ignoring value: %r", name, value)
+            LOGGER.warning(
+                "%s must be a positive integer. Ignoring value: %r", name, value
+            )
             return None
 
         if isinstance(value, (int, float)):
@@ -760,7 +795,8 @@ class LLMConnector:
             return None
         if isinstance(temperature, bool) or not isinstance(temperature, (int, float)):
             LOGGER.warning(
-                "temperature must be a finite number. Treating %r as no explicit temperature.",
+                "temperature must be a finite number. Treating %r as no explicit "
+                "temperature.",
                 temperature,
             )
             return None
@@ -769,13 +805,15 @@ class LLMConnector:
             normalized_temperature = float(temperature)
         except OverflowError:
             LOGGER.warning(
-                "temperature is out of range (type=%s). Treating it as no explicit temperature.",
+                "temperature is out of range (type=%s). Treating it as no explicit "
+                "temperature.",
                 type(temperature).__name__,
             )
             return None
         if not math.isfinite(normalized_temperature):
             LOGGER.warning(
-                "temperature must be a finite number. Treating %r as no explicit temperature.",
+                "temperature must be a finite number. Treating %r as no explicit "
+                "temperature.",
                 temperature,
             )
             return None
@@ -794,7 +832,8 @@ class LLMConnector:
         """
         if isinstance(timeout_seconds, bool):
             LOGGER.warning(
-                "timeout_seconds must be a positive number. Using default timeout=%.1fs instead of %r.",
+                "timeout_seconds must be a positive number. Using default timeout="
+                "%.1fs instead of %r.",
                 REQUEST_TIMEOUT_SECONDS,
                 timeout_seconds,
             )
@@ -802,7 +841,8 @@ class LLMConnector:
 
         if not isinstance(timeout_seconds, (int, float)):
             LOGGER.warning(
-                "timeout_seconds must be a positive number. Using default timeout=%.1fs instead of %r.",
+                "timeout_seconds must be a positive number. Using default timeout="
+                "%.1fs instead of %r.",
                 REQUEST_TIMEOUT_SECONDS,
                 timeout_seconds,
             )
@@ -811,7 +851,8 @@ class LLMConnector:
             normalized_timeout = float(timeout_seconds)
         except OverflowError:
             LOGGER.warning(
-                "timeout_seconds is out of range (type=%s). Using default timeout=%.1fs.",
+                "timeout_seconds is out of range (type=%s). Using default "
+                "timeout=%.1fs.",
                 type(timeout_seconds).__name__,
                 REQUEST_TIMEOUT_SECONDS,
             )
@@ -845,7 +886,8 @@ class LLMConnector:
         """
         if isinstance(max_retries, bool):
             LOGGER.warning(
-                "max_retries must be a non-negative integer. Using default max_retries=%s instead of %r.",
+                "max_retries must be a non-negative integer. Using default max_retries="
+                "%s instead of %r.",
                 MAX_RETRIES,
                 max_retries,
             )
@@ -856,7 +898,8 @@ class LLMConnector:
         elif isinstance(max_retries, float):
             if not math.isfinite(max_retries):
                 LOGGER.warning(
-                    "max_retries must be a finite non-negative integer. Using default max_retries=%s instead of %r.",
+                    "max_retries must be a finite non-negative integer. Using default "
+                    "max_retries=%s instead of %r.",
                     MAX_RETRIES,
                     max_retries,
                 )
@@ -869,7 +912,8 @@ class LLMConnector:
             normalized_retries = int(max_retries)
         else:
             LOGGER.warning(
-                "max_retries must be a non-negative integer. Using default max_retries=%s instead of %r.",
+                "max_retries must be a non-negative integer. Using default max_retries="
+                "%s instead of %r.",
                 MAX_RETRIES,
                 max_retries,
             )
@@ -877,7 +921,8 @@ class LLMConnector:
 
         if normalized_retries < 0:
             LOGGER.warning(
-                "max_retries must be greater than or equal to 0. Using default max_retries=%s instead of %r.",
+                "max_retries must be greater than or equal to 0. Using default "
+                "max_retries=%s instead of %r.",
                 MAX_RETRIES,
                 max_retries,
             )
@@ -897,13 +942,17 @@ class LLMConnector:
             raise ValueError("retry_max_delay_seconds must be greater than 0")
         if RETRY_BASE_DELAY_SECONDS > RETRY_MAX_DELAY_SECONDS:
             raise ValueError(
-                "retry_base_delay_seconds must be less than or equal to retry_max_delay_seconds"
+                "retry_base_delay_seconds must be less than or equal to "
+                "retry_max_delay_seconds"
             )
         if RETRY_JITTER_MIN_SECONDS < 0:
-            raise ValueError("RETRY_JITTER_MIN_SECONDS must be greater than or equal to 0")
+            raise ValueError(
+                "RETRY_JITTER_MIN_SECONDS must be greater than or equal to 0"
+            )
         if RETRY_JITTER_MAX_SECONDS < RETRY_JITTER_MIN_SECONDS:
             raise ValueError(
-                "RETRY_JITTER_MAX_SECONDS must be greater than or equal to RETRY_JITTER_MIN_SECONDS"
+                "RETRY_JITTER_MAX_SECONDS must be greater than or equal to "
+                "RETRY_JITTER_MIN_SECONDS"
             )
 
     def _map_provider_exception(self, error: Exception) -> LLMProviderError:
@@ -916,7 +965,9 @@ class LLMConnector:
         if isinstance(
             error, (litellm.AuthenticationError, litellm.PermissionDeniedError)
         ) or status_code in (401, 403):
-            return LLMAuthenticationError("provider authentication or authorization failed")
+            return LLMAuthenticationError(
+                "provider authentication or authorization failed"
+            )
         if isinstance(error, litellm.RateLimitError) or status_code == 429:
             return LLMRateLimitError("provider rate limit exceeded")
 
@@ -948,7 +999,8 @@ class LLMConnector:
         jitter = random.uniform(RETRY_JITTER_MIN_SECONDS, RETRY_JITTER_MAX_SECONDS)
         total_delay = capped_delay + jitter
         LOGGER.debug(
-            "Computed retry delay (attempt=%s, capped_delay=%.2fs, jitter=%.2fs, total=%.2fs)",
+            "Computed retry delay (attempt=%s, capped_delay=%.2fs, jitter=%.2fs, "
+            "total=%.2fs)",
             attempt + 1,
             capped_delay,
             jitter,
