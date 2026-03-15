@@ -1,6 +1,7 @@
 when:
   - event: [push, pull_request]
 
+# Route this workflow to the generic PaZuFa agents.
 labels:
   pazufa_scope: generic
 
