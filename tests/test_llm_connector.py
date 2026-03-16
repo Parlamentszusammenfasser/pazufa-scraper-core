@@ -72,28 +72,38 @@ class TestExtractInputValidation:
 
     def test_non_basemodel_response_model_raises(self) -> None:
         connector = _make_connector()
-        with pytest.raises(ValueError, match="response_model must be a Pydantic BaseModel"):
+        with pytest.raises(
+            ValueError, match="response_model must be a Pydantic BaseModel"
+        ):
             asyncio.get_event_loop().run_until_complete(
                 connector.extract(prompt="test", response_model=dict)  # type: ignore[arg-type]
             )
 
     def test_string_response_model_raises(self) -> None:
         connector = _make_connector()
-        with pytest.raises(ValueError, match="response_model must be a Pydantic BaseModel"):
+        with pytest.raises(
+            ValueError, match="response_model must be a Pydantic BaseModel"
+        ):
             asyncio.get_event_loop().run_until_complete(
                 connector.extract(prompt="test", response_model="Keywords")  # type: ignore[arg-type]
             )
 
     def test_negative_validation_retries_raises(self) -> None:
         connector = _make_connector()
-        with pytest.raises(ValueError, match="validation_retries must be a non-negative integer"):
+        with pytest.raises(
+            ValueError, match="validation_retries must be a non-negative integer"
+        ):
             asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt="test", response_model=Keywords, validation_retries=-1)
+                connector.extract(
+                    prompt="test", response_model=Keywords, validation_retries=-1
+                )
             )
 
     def test_bool_validation_retries_raises(self) -> None:
         connector = _make_connector()
-        with pytest.raises(ValueError, match="validation_retries must be a non-negative integer"):
+        with pytest.raises(
+            ValueError, match="validation_retries must be a non-negative integer"
+        ):
             asyncio.get_event_loop().run_until_complete(
                 connector.extract(
                     prompt="test",
@@ -161,7 +171,10 @@ class TestExtractHappyPath:
         assert call_kwargs["max_retries"] == 3
         assert call_kwargs["temperature"] == 0.1
         # System prompt should be first message
-        assert call_kwargs["messages"][0] == {"role": "system", "content": "Be precise."}
+        assert call_kwargs["messages"][0] == {
+            "role": "system",
+            "content": "Be precise.",
+        }
         assert call_kwargs["messages"][1] == {"role": "user", "content": "test prompt"}
 
     @pytest.mark.asyncio
@@ -194,7 +207,9 @@ class TestExtractHappyPath:
         mock_client.chat.completions.create = mock_create
         connector._instructor_client = mock_client
 
-        await connector.extract(prompt="test", response_model=Keywords, validation_retries=0)
+        await connector.extract(
+            prompt="test", response_model=Keywords, validation_retries=0
+        )
 
         assert mock_create.call_args[1]["max_retries"] == 0
 
@@ -224,7 +239,9 @@ class TestExtractValidationFailure:
         )
         connector._instructor_client = mock_client
 
-        with pytest.raises(LLMValidationError, match="could not produce valid Keywords"):
+        with pytest.raises(
+            LLMValidationError, match="could not produce valid Keywords"
+        ):
             await connector.extract(prompt="test", response_model=Keywords)
 
 
@@ -244,13 +261,17 @@ class TestExtractNetworkRetry:
         mock_client = MagicMock()
         mock_client.chat.completions.create = AsyncMock(
             side_effect=[
-                litellm.exceptions.Timeout(message="timeout", model="test", llm_provider="openai"),
+                litellm.exceptions.Timeout(
+                    message="timeout", model="test", llm_provider="openai"
+                ),
                 expected,
             ]
         )
         connector._instructor_client = mock_client
 
-        with patch("collector_core.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "collector_core.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock
+        ):
             result = await connector.extract(prompt="test", response_model=Keywords)
 
         assert result.sachgebiete == ["Justiz"]
@@ -288,7 +309,9 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch("collector_core.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "collector_core.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock
+        ):
             with pytest.raises(LLMTemporaryProviderError):
                 await connector.extract(prompt="test", response_model=Keywords)
 

@@ -128,6 +128,8 @@ class TestVerfassungsaenderndResult:
             VerfassungsaenderndResult(ist_verfassungsaendernd=True, begruendung="")
 
     def test_serialization(self) -> None:
-        r = VerfassungsaenderndResult(ist_verfassungsaendernd=False, begruendung="Test.")
+        r = VerfassungsaenderndResult(
+            ist_verfassungsaendernd=False, begruendung="Test."
+        )
         d = r.model_dump()
         assert d == {"ist_verfassungsaendernd": False, "begruendung": "Test."}

@@ -13,7 +13,9 @@ from collector_core.llm.sachgebiete_taxonomy import SACHGEBIETE_NAMES
 
 class TestPromptFormatting:
     def test_kurztitel_prompt(self) -> None:
-        result = KURZTITEL_PROMPT.format(titel="Gesetzentwurf", abstract="Ein Abstract.")
+        result = KURZTITEL_PROMPT.format(
+            titel="Gesetzentwurf", abstract="Ein Abstract."
+        )
         assert "Gesetzentwurf" in result
         assert "Ein Abstract." in result
 
