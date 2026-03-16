@@ -274,7 +274,51 @@ class TestExtractRelevantSection:
 
     @pytest.mark.asyncio
     async def test_early_stopping(self) -> None:
-        """Processing stops after consecutive irrelevant chunks."""
+        """Stops after N irrelevant chunks *following* a relevant one."""
+        connector = self._make_connector()
+        text = "\n".join([f"Zeile {i}" for i in range(1, 51)])
+
+        relevant = SectionExtractionResult(
+            is_relevant=True,
+            relevant_lines=[LineRange(start=1, end=5)],
+        )
+        irrelevant = SectionExtractionResult(
+            is_relevant=False, relevant_lines=[]
+        )
+
+        # Chunk 1: relevant, chunks 2-5: irrelevant.
+        # With early_stop_after=2, should process chunks 1 (relevant),
+        # 2 (irrelevant, counter=1), 3 (irrelevant, counter=2), then stop.
+        mock_extract = AsyncMock(
+            side_effect=[relevant, irrelevant, irrelevant, irrelevant, irrelevant]
+        )
+
+        with (
+            patch(
+                "collector_core.llm.llm_connector.litellm.token_counter",
+                return_value=50_000,
+            ),
+            patch.object(
+                connector,
+                "_chunk_lines",
+                return_value=[(0, 10), (8, 20), (18, 30), (28, 40), (38, 50)],
+            ),
+            patch.object(connector, "extract", mock_extract),
+        ):
+            result = await connector.extract_relevant_section(
+                text=text,
+                vorgang_titel="Schulgesetz",
+                token_threshold=30_000,
+                early_stop_after=2,
+            )
+
+        assert result is not None
+        # 1 relevant + 2 irrelevant = 3 calls, then early stop
+        assert mock_extract.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_early_stopping_no_relevant_processes_all(self) -> None:
+        """All chunks are processed when nothing relevant is ever found."""
         connector = self._make_connector()
         text = "\n".join([f"Zeile {i}" for i in range(1, 51)])
 
@@ -300,12 +344,13 @@ class TestExtractRelevantSection:
                 text=text,
                 vorgang_titel="Schulgesetz",
                 token_threshold=30_000,
-                early_stop_after=3,
+                early_stop_after=2,
             )
 
         assert result is None
-        # Should have stopped after 3 irrelevant chunks, not processed all 5
-        assert mock_extract.call_count == 3
+        # All 5 chunks processed — early stop never activates without
+        # a prior relevant chunk.
+        assert mock_extract.call_count == 5
 
     @pytest.mark.asyncio
     async def test_clamped_line_ranges(self) -> None:

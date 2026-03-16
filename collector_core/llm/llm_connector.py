@@ -688,8 +688,10 @@ class LLMConnector:
                 unchanged.
             chunk_size: Target chunk size in tokens for splitting.
             chunk_overlap: Overlap between consecutive chunks in tokens.
-            early_stop_after: Stop after this many consecutive irrelevant
-                chunks.  Set to ``0`` to disable early stopping.
+            early_stop_after: Once relevant content has been found, stop
+                after this many consecutive irrelevant chunks.  Set to
+                ``0`` to disable early stopping.  Chunks before the first
+                relevant hit are always processed.
 
         Returns:
             The concatenated relevant sections, or ``None`` if no relevant
@@ -743,13 +745,18 @@ class LLMConnector:
         vorgang_vnr_part = f" (Drucksache {vorgang_vnr})" if vorgang_vnr else ""
 
         all_line_indices: list[int] = []
+        found_relevant = False
         consecutive_irrelevant = 0
 
         for chunk_idx, (start_line, end_line) in enumerate(chunks):
-            if early_stop_after > 0 and consecutive_irrelevant >= early_stop_after:
+            if (
+                early_stop_after > 0
+                and found_relevant
+                and consecutive_irrelevant >= early_stop_after
+            ):
                 LOGGER.info(
                     "Early stopping after %s consecutive irrelevant chunks "
-                    "(chunk %s/%s)",
+                    "following relevant content (chunk %s/%s)",
                     consecutive_irrelevant,
                     chunk_idx,
                     len(chunks),
@@ -777,7 +784,8 @@ class LLMConnector:
             )
 
             if not result.is_relevant or not result.relevant_lines:
-                consecutive_irrelevant += 1
+                if found_relevant:
+                    consecutive_irrelevant += 1
                 LOGGER.debug(
                     "Chunk %s/%s: not relevant (consecutive=%s)",
                     chunk_idx + 1,
@@ -786,6 +794,7 @@ class LLMConnector:
                 )
                 continue
 
+            found_relevant = True
             consecutive_irrelevant = 0
 
             for lr in result.relevant_lines:
