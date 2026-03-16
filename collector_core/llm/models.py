@@ -5,7 +5,7 @@ Each model is designed to be used standalone with ``LLMConnector.extract()``.
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .sachgebiete_taxonomy import SACHGEBIETE_SET
 
@@ -84,3 +84,43 @@ class VerfassungsaenderndResult(BaseModel):
         min_length=1,
         description="Brief reasoning for the determination, in German.",
     )
+
+
+class LineRange(BaseModel):
+    """A contiguous range of line numbers in a text chunk."""
+
+    start: int = Field(ge=1, description="First relevant line number (inclusive).")
+    end: int = Field(ge=1, description="Last relevant line number (inclusive).")
+
+    @model_validator(mode="after")
+    def start_le_end(self) -> "LineRange":
+        """Ensure start <= end."""
+        if self.start > self.end:
+            raise ValueError(f"start ({self.start}) must be <= end ({self.end})")
+        return self
+
+
+class SectionExtractionResult(BaseModel):
+    """Result of checking a text chunk for relevant content.
+
+    The LLM returns line number ranges pointing into the numbered input text.
+    Actual text extraction is done computationally from the source to guarantee
+    verbatim output.
+    """
+
+    is_relevant: bool = Field(
+        description="Whether the chunk contains text relevant to the Vorgang."
+    )
+    relevant_lines: list[LineRange] = Field(
+        default_factory=list,
+        description="Line ranges containing relevant text (empty if not relevant).",
+    )
+
+    @model_validator(mode="after")
+    def relevant_implies_lines(self) -> "SectionExtractionResult":
+        """Ensure is_relevant=True comes with at least one line range."""
+        if self.is_relevant and not self.relevant_lines:
+            raise ValueError(
+                "is_relevant is True but relevant_lines is empty"
+            )
+        return self

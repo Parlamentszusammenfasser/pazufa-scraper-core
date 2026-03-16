@@ -13,8 +13,10 @@ from .llm_connector import (
 )
 from .models import (
     KurztitelResult,
+    LineRange,
     MeinungResult,
     SchlagworteResult,
+    SectionExtractionResult,
     VerfassungsaenderndResult,
     ZusammenfassungResult,
 )
@@ -22,6 +24,7 @@ from .prompts import (
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
     SCHLAGWORTE_PROMPT,
+    SECTION_EXTRACTION_PROMPT,
     VERFASSUNGSAENDERND_PROMPT,
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
@@ -45,6 +48,8 @@ __all__ = [
     "SchlagworteResult",
     "MeinungResult",
     "VerfassungsaenderndResult",
+    "LineRange",
+    "SectionExtractionResult",
     # Taxonomy
     "SACHGEBIETE",
     "SACHGEBIETE_NAMES",
@@ -55,5 +60,6 @@ __all__ = [
     "SCHLAGWORTE_PROMPT",
     "MEINUNG_PROMPT",
     "VERFASSUNGSAENDERND_PROMPT",
+    "SECTION_EXTRACTION_PROMPT",
     "format_sachgebiete_list",
 ]

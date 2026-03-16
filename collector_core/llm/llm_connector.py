@@ -61,6 +61,9 @@ import litellm
 from instructor.core import InstructorRetryException
 from pydantic import BaseModel
 
+from .models import SectionExtractionResult
+from .prompts import SECTION_EXTRACTION_PROMPT
+
 T = TypeVar("T", bound=BaseModel)
 
 LOGGER = logging.getLogger(__name__)
@@ -659,6 +662,236 @@ class LLMConnector:
             await asyncio.sleep(backoff_seconds)
 
         raise LLMConnectorError("unreachable retry loop state")
+
+    async def extract_relevant_section(
+        self,
+        text: str,
+        vorgang_titel: str,
+        vorgang_vnr: str | None = None,
+        token_threshold: int = 30_000,
+        chunk_size: int = 30_000,
+        chunk_overlap: int = 1_000,
+        early_stop_after: int = 0,
+    ) -> str | None:
+        """Extract sections relevant to a Vorgang from a long document.
+
+        For documents below *token_threshold* the text is returned unchanged.
+        Longer documents are split into overlapping chunks; for each chunk an
+        LLM identifies relevant line ranges, and the corresponding text is
+        extracted computationally (guaranteeing verbatim output).
+
+        Args:
+            text: Full document text (e.g. a parliamentary protocol).
+            vorgang_titel: Title of the Vorgang to search for.
+            vorgang_vnr: Optional Drucksache/Vorgangsnummer for context.
+            token_threshold: Token count below which text passes through
+                unchanged.
+            chunk_size: Target chunk size in tokens for splitting.
+            chunk_overlap: Overlap between consecutive chunks in tokens.
+            early_stop_after: Stop after this many consecutive irrelevant
+                chunks.  Set to ``0`` to disable early stopping.
+
+        Returns:
+            The concatenated relevant sections, or ``None`` if no relevant
+            content was found.
+
+        Raises:
+            ValueError: If *text* or *vorgang_titel* is empty/invalid.
+            LLMProviderError: If a provider call fails.
+            LLMValidationError: If the model cannot produce valid output.
+        """
+        normalized_text = self._require_non_empty_text(text, field_name="text")
+        normalized_titel = self._require_non_empty_text(
+            vorgang_titel, field_name="vorgang_titel"
+        )
+
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if chunk_overlap < 0:
+            raise ValueError("chunk_overlap must be non-negative")
+        if chunk_overlap >= chunk_size:
+            raise ValueError("chunk_overlap must be less than chunk_size")
+        if token_threshold <= 0:
+            raise ValueError("token_threshold must be positive")
+
+        token_count = litellm.token_counter(model=self.model, text=normalized_text)
+        LOGGER.debug(
+            "extract_relevant_section: token_count=%s, threshold=%s",
+            token_count,
+            token_threshold,
+        )
+
+        if token_count <= token_threshold:
+            LOGGER.info(
+                "Document below token threshold (%s <= %s), passing through",
+                token_count,
+                token_threshold,
+            )
+            return normalized_text
+
+        source_lines = normalized_text.splitlines()
+        chunks = self._chunk_lines(
+            source_lines, chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        )
+        LOGGER.info(
+            "Split document into %s chunks (chunk_size=%s, overlap=%s)",
+            len(chunks),
+            chunk_size,
+            chunk_overlap,
+        )
+
+        vorgang_vnr_part = f" (Drucksache {vorgang_vnr})" if vorgang_vnr else ""
+
+        all_line_indices: list[int] = []
+        consecutive_irrelevant = 0
+
+        for chunk_idx, (start_line, end_line) in enumerate(chunks):
+            if early_stop_after > 0 and consecutive_irrelevant >= early_stop_after:
+                LOGGER.info(
+                    "Early stopping after %s consecutive irrelevant chunks "
+                    "(chunk %s/%s)",
+                    consecutive_irrelevant,
+                    chunk_idx,
+                    len(chunks),
+                )
+                break
+
+            numbered_text = self._number_lines(source_lines, start_line, end_line)
+            prompt = SECTION_EXTRACTION_PROMPT.format(
+                vorgang_titel=normalized_titel,
+                vorgang_vnr_part=vorgang_vnr_part,
+                text=numbered_text,
+            )
+
+            LOGGER.debug(
+                "Processing chunk %s/%s (lines %s-%s)",
+                chunk_idx + 1,
+                len(chunks),
+                start_line + 1,
+                end_line,
+            )
+
+            result: SectionExtractionResult = await self.extract(
+                prompt=prompt,
+                response_model=SectionExtractionResult,
+            )
+
+            if not result.is_relevant or not result.relevant_lines:
+                consecutive_irrelevant += 1
+                LOGGER.debug(
+                    "Chunk %s/%s: not relevant (consecutive=%s)",
+                    chunk_idx + 1,
+                    len(chunks),
+                    consecutive_irrelevant,
+                )
+                continue
+
+            consecutive_irrelevant = 0
+
+            for lr in result.relevant_lines:
+                clamped_start = max(lr.start, start_line + 1)
+                clamped_end = min(lr.end, end_line)
+                if clamped_start > clamped_end:
+                    LOGGER.warning(
+                        "Skipping invalid line range [%s-%s] "
+                        "(chunk lines %s-%s)",
+                        lr.start,
+                        lr.end,
+                        start_line + 1,
+                        end_line + 1,
+                    )
+                    continue
+                for i in range(clamped_start - 1, clamped_end):
+                    all_line_indices.append(i)
+
+        if not all_line_indices:
+            LOGGER.info("No relevant content found in any chunk")
+            return None
+
+        unique_indices = sorted(set(all_line_indices))
+        extracted = "\n".join(source_lines[i] for i in unique_indices)
+        LOGGER.info(
+            "Extracted %s lines from %s total",
+            len(unique_indices),
+            len(source_lines),
+        )
+        return extracted
+
+    def _chunk_lines(
+        self,
+        lines: list[str],
+        chunk_size: int,
+        chunk_overlap: int,
+    ) -> list[tuple[int, int]]:
+        """Split lines into overlapping chunks by token budget.
+
+        Each chunk is represented as a ``(start_index, end_index)`` tuple
+        (0-based, end exclusive) into *lines*.
+
+        Args:
+            lines: Source text split into lines.
+            chunk_size: Target token budget per chunk.
+            chunk_overlap: Overlap budget in tokens.
+
+        Returns:
+            List of ``(start, end)`` index tuples.
+        """
+        total = len(lines)
+        if total == 0:
+            return []
+
+        # Pre-compute per-line token counts to avoid redundant tokenizer calls.
+        line_token_counts = [
+            litellm.token_counter(model=self.model, text=line)
+            for line in lines
+        ]
+
+        chunks: list[tuple[int, int]] = []
+        start = 0
+
+        while start < total:
+            token_count = 0
+            end = start
+            while end < total:
+                if token_count + line_token_counts[end] > chunk_size and end > start:
+                    break
+                token_count += line_token_counts[end]
+                end += 1
+
+            chunks.append((start, end))
+
+            if end >= total:
+                break
+
+            overlap_tokens = 0
+            overlap_start = end
+            while overlap_start > start:
+                if overlap_tokens + line_token_counts[overlap_start - 1] > chunk_overlap:
+                    break
+                overlap_tokens += line_token_counts[overlap_start - 1]
+                overlap_start -= 1
+
+            start = overlap_start
+
+        return chunks
+
+    @staticmethod
+    def _number_lines(lines: list[str], start: int, end: int) -> str:
+        """Add ``[N]`` line number prefixes to a slice of lines.
+
+        Line numbers are 1-based (matching what the LLM sees and returns).
+
+        Args:
+            lines: Full list of source lines.
+            start: Start index (0-based, inclusive).
+            end: End index (0-based, exclusive).
+
+        Returns:
+            Numbered text block.
+        """
+        return "\n".join(
+            f"[{i + 1}] {lines[i]}" for i in range(start, end)
+        )
 
     @staticmethod
     def _extract_text(response: litellm.ModelResponse) -> str:
