@@ -35,7 +35,8 @@ class SchlagworteResult(BaseModel):
 
     sachgebiete: list[str] = Field(
         description=(
-            "Sachgebiete from the provided list that are relevant" " to this document/station."
+            "Sachgebiete from the provided list that are relevant"
+            " to this document/station."
         ),
     )
     schlagworte: list[str] = Field(
@@ -120,7 +121,5 @@ class SectionExtractionResult(BaseModel):
     def relevant_implies_lines(self) -> "SectionExtractionResult":
         """Ensure is_relevant=True comes with at least one line range."""
         if self.is_relevant and not self.relevant_lines:
-            raise ValueError(
-                "is_relevant is True but relevant_lines is empty"
-            )
+            raise ValueError("is_relevant is True but relevant_lines is empty")
         return self

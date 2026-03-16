@@ -11,7 +11,6 @@ from pydantic import ValidationError
 from collector_core.llm.llm_connector import LLMConnector
 from collector_core.llm.models import LineRange, SectionExtractionResult
 
-
 # ---------------------------------------------------------------------------
 # Model tests
 # ---------------------------------------------------------------------------
@@ -243,9 +242,7 @@ class TestExtractRelevantSection:
         connector = self._make_connector()
         text = "\n".join([f"Zeile {i}" for i in range(1, 11)])
 
-        mock_result = SectionExtractionResult(
-            is_relevant=False, relevant_lines=[]
-        )
+        mock_result = SectionExtractionResult(is_relevant=False, relevant_lines=[])
 
         with (
             patch(
@@ -282,9 +279,7 @@ class TestExtractRelevantSection:
             is_relevant=True,
             relevant_lines=[LineRange(start=1, end=5)],
         )
-        irrelevant = SectionExtractionResult(
-            is_relevant=False, relevant_lines=[]
-        )
+        irrelevant = SectionExtractionResult(is_relevant=False, relevant_lines=[])
 
         # Chunk 1: relevant, chunks 2-5: irrelevant.
         # With early_stop_after=2, should process chunks 1 (relevant),
@@ -322,9 +317,7 @@ class TestExtractRelevantSection:
         connector = self._make_connector()
         text = "\n".join([f"Zeile {i}" for i in range(1, 51)])
 
-        irrelevant = SectionExtractionResult(
-            is_relevant=False, relevant_lines=[]
-        )
+        irrelevant = SectionExtractionResult(is_relevant=False, relevant_lines=[])
 
         mock_extract = AsyncMock(return_value=irrelevant)
 
@@ -443,17 +436,13 @@ class TestExtractRelevantSection:
     async def test_empty_text_raises(self) -> None:
         connector = self._make_connector()
         with pytest.raises(ValueError, match="text must not be empty"):
-            await connector.extract_relevant_section(
-                text="", vorgang_titel="Test"
-            )
+            await connector.extract_relevant_section(text="", vorgang_titel="Test")
 
     @pytest.mark.asyncio
     async def test_empty_titel_raises(self) -> None:
         connector = self._make_connector()
         with pytest.raises(ValueError, match="vorgang_titel must not be empty"):
-            await connector.extract_relevant_section(
-                text="Some text", vorgang_titel=""
-            )
+            await connector.extract_relevant_section(text="Some text", vorgang_titel="")
 
     @pytest.mark.asyncio
     async def test_invalid_chunk_size_raises(self) -> None:
@@ -492,9 +481,7 @@ class TestExtractRelevantSection:
 
         calls: list[str] = []
         original_extract = AsyncMock(
-            return_value=SectionExtractionResult(
-                is_relevant=False, relevant_lines=[]
-            )
+            return_value=SectionExtractionResult(is_relevant=False, relevant_lines=[])
         )
 
         async def capture_extract(prompt: str, **kwargs: object) -> object:

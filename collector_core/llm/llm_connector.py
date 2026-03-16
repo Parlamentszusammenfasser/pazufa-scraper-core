@@ -802,8 +802,7 @@ class LLMConnector:
                 clamped_end = min(lr.end, end_line)
                 if clamped_start > clamped_end:
                     LOGGER.warning(
-                        "Skipping invalid line range [%s-%s] "
-                        "(chunk lines %s-%s)",
+                        "Skipping invalid line range [%s-%s] " "(chunk lines %s-%s)",
                         lr.start,
                         lr.end,
                         start_line + 1,
@@ -851,8 +850,7 @@ class LLMConnector:
 
         # Pre-compute per-line token counts to avoid redundant tokenizer calls.
         line_token_counts = [
-            litellm.token_counter(model=self.model, text=line)
-            for line in lines
+            litellm.token_counter(model=self.model, text=line) for line in lines
         ]
 
         chunks: list[tuple[int, int]] = []
@@ -875,7 +873,10 @@ class LLMConnector:
             overlap_tokens = 0
             overlap_start = end
             while overlap_start > start:
-                if overlap_tokens + line_token_counts[overlap_start - 1] > chunk_overlap:
+                if (
+                    overlap_tokens + line_token_counts[overlap_start - 1]
+                    > chunk_overlap
+                ):
                     break
                 overlap_tokens += line_token_counts[overlap_start - 1]
                 overlap_start -= 1
@@ -898,9 +899,7 @@ class LLMConnector:
         Returns:
             Numbered text block.
         """
-        return "\n".join(
-            f"[{i + 1}] {lines[i]}" for i in range(start, end)
-        )
+        return "\n".join(f"[{i + 1}] {lines[i]}" for i in range(start, end))
 
     @staticmethod
     def _extract_text(response: litellm.ModelResponse) -> str:
