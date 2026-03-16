@@ -46,6 +46,14 @@ This repository provides shared Python infrastructure for PaZuFa scrapers:
 
 Before starting larger work, check existing issues or open one first to avoid duplicate work and to align on scope.
 
+## OpenAPI
+
+The OpenAPI spec is maintained in the main project at
+[codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml](https://codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml).
+
+The current API version is effectively fixed. Suggestions can be incorporated
+for a later API revision, usually with a larger time lag.
+
 ## Generated Code
 
 Some files are generated and should usually not be edited by hand:
@@ -61,13 +69,9 @@ poetry run python tools/generate_openapi_client.py
 ```
 
 Relevant generator configuration lives in
-[openapi.yaml](openapi.yaml),
 [pyproject.toml](pyproject.toml),
 [tools/openapi-python-client.yaml](tools/openapi-python-client.yaml) and
 [tools/generate_openapi_client.py](tools/generate_openapi_client.py).
-For later API revisions, track the main project spec at
-[codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml](https://codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml)
-Suggestions can be incorporated there, but usually with a larger time lag.
 
 ## Project Context
 

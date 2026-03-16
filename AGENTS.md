@@ -31,20 +31,9 @@ If a design choice improves short-term convenience but increases long-term maint
 
 ## Build & Verify
 
-```bash
-poetry install --with dev
-poetry run black --check .
-poetry run isort --check-only .
-poetry run mypy .
-poetry run pytest
-```
-
-When regenerating API-related code:
-
-```bash
-poetry run datamodel-codegen
-poetry run python tools/generate_openapi_client.py
-```
+Use [CONTRIBUTING.md](CONTRIBUTING.md) as the source of truth for local setup,
+verification, and code generation commands. Before finishing work, run the
+relevant checks from there.
 
 ## Tech Stack
 
@@ -54,7 +43,7 @@ poetry run python tools/generate_openapi_client.py
 - **pytest**, **pytest-asyncio**, **pytest-cov** for testing
 - **mypy**, **black**, **isort** for static checks and formatting
 - **LiteLLM** + **Instructor** for provider-agnostic LLM integration
-- **Woodpecker CI** for e.g. format, type-check, and test verification
+- **Woodpecker CI** verifies formatting, type checks, and tests
 
 ## Code Style
 
@@ -84,14 +73,10 @@ These paths are generated and should not be hand-edited unless the task explicit
 
 Prefer changing one of these inputs instead:
 
-- [openapi.yaml](openapi.yaml) - fixed for the current API version
 - [pyproject.toml](pyproject.toml) - `tool.datamodel-codegen`
 - [tools/openapi-python-client.yaml](tools/openapi-python-client.yaml)
 - [tools/generate_openapi_client.py](tools/generate_openapi_client.py)
-
-For later API revisions, track the main project spec at
-[codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml](https://codeberg.org/PaZuFa/parlamentszusammenfasser/src/branch/main/docs/specs/openapi.yml).
-Suggestions can be incorporated there, but usually with a larger time lag.
+- See [CONTRIBUTING.md](CONTRIBUTING.md#openapi) for OpenAPI source-of-truth notes
 
 Then regenerate and review the diff carefully.
 
