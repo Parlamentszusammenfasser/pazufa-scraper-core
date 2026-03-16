@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import litellm
 import pytest
 from pydantic import BaseModel, Field
 
+if TYPE_CHECKING:
+    from instructor.core import InstructorRetryException
+
 from collector_core.llm.llm_connector import (
     TOKEN_ESTIMATE_OUTPUT_BUFFER,
     LLMAuthenticationError,
     LLMConnector,
+    LLMProviderError,
+    LLMQuotaExceededError,
+    LLMRateLimitError,
     LLMTemporaryProviderError,
     LLMValidationError,
     RateLimiter,
@@ -629,3 +636,250 @@ class TestRateLimiterTokenExceedsBudget:
         limiter = RateLimiter(max_calls=100, per_seconds=60.0, max_tokens=5_000)
         # Should not raise — equal to budget is permitted.
         await limiter.acquire_slot(estimated_tokens=5_000)
+
+
+# ---------------------------------------------------------------------------
+# extract() — InstructorRetryException error classification
+# ---------------------------------------------------------------------------
+
+
+def _make_instructor_retry(
+    failed_exceptions: list[Exception] | None = None,
+    cause: Exception | None = None,
+) -> "InstructorRetryException":
+    """Build an InstructorRetryException with controlled failed_attempts."""
+    from instructor.core import InstructorRetryException
+    from instructor.core.exceptions import FailedAttempt
+
+    failed_attempts = None
+    if failed_exceptions is not None:
+        failed_attempts = [
+            FailedAttempt(
+                attempt_number=i + 1,
+                exception=exc,
+                completion=None,
+            )
+            for i, exc in enumerate(failed_exceptions)
+        ]
+
+    exc = InstructorRetryException(
+        n_attempts=len(failed_exceptions) if failed_exceptions else 1,
+        messages=[],
+        last_completion=None,
+        total_usage=MagicMock(),
+        failed_attempts=failed_attempts,
+    )
+    if cause is not None:
+        exc.__cause__ = cause
+    return exc
+
+
+class TestExtractErrorClassification:
+    """Verify InstructorRetryException is correctly classified as either
+    a validation error or a provider error based on failed_attempts."""
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_in_retry_raises_rate_limit_error(self) -> None:
+        connector = _make_connector(max_retries=0)
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[
+                    litellm.RateLimitError("rate limited", "model", "provider")
+                ],
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMRateLimitError):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_auth_error_in_retry_raises_auth_error(self) -> None:
+        connector = _make_connector(max_retries=0)
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[
+                    litellm.AuthenticationError("bad key", "model", "provider")
+                ],
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMAuthenticationError):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_budget_error_in_retry_raises_quota_error(self) -> None:
+        connector = _make_connector(max_retries=0)
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[
+                    litellm.BudgetExceededError("over budget", max_budget=10.0)
+                ],
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMQuotaExceededError):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_timeout_in_retry_raises_temporary_error(self) -> None:
+        connector = _make_connector(max_retries=0)
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[litellm.Timeout("timed out", "model", "provider")],
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMTemporaryProviderError):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_pure_validation_errors_still_raise_validation_error(self) -> None:
+        from pydantic import ValidationError as PydanticValidationError
+
+        connector = _make_connector(max_retries=0)
+
+        # Create a real Pydantic ValidationError
+        try:
+            Keywords(sachgebiete="not_a_list", schlagworte="not_a_list")  # type: ignore[arg-type]
+        except PydanticValidationError as ve:
+            validation_exc = ve
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[validation_exc],
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(
+            LLMValidationError, match="could not produce valid Keywords"
+        ):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_mixed_errors_last_provider_error_wins(self) -> None:
+        """When attempts have a mix of validation and provider errors,
+        the last non-validation error determines the classification."""
+        from pydantic import ValidationError as PydanticValidationError
+
+        connector = _make_connector(max_retries=0)
+
+        try:
+            Keywords(sachgebiete="bad", schlagworte="bad")  # type: ignore[arg-type]
+        except PydanticValidationError as ve:
+            validation_exc = ve
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[
+                    validation_exc,
+                    litellm.RateLimitError("rate limited", "model", "provider"),
+                ],
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMRateLimitError):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_no_failed_attempts_falls_back_to_validation_error(self) -> None:
+        """When failed_attempts is empty/None, fall back to LLMValidationError."""
+        connector = _make_connector(max_retries=0)
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(failed_exceptions=None)
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(
+            LLMValidationError, match="could not produce valid Keywords"
+        ):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_cause_chain_fallback_detects_provider_error(self) -> None:
+        """When failed_attempts has no provider errors but __cause__ does,
+        the __cause__ chain is used."""
+        connector = _make_connector(max_retries=0)
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[],
+                cause=litellm.AuthenticationError("bad key", "model", "provider"),
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMAuthenticationError):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_cause_chain_preserved(self) -> None:
+        """The original InstructorRetryException is preserved as __cause__."""
+        connector = _make_connector(max_retries=0)
+        mock_client = MagicMock()
+        retry_exc = _make_instructor_retry(
+            failed_exceptions=[litellm.RateLimitError("limited", "model", "provider")],
+        )
+        mock_client.chat.completions.create = AsyncMock(side_effect=retry_exc)
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMRateLimitError) as exc_info:
+            await connector.extract(prompt="test", response_model=Keywords)
+
+        assert exc_info.value.__cause__ is not None
+
+    @pytest.mark.asyncio
+    async def test_retryable_provider_error_gets_network_retry(self) -> None:
+        """A retryable provider error (rate limit) extracted from
+        InstructorRetryException should trigger network-level retries."""
+        connector = _make_connector(max_retries=1)
+        expected = Keywords(sachgebiete=["Justiz"], schlagworte=["Urteil"])
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=[
+                _make_instructor_retry(
+                    failed_exceptions=[
+                        litellm.RateLimitError("limited", "model", "provider")
+                    ],
+                ),
+                expected,
+            ]
+        )
+        connector._instructor_client = mock_client
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            result = await connector.extract(prompt="test", response_model=Keywords)
+
+        assert result == expected
+        assert mock_client.chat.completions.create.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_unknown_exception_in_retry_raises_generic_provider_error(
+        self,
+    ) -> None:
+        """An unrecognised (non-litellm) exception inside
+        InstructorRetryException falls through to generic LLMProviderError."""
+        connector = _make_connector(max_retries=0)
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[RuntimeError("something unexpected")],
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMProviderError, match="provider request failed"):
+            await connector.extract(prompt="test", response_model=Keywords)
