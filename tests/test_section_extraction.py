@@ -124,7 +124,7 @@ class TestChunkLines:
         """Short document fits in one chunk."""
         import collector_core.llm.llm_connector as mod
 
-        mod.litellm.token_counter = lambda model, text: len(text.split())
+        mod.litellm.token_counter = lambda model, text: len(text.split())  # type: ignore[misc,assignment]
 
         connector = self._make_connector()
         lines = ["word " * 5] * 4  # 4 lines, 5 tokens each = 20 tokens
@@ -136,7 +136,7 @@ class TestChunkLines:
         """Document split into multiple chunks with overlap."""
         import collector_core.llm.llm_connector as mod
 
-        mod.litellm.token_counter = lambda model, text: len(text.split())
+        mod.litellm.token_counter = lambda model, text: len(text.split())  # type: ignore[misc,assignment]
 
         connector = self._make_connector()
         # 10 lines, 10 tokens each = 100 tokens total
@@ -153,7 +153,7 @@ class TestChunkLines:
     def test_empty_lines(self, mock_litellm: object) -> None:
         import collector_core.llm.llm_connector as mod
 
-        mod.litellm.token_counter = lambda model, text: len(text.split())
+        mod.litellm.token_counter = lambda model, text: len(text.split())  # type: ignore[misc,assignment]
 
         connector = self._make_connector()
         chunks = connector._chunk_lines([], chunk_size=100, chunk_overlap=10)

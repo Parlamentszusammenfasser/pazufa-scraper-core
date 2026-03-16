@@ -76,7 +76,7 @@ class TestExtractInputValidation:
             ValueError, match="response_model must be a Pydantic BaseModel"
         ):
             asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt="test", response_model=dict)  # type: ignore[arg-type]
+                connector.extract(prompt="test", response_model=dict)  # type: ignore[type-var]
             )
 
     def test_string_response_model_raises(self) -> None:
