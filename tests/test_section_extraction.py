@@ -150,6 +150,26 @@ class TestChunkLines:
         assert chunks[-1][1] == 10
 
     @patch("collector_core.llm.llm_connector.litellm")
+    def test_large_line_does_not_loop(self, mock_litellm: object) -> None:
+        """A single line exceeding chunk_size must not cause an infinite loop."""
+        import collector_core.llm.llm_connector as mod
+
+        # Simulate: small line (10 tokens), then a huge line (5000 tokens)
+        token_counts = [10, 5000, 10, 10]
+        mod.litellm.token_counter = lambda model, text: token_counts[  # type: ignore[misc,assignment]
+            int(text.split("_")[1])
+        ]
+
+        connector = self._make_connector()
+        lines = [f"line_{i}" for i in range(4)]
+        chunks = connector._chunk_lines(lines, chunk_size=3000, chunk_overlap=1000)
+
+        # Must terminate and cover all lines
+        assert len(chunks) >= 2
+        assert chunks[0][0] == 0
+        assert chunks[-1][1] == 4
+
+    @patch("collector_core.llm.llm_connector.litellm")
     def test_empty_lines(self, mock_litellm: object) -> None:
         import collector_core.llm.llm_connector as mod
 
@@ -180,22 +200,62 @@ class TestExtractRelevantSection:
         return connector
 
     @pytest.mark.asyncio
-    async def test_short_document_passes_through(self) -> None:
-        """Documents below token threshold are returned unchanged."""
+    async def test_short_document_checked_for_relevance(self) -> None:
+        """Short documents still go through LLM relevance checking."""
         connector = self._make_connector()
-        text = "Kurzer Text zum Thema."
+        text = "Kurzer Text zum Thema Schulgesetz."
 
-        with patch(
-            "collector_core.llm.llm_connector.litellm.token_counter",
-            return_value=10,
+        mock_result = SectionExtractionResult(
+            is_relevant=True,
+            relevant_lines=[LineRange(start=1, end=1)],
+        )
+
+        with (
+            patch(
+                "collector_core.llm.llm_connector.litellm.token_counter",
+                return_value=10,
+            ),
+            patch.object(
+                connector,
+                "extract",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ) as mock_extract,
         ):
             result = await connector.extract_relevant_section(
                 text=text,
                 vorgang_titel="Schulgesetz",
-                token_threshold=30_000,
             )
 
         assert result == text
+        mock_extract.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_short_irrelevant_document_returns_none(self) -> None:
+        """Short documents are filtered out when not relevant."""
+        connector = self._make_connector()
+        text = "Völlig anderes Thema ohne Bezug."
+
+        mock_result = SectionExtractionResult(is_relevant=False, relevant_lines=[])
+
+        with (
+            patch(
+                "collector_core.llm.llm_connector.litellm.token_counter",
+                return_value=10,
+            ),
+            patch.object(
+                connector,
+                "extract",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ),
+        ):
+            result = await connector.extract_relevant_section(
+                text=text,
+                vorgang_titel="Schulgesetz",
+            )
+
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_relevant_lines_extracted(self) -> None:
@@ -229,7 +289,7 @@ class TestExtractRelevantSection:
             result = await connector.extract_relevant_section(
                 text=text,
                 vorgang_titel="Schulgesetz",
-                token_threshold=30_000,
+                chunk_size=30_000,
             )
 
         assert result is not None
@@ -264,7 +324,7 @@ class TestExtractRelevantSection:
             result = await connector.extract_relevant_section(
                 text=text,
                 vorgang_titel="Schulgesetz",
-                token_threshold=30_000,
+                chunk_size=30_000,
             )
 
         assert result is None
@@ -303,7 +363,7 @@ class TestExtractRelevantSection:
             result = await connector.extract_relevant_section(
                 text=text,
                 vorgang_titel="Schulgesetz",
-                token_threshold=30_000,
+                chunk_size=30_000,
                 early_stop_after=2,
             )
 
@@ -336,7 +396,7 @@ class TestExtractRelevantSection:
             result = await connector.extract_relevant_section(
                 text=text,
                 vorgang_titel="Schulgesetz",
-                token_threshold=30_000,
+                chunk_size=30_000,
                 early_stop_after=2,
             )
 
@@ -378,7 +438,7 @@ class TestExtractRelevantSection:
             result = await connector.extract_relevant_section(
                 text=text,
                 vorgang_titel="Schulgesetz",
-                token_threshold=30_000,
+                chunk_size=30_000,
             )
 
         # Should clamp to available lines (1-10)
@@ -424,7 +484,7 @@ class TestExtractRelevantSection:
             result = await connector.extract_relevant_section(
                 text=text,
                 vorgang_titel="Schulgesetz",
-                token_threshold=30_000,
+                chunk_size=30_000,
             )
 
         assert result is not None
@@ -466,14 +526,6 @@ class TestExtractRelevantSection:
             )
 
     @pytest.mark.asyncio
-    async def test_invalid_token_threshold_raises(self) -> None:
-        connector = self._make_connector()
-        with pytest.raises(ValueError, match="token_threshold must be positive"):
-            await connector.extract_relevant_section(
-                text="Some text", vorgang_titel="Test", token_threshold=0
-            )
-
-    @pytest.mark.asyncio
     async def test_vnr_included_in_prompt(self) -> None:
         """When vorgang_vnr is given, it appears in the prompt."""
         connector = self._make_connector()
@@ -504,7 +556,7 @@ class TestExtractRelevantSection:
                 text=text,
                 vorgang_titel="Schulgesetz",
                 vorgang_vnr="7/1234",
-                token_threshold=30_000,
+                chunk_size=30_000,
             )
 
         assert len(calls) == 1

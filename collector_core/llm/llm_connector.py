@@ -668,25 +668,25 @@ class LLMConnector:
         text: str,
         vorgang_titel: str,
         vorgang_vnr: str | None = None,
-        token_threshold: int = 30_000,
         chunk_size: int = 30_000,
         chunk_overlap: int = 1_000,
         early_stop_after: int = 0,
     ) -> str | None:
-        """Extract sections relevant to a Vorgang from a long document.
+        """Extract sections relevant to a Vorgang from a document.
 
-        For documents below *token_threshold* the text is returned unchanged.
-        Longer documents are split into overlapping chunks; for each chunk an
-        LLM identifies relevant line ranges, and the corresponding text is
-        extracted computationally (guaranteeing verbatim output).
+        The document is split into overlapping chunks (or treated as a single
+        chunk when short enough); for each chunk an LLM identifies relevant
+        line ranges, and the corresponding text is extracted computationally
+        (guaranteeing verbatim output).
 
         Args:
             text: Full document text (e.g. a parliamentary protocol).
             vorgang_titel: Title of the Vorgang to search for.
             vorgang_vnr: Optional Drucksache/Vorgangsnummer for context.
-            token_threshold: Token count below which text passes through
-                unchanged.
-            chunk_size: Target chunk size in tokens for splitting.
+            chunk_size: Target chunk size in tokens for splitting.  This
+                budget covers text lines only; the ~300-token extraction
+                prompt is added on top.  The default (30 000) leaves ample
+                headroom for typical model context windows.
             chunk_overlap: Overlap between consecutive chunks in tokens.
             early_stop_after: Once relevant content has been found, stop
                 after this many consecutive irrelevant chunks.  Set to
@@ -713,23 +713,6 @@ class LLMConnector:
             raise ValueError("chunk_overlap must be non-negative")
         if chunk_overlap >= chunk_size:
             raise ValueError("chunk_overlap must be less than chunk_size")
-        if token_threshold <= 0:
-            raise ValueError("token_threshold must be positive")
-
-        token_count = litellm.token_counter(model=self.model, text=normalized_text)
-        LOGGER.debug(
-            "extract_relevant_section: token_count=%s, threshold=%s",
-            token_count,
-            token_threshold,
-        )
-
-        if token_count <= token_threshold:
-            LOGGER.info(
-                "Document below token threshold (%s <= %s), passing through",
-                token_count,
-                token_threshold,
-            )
-            return normalized_text
 
         source_lines = normalized_text.splitlines()
         chunks = self._chunk_lines(
@@ -744,7 +727,7 @@ class LLMConnector:
 
         vorgang_vnr_part = f" (Drucksache {vorgang_vnr})" if vorgang_vnr else ""
 
-        all_line_indices: list[int] = []
+        all_line_indices: set[int] = set()
         found_relevant = False
         consecutive_irrelevant = 0
 
@@ -758,7 +741,7 @@ class LLMConnector:
                     "Early stopping after %s consecutive irrelevant chunks "
                     "following relevant content (chunk %s/%s)",
                     consecutive_irrelevant,
-                    chunk_idx,
+                    chunk_idx + 1,
                     len(chunks),
                 )
                 break
@@ -809,14 +792,13 @@ class LLMConnector:
                         end_line + 1,
                     )
                     continue
-                for i in range(clamped_start - 1, clamped_end):
-                    all_line_indices.append(i)
+                all_line_indices.update(range(clamped_start - 1, clamped_end))
 
         if not all_line_indices:
             LOGGER.info("No relevant content found in any chunk")
             return None
 
-        unique_indices = sorted(set(all_line_indices))
+        unique_indices = sorted(all_line_indices)
         extracted = "\n".join(source_lines[i] for i in unique_indices)
         LOGGER.info(
             "Extracted %s lines from %s total",
@@ -836,9 +818,16 @@ class LLMConnector:
         Each chunk is represented as a ``(start_index, end_index)`` tuple
         (0-based, end exclusive) into *lines*.
 
+        Note:
+            *chunk_size* covers only the text lines, not the surrounding
+            prompt template.  Callers should account for prompt overhead
+            when choosing *chunk_size* (the default of 30 000 leaves ample
+            headroom for the ~300-token extraction prompt).
+
         Args:
             lines: Source text split into lines.
-            chunk_size: Target token budget per chunk.
+            chunk_size: Target token budget per chunk (text lines only,
+                excluding prompt overhead).
             chunk_overlap: Overlap budget in tokens.
 
         Returns:
@@ -881,7 +870,11 @@ class LLMConnector:
                 overlap_tokens += line_token_counts[overlap_start - 1]
                 overlap_start -= 1
 
-            start = overlap_start
+            # Ensure forward progress: if the overlap backed up to or before
+            # the current chunk start, advance by at least one line to avoid
+            # an infinite loop (can happen when a single line exceeds
+            # chunk_size, causing a very short chunk).
+            start = max(overlap_start, start + 1)
 
         return chunks
 
