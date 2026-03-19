@@ -799,7 +799,12 @@ class LLMConnector:
             return None
 
         unique_indices = sorted(all_line_indices)
-        extracted = "\n".join(source_lines[i] for i in unique_indices)
+        parts: list[str] = []
+        for pos, idx in enumerate(unique_indices):
+            if pos > 0 and idx != unique_indices[pos - 1] + 1:
+                parts.append("")  # blank line between non-consecutive sections
+            parts.append(source_lines[idx])
+        extracted = "\n".join(parts)
         LOGGER.info(
             "Extracted %s lines from %s total",
             len(unique_indices),

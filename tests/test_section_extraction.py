@@ -493,6 +493,49 @@ class TestExtractRelevantSection:
         assert result == expected
 
     @pytest.mark.asyncio
+    async def test_non_consecutive_ranges_separated_by_blank_line(self) -> None:
+        """Non-consecutive extracted sections are separated by a blank line."""
+        connector = self._make_connector()
+        lines = [f"Zeile {i}" for i in range(1, 21)]
+        text = "\n".join(lines)
+
+        # Two disjoint ranges: lines 2-4 and lines 10-12
+        mock_result = SectionExtractionResult(
+            is_relevant=True,
+            relevant_lines=[
+                LineRange(start=2, end=4),
+                LineRange(start=10, end=12),
+            ],
+        )
+
+        with (
+            patch(
+                "collector_core.llm.llm_connector.litellm.token_counter",
+                return_value=50_000,
+            ),
+            patch.object(
+                connector,
+                "_chunk_lines",
+                return_value=[(0, 20)],
+            ),
+            patch.object(
+                connector,
+                "extract",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ),
+        ):
+            result = await connector.extract_relevant_section(
+                text=text,
+                vorgang_titel="Schulgesetz",
+                chunk_size=30_000,
+            )
+
+        assert result is not None
+        expected = "\n".join(lines[1:4]) + "\n\n" + "\n".join(lines[9:12])
+        assert result == expected
+
+    @pytest.mark.asyncio
     async def test_empty_text_raises(self) -> None:
         connector = self._make_connector()
         with pytest.raises(ValueError, match="text must not be empty"):
