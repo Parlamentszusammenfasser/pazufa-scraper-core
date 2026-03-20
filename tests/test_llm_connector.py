@@ -717,7 +717,7 @@ class TestExtractErrorClassification:
         mock_client.chat.completions.create = AsyncMock(
             side_effect=_make_instructor_retry(
                 failed_exceptions=[
-                    litellm.BudgetExceededError("over budget", max_budget=10.0)
+                    litellm.BudgetExceededError(current_cost=15.0, max_budget=10.0)
                 ],
             )
         )
