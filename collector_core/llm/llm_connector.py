@@ -774,8 +774,7 @@ class LLMConnector:
             )
 
             if not result.is_relevant or not result.relevant_lines:
-                if found_relevant:
-                    consecutive_irrelevant += 1
+                consecutive_irrelevant += 1
                 LOGGER.debug(
                     "Chunk %s/%s: not relevant (consecutive=%s)",
                     chunk_idx + 1,
