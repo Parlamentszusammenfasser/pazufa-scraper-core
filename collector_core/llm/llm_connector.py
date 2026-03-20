@@ -509,6 +509,7 @@ class LLMConnector:
         response_model: type[T],
         system_prompt: str | None = DEFAULT_SYSTEM_PROMPT,
         validation_retries: int = 2,
+        validation_context: dict[str, object] | None = None,
     ) -> T:
         """Extract structured data from text using the configured model.
 
@@ -525,6 +526,9 @@ class LLMConnector:
                 model when its output fails Pydantic validation. This is
                 separate from the network-level retry controlled by
                 ``max_retries``.
+            validation_context: Optional dict passed to Pydantic's
+                ``model_validate`` as context, allowing model validators
+                to access runtime information (e.g. valid line ranges).
 
         Returns:
             A validated instance of *response_model*.
@@ -601,6 +605,7 @@ class LLMConnector:
                         temperature=self.temperature,
                         timeout=self.timeout_seconds,
                         max_retries=validation_retries,
+                        validation_context=validation_context,
                     ),
                     self.timeout_seconds + 0.5,
                 )
@@ -715,9 +720,7 @@ class LLMConnector:
             raise ValueError("chunk_overlap must be less than chunk_size")
 
         source_lines = normalized_text.splitlines()
-        chunks = self._chunk_lines(
-            source_lines, chunk_size=chunk_size, chunk_overlap=chunk_overlap
-        )
+        chunks = self._chunk_lines(source_lines, chunk_size, chunk_overlap)
         LOGGER.info(
             "Split document into %s chunks (chunk_size=%s, overlap=%s)",
             len(chunks),
@@ -764,6 +767,10 @@ class LLMConnector:
             result: SectionExtractionResult = await self.extract(
                 prompt=prompt,
                 response_model=SectionExtractionResult,
+                validation_context={
+                    "min_line": start_line + 1,
+                    "max_line": end_line,
+                },
             )
 
             if not result.is_relevant or not result.relevant_lines:
@@ -781,18 +788,7 @@ class LLMConnector:
             consecutive_irrelevant = 0
 
             for lr in result.relevant_lines:
-                clamped_start = max(lr.start, start_line + 1)
-                clamped_end = min(lr.end, end_line)
-                if clamped_start > clamped_end:
-                    LOGGER.warning(
-                        "Skipping invalid line range [%s-%s] " "(chunk lines %s-%s)",
-                        lr.start,
-                        lr.end,
-                        start_line + 1,
-                        end_line + 1,
-                    )
-                    continue
-                all_line_indices.update(range(clamped_start - 1, clamped_end))
+                all_line_indices.update(range(lr.start - 1, lr.end))
 
         if not all_line_indices:
             LOGGER.info("No relevant content found in any chunk")

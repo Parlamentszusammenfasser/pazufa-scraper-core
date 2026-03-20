@@ -406,44 +406,33 @@ class TestExtractRelevantSection:
         assert mock_extract.call_count == 5
 
     @pytest.mark.asyncio
-    async def test_clamped_line_ranges(self) -> None:
-        """Line ranges outside the chunk boundaries are clamped."""
-        connector = self._make_connector()
-        lines = [f"Zeile {i}" for i in range(1, 11)]
-        text = "\n".join(lines)
-
-        # LLM returns range extending beyond chunk (lines 1-10, but claims 1-15)
-        mock_result = SectionExtractionResult(
-            is_relevant=True,
-            relevant_lines=[LineRange(start=1, end=15)],
-        )
-
-        with (
-            patch(
-                "collector_core.llm.llm_connector.litellm.token_counter",
-                return_value=50_000,
-            ),
-            patch.object(
-                connector,
-                "_chunk_lines",
-                return_value=[(0, 10)],
-            ),
-            patch.object(
-                connector,
-                "extract",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-        ):
-            result = await connector.extract_relevant_section(
-                text=text,
-                vorgang_titel="Schulgesetz",
-                chunk_size=30_000,
+    async def test_out_of_bounds_rejected_by_validation(self) -> None:
+        """Line ranges outside the chunk are rejected by the model validator."""
+        # The validator on SectionExtractionResult rejects out-of-bounds
+        # ranges when validation_context is provided, causing Instructor
+        # to retry.  Here we verify the validator itself.
+        with pytest.raises(ValidationError, match="outside the input chunk"):
+            SectionExtractionResult.model_validate(
+                {
+                    "is_relevant": True,
+                    "relevant_lines": [{"start": 1, "end": 15}],
+                },
+                context={"min_line": 1, "max_line": 10},
             )
 
-        # Should clamp to available lines (1-10)
-        assert result is not None
-        assert result == "\n".join(lines)
+    @pytest.mark.asyncio
+    async def test_valid_ranges_accepted_with_context(self) -> None:
+        """Line ranges within the chunk pass validation with context."""
+        result = SectionExtractionResult.model_validate(
+            {
+                "is_relevant": True,
+                "relevant_lines": [{"start": 1, "end": 10}],
+            },
+            context={"min_line": 1, "max_line": 10},
+        )
+        assert len(result.relevant_lines) == 1
+        assert result.relevant_lines[0].start == 1
+        assert result.relevant_lines[0].end == 10
 
     @pytest.mark.asyncio
     async def test_multiple_ranges_merged(self) -> None:

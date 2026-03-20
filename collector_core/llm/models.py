@@ -5,7 +5,7 @@ Each model is designed to be used standalone with ``LLMConnector.extract()``.
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 from .sachgebiete_taxonomy import SACHGEBIETE_SET
 
@@ -122,4 +122,27 @@ class SectionExtractionResult(BaseModel):
         """Ensure is_relevant=True comes with at least one line range."""
         if self.is_relevant and not self.relevant_lines:
             raise ValueError("is_relevant is True but relevant_lines is empty")
+        return self
+
+    @model_validator(mode="after")
+    def lines_within_chunk(self, info: "ValidationInfo") -> "SectionExtractionResult":
+        """Reject line ranges that fall outside the input chunk.
+
+        Requires ``min_line`` and ``max_line`` in the Pydantic
+        *validation_context*.  When no context is provided the check
+        is skipped silently so the model stays usable in tests and
+        other callers that don't supply chunk boundaries.
+        """
+        ctx = info.context
+        if not ctx or "min_line" not in ctx or "max_line" not in ctx:
+            return self
+        min_line: int = ctx["min_line"]
+        max_line: int = ctx["max_line"]
+        for lr in self.relevant_lines:
+            if lr.start < min_line or lr.end > max_line:
+                raise ValueError(
+                    f"Line range [{lr.start}-{lr.end}] is outside the "
+                    f"input chunk [{min_line}-{max_line}]. "
+                    f"Only return lines within the provided text."
+                )
         return self
