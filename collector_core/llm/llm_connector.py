@@ -55,6 +55,7 @@ Tolerant API behavior:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import random
@@ -65,7 +66,15 @@ from typing import Any, Final, Optional, TypeVar
 import instructor
 import litellm
 from instructor.core import InstructorRetryException
-from pydantic import BaseModel, ValidationError
+from instructor.core.exceptions import (
+    AsyncValidationError as InstructorAsyncValidationError,
+)
+from instructor.core.exceptions import (
+    IncompleteOutputException,
+)
+from instructor.core.exceptions import ValidationError as InstructorValidationError
+from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
 
 from .models import SectionExtractionResult
 from .prompts import SECTION_EXTRACTION_PROMPT
@@ -730,9 +739,9 @@ class LLMConnector:
                     raise classified from exc
                 # Provider error hidden inside InstructorRetryException —
                 # feed it into the existing retry / raise logic below.
-                mapped_error = classified  # type: ignore[assignment]
+                mapped_error = classified
                 last_error = exc
-                LOGGER.warning(
+                LOGGER.debug(
                     "InstructorRetryException masks provider error "
                     "(attempt=%s/%s, mapped=%s)",
                     attempt + 1,
@@ -742,7 +751,7 @@ class LLMConnector:
             except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
                 mapped_error = LLMTemporaryProviderError("provider request timed out")
                 last_error = exc
-                LOGGER.warning(
+                LOGGER.debug(
                     "Provider timeout (attempt=%s/%s, timeout=%.1fs)",
                     attempt + 1,
                     self.max_retries + 1,
@@ -751,7 +760,7 @@ class LLMConnector:
             except Exception as exc:
                 mapped_error = self._map_provider_exception(exc)
                 last_error = exc
-                LOGGER.warning(
+                LOGGER.debug(
                     "Provider call failed (attempt=%s/%s, error_type=%s, "
                     "mapped_error_type=%s) %s",
                     attempt + 1,
@@ -1356,7 +1365,7 @@ class LLMConnector:
         exc: InstructorRetryException,
         model_name: str,
         validation_retries: int,
-    ) -> LLMConnectorError:
+    ) -> LLMValidationError | LLMProviderError:
         """Inspect an InstructorRetryException and return the appropriate error.
 
         If the underlying failed attempts contain a provider-level error
@@ -1379,13 +1388,29 @@ class LLMConnector:
         """
         failed_attempts = exc.failed_attempts or []
 
-        # Walk attempts in reverse — the *last* failure is most diagnostic.
+        # Validation-like errors: the model produced output that could not be
+        # parsed or validated.  Everything else is an infrastructure / provider
+        # problem that should be surfaced so the caller can decide to retry.
+        _validation_types = (
+            PydanticValidationError,
+            InstructorValidationError,
+            InstructorAsyncValidationError,
+            json.JSONDecodeError,
+        )
+
+        # Walk attempts newest-first.  Any single provider error in the chain
+        # means the retry was not purely a validation problem — surface it so
+        # the outer retry loop can act on it (e.g. back off on rate limits).
         for attempt in reversed(failed_attempts):
             underlying = attempt.exception
-            if isinstance(underlying, ValidationError):
+            if isinstance(underlying, _validation_types):
                 continue
+            if isinstance(underlying, IncompleteOutputException):
+                # Truncated output is a provider-side limitation, not a
+                # validation failure — treat as temporary provider error.
+                return LLMTemporaryProviderError("provider returned incomplete output")
             # Non-validation exception → likely a provider error.
-            LOGGER.warning(
+            LOGGER.debug(
                 "Provider error detected inside InstructorRetryException "
                 "(underlying_type=%s, message=%s)",
                 type(underlying).__name__,
@@ -1397,9 +1422,9 @@ class LLMConnector:
         cause: BaseException | None = exc.__cause__
         while cause is not None:
             if isinstance(cause, Exception) and not isinstance(
-                cause, (ValidationError, InstructorRetryException)
+                cause, (_validation_types + (InstructorRetryException,))
             ):
-                LOGGER.warning(
+                LOGGER.debug(
                     "Provider error detected in __cause__ chain "
                     "(cause_type=%s, message=%s)",
                     type(cause).__name__,
