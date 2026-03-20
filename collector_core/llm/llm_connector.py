@@ -1398,25 +1398,23 @@ class LLMConnector:
             json.JSONDecodeError,
         )
 
-        # Walk attempts newest-first.  Any single provider error in the chain
-        # means the retry was not purely a validation problem — surface it so
-        # the outer retry loop can act on it (e.g. back off on rate limits).
-        for attempt in reversed(failed_attempts):
-            underlying = attempt.exception
-            if isinstance(underlying, _validation_types):
-                continue
-            if isinstance(underlying, IncompleteOutputException):
-                # Truncated output is a provider-side limitation, not a
-                # validation failure — treat as temporary provider error.
-                return LLMTemporaryProviderError("provider returned incomplete output")
-            # Non-validation exception → likely a provider error.
-            LOGGER.debug(
-                "Provider error detected inside InstructorRetryException "
-                "(underlying_type=%s, message=%s)",
-                type(underlying).__name__,
-                str(underlying),
-            )
-            return self._map_provider_exception(underlying)
+        # Only the *last* attempt matters: if the model recovered from a
+        # transient infra blip and then consistently failed validation, the
+        # root cause is validation — not the earlier provider error.
+        if failed_attempts:
+            last = failed_attempts[-1].exception
+            if not isinstance(last, _validation_types):
+                if isinstance(last, IncompleteOutputException):
+                    return LLMTemporaryProviderError(
+                        "provider returned incomplete output"
+                    )
+                LOGGER.debug(
+                    "Provider error detected inside InstructorRetryException "
+                    "(underlying_type=%s, message=%s)",
+                    type(last).__name__,
+                    str(last),
+                )
+                return self._map_provider_exception(last)
 
         # Also check the implicit __cause__ chain as a fallback.
         cause: BaseException | None = exc.__cause__
