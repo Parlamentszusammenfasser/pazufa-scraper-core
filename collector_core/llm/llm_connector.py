@@ -1368,11 +1368,15 @@ class LLMConnector:
     ) -> LLMValidationError | LLMProviderError:
         """Inspect an InstructorRetryException and return the appropriate error.
 
-        If the underlying failed attempts contain a provider-level error
-        (rate-limit, auth, timeout, …) rather than a Pydantic
-        :class:`~pydantic.ValidationError`, the exception is remapped to the
-        matching :class:`LLMProviderError` subclass so callers can
-        distinguish infrastructure failures from genuine validation failures.
+        If the last failed attempt is a provider-level error (rate-limit,
+        auth, timeout, …) rather than a validation error, the exception is
+        remapped to the matching :class:`LLMProviderError` subclass so
+        callers can distinguish infrastructure failures from genuine
+        validation failures.
+
+        Instructor stores the last error in ``exc.args[0]`` (via tenacity's
+        ``last_attempt._exception``).  We check that first, then fall back
+        to the ``__cause__`` chain.
 
         Args:
             exc: The retry exception raised by Instructor.
@@ -1382,12 +1386,10 @@ class LLMConnector:
                 configured (used in the fallback message).
 
         Returns:
-            An :class:`LLMValidationError` when every failed attempt is a
+            An :class:`LLMValidationError` when the last failed attempt is a
             validation problem, or a specific :class:`LLMProviderError`
             subclass when a provider error is detected.
         """
-        failed_attempts = exc.failed_attempts or []
-
         # Validation-like errors: the model produced output that could not be
         # parsed or validated.  Everything else is an infrastructure / provider
         # problem that should be surfaced so the caller can decide to retry.
@@ -1398,25 +1400,24 @@ class LLMConnector:
             json.JSONDecodeError,
         )
 
-        # Only the *last* attempt matters: if the model recovered from a
-        # transient infra blip and then consistently failed validation, the
-        # root cause is validation — not the earlier provider error.
-        if failed_attempts:
-            last = failed_attempts[-1].exception
-            if not isinstance(last, _validation_types):
-                if isinstance(last, IncompleteOutputException):
-                    return LLMTemporaryProviderError(
-                        "provider returned incomplete output"
-                    )
-                LOGGER.debug(
-                    "Provider error detected inside InstructorRetryException "
-                    "(underlying_type=%s, message=%s)",
-                    type(last).__name__,
-                    str(last),
-                )
-                return self._map_provider_exception(last)
+        # exc.args[0] is the last exception from tenacity's retry loop —
+        # only the final error matters for classification.
+        last_error = exc.args[0] if exc.args else None
 
-        # Also check the implicit __cause__ chain as a fallback.
+        if isinstance(last_error, Exception) and not isinstance(
+            last_error, _validation_types
+        ):
+            if isinstance(last_error, IncompleteOutputException):
+                return LLMTemporaryProviderError("provider returned incomplete output")
+            LOGGER.debug(
+                "Provider error detected inside InstructorRetryException "
+                "(underlying_type=%s, message=%s)",
+                type(last_error).__name__,
+                str(last_error),
+            )
+            return self._map_provider_exception(last_error)
+
+        # Fallback: check the implicit __cause__ chain.
         cause: BaseException | None = exc.__cause__
         while cause is not None:
             if isinstance(cause, Exception) and not isinstance(
@@ -1431,7 +1432,7 @@ class LLMConnector:
                 return self._map_provider_exception(cause)
             cause = getattr(cause, "__cause__", None)
 
-        # All attempts were genuine validation failures.
+        # Last error was a validation failure (or no error info available).
         return LLMValidationError(
             f"Model could not produce valid {model_name} "
             f"after {validation_retries} validation retries"

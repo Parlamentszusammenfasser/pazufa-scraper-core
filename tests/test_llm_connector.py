@@ -662,7 +662,12 @@ def _make_instructor_retry(
             for i, exc in enumerate(failed_exceptions)
         ]
 
+    # The real InstructorRetryException passes the last error as the first
+    # positional arg (via tenacity's last_attempt._exception), so it ends up
+    # in exc.args[0].  Replicate that here.
+    last_exc = failed_exceptions[-1] if failed_exceptions else None
     exc = InstructorRetryException(
+        last_exc,
         n_attempts=len(failed_exceptions) if failed_exceptions else 1,
         messages=[],
         last_completion=None,
