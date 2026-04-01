@@ -8,6 +8,16 @@ The core lib consists of three parts:
 2. **[Scrapy](https://www.scrapy.org/)-based** Implementation Template — An opinionated scaffolding for scrapers built on Scrapy. Provides pre-configured pipelines, middleware, and base spider classes that integrate with the general library.
 3. **Standalone Collector Template** — An opinionated scaffolding for scrapers that don't use Scrapy, implementing their own HTTP fetching and scheduling logic while relying on the general library for validation, API submission, and enrichment.
 
+## Git Workflow
+
+1. Create a feature branch from `develop` (or `main` for hotfixes)
+2. Make small, focused commits
+3. Open a PR for review
+4. **Never push directly to `main`**
+
+Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
+
+For more notes on how to contribute, see Contributing.md .
 
 
 ## Requirements
