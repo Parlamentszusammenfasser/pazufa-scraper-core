@@ -93,7 +93,9 @@ def _paragraph_quality_score(paragraph: str) -> float:
     c1_penalty = len(_RE_C1_CONTROLS.findall(text)) / len(text)
 
     # Penalty 2: Latin-Extended-B characters
-    ext_b_penalty = len(_RE_LATIN_EXT_B.findall(text)) / alpha_count if alpha_count else 0.0
+    ext_b_penalty = (
+        len(_RE_LATIN_EXT_B.findall(text)) / alpha_count if alpha_count else 0.0
+    )
 
     # Penalty 3: Long words without German vowels (consonant clusters)
     words = text.split()
@@ -103,7 +105,9 @@ def _paragraph_quality_score(paragraph: str) -> float:
     vowelless_penalty = long_vowelless / len(words) if words else 0.0
 
     # Penalty 4: Excessive uppercase (penalises ratios above 60%)
-    upper_ratio = sum(1 for c in text if c.isupper()) / alpha_count if alpha_count else 0.0
+    upper_ratio = (
+        sum(1 for c in text if c.isupper()) / alpha_count if alpha_count else 0.0
+    )
     upper_penalty = max(0.0, (upper_ratio - 0.6) / 0.4)
 
     score = 1.0 - (c1_penalty + ext_b_penalty + vowelless_penalty + upper_penalty)
