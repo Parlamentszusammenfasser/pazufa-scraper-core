@@ -12,10 +12,11 @@ dynamic = ["dependencies"]
 packages = [{include = "corelib"}]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<4.0"
+python = ">=3.12,<3.14"
 litellm = "^1.81.13"
 instructor = {extras = ["litellm"], version = "^1.14.0"}
 w3lib = "^2.4.1"
+numpy = "^2.4.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
