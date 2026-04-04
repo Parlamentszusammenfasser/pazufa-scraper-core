@@ -7,7 +7,7 @@ from pydantic import (
     PositiveInt,
     FilePath,
 )
-from typing import Optional
+from typing import Optional, Sequence
 import re
 
 """Models for the validation in the tags and sachgebiete normalization chain."""
@@ -60,7 +60,7 @@ class BaseTagFile(BaseModel):
     """Base model for Tag and Sachgebiet file validation. Subclasses narrow the `tags` field."""
 
     source: FilePath
-    tags: list[BaseTag]
+    tags: Sequence[BaseTag]
 
     @model_validator(mode="after")
     def validate_unique_ids(self) -> "BaseTagFile":
