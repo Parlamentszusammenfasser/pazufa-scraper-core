@@ -6,8 +6,11 @@ from pydantic import (
     model_validator,
     PositiveInt,
     FilePath,
+    ValidationError,
 )
 from typing import Optional, Sequence
+import yaml
+from pathlib import Path
 import re
 
 """Models for the validation in the tags and sachgebiete normalization chain."""
@@ -71,6 +74,20 @@ class BaseTagFile(BaseModel):
                 f"Duplicate IDs found in {self.__class__.__name__} {self.source}: {duplicates}"
             )
         return self
+
+    @classmethod
+    def from_path(cls, path: Path) -> "BaseTagFile":
+        """Load and validate a Tag or Sachgebiet YAML file from the given path."""
+        try:
+            raw = yaml.safe_load(path.read_text())
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Global tag file not found: {path}")
+        except yaml.YAMLError as e:
+            raise ValueError(f"Failed to parse {path.name}: {e}") from e
+        try:
+            return cls.model_validate({"source": path, **raw})
+        except ValidationError as e:
+            raise ValueError(f"Validation failed for {path.name}: {e}") from e
 
 
 class TagFile(BaseTagFile):
