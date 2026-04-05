@@ -54,6 +54,9 @@ The OpenAPI spec is maintained in the main project at
 The current API version is effectively fixed. Suggestions can be incorporated
 for a later API revision, usually with a larger time lag.
 
+After 0.1 is done the first two digest `x.y.z` (`x` and `y`) will be in sync with version of the Core-lib, because the core lib 
+largely depends on the API. `z` can diverge to not have unecessary long version numbers.
+
 ## Generated Code
 
 Some files are generated and should usually not be edited by hand:

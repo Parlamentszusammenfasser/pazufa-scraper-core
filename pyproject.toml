@@ -45,6 +45,9 @@ ignore = [
 ]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
+"collector_core/api_client/**" = ["D"]
+"collector_core/api_model.py" = ["D"]
+# ^^^ currently auto generated, if switched to handwritten this will be no longer excluded.
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -80,6 +83,7 @@ output = "collector_core/api_model.py"
 output-model-type = "pydantic_v2.BaseModel"
 target-python-version = "3.12"
 url = "https://codeberg.org/PaZuFa/parlamentszusammenfasser/raw/tag/v0.2.3/docs/specs/openapi.yml"
+# ^^^ intentionally pinned independently while project version < 0.1
 use-annotated = true
 use-double-quotes = true
 use-standard-collections = true
