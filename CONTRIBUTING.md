@@ -36,6 +36,9 @@ poetry run pytest
 
 Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 
+### Pull-Requests
+For pull-requests in the development branch the author of the PR merges after approval.
+
 ## What to Work On
 
 This repository provides shared Python infrastructure for PaZuFa scrapers:
