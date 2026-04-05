@@ -1366,7 +1366,7 @@ class LLMConnector:
         model_name: str,
         validation_retries: int,
     ) -> LLMValidationError | LLMProviderError:
-        """Inspect an InstructorRetryException and return the appropriate error.
+        """Map an InstructorRetryException to a connector error type.
 
         If the last failed attempt is a provider-level error (rate-limit,
         auth, timeout, …) rather than a validation error, the exception is
