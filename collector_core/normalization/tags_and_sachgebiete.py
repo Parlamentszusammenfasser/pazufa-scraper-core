@@ -67,7 +67,7 @@ def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
                 canonical_id = _canonicalise_id(tag.id, canonical_ids)
                 if canonical_id != tag.id:
                     logger.debug(
-                        "Canonicalised local tag %r -> %r", tag.id, canonical_id
+                        "Canonical local tag %r -> %r", tag.id, canonical_id
                     )
                 tag_list[canonical_id] = Tag.model_construct(
                     id=canonical_id,
