@@ -111,7 +111,9 @@ class TestExtractInputValidation:
         with pytest.raises(ValueError, match="system_prompt must be a string or None"):
             asyncio.get_event_loop().run_until_complete(
                 connector.extract(
-                    prompt="test", response_model=Keywords, system_prompt=123  # type: ignore[arg-type]
+                    prompt="test",
+                    response_model=Keywords,
+                    system_prompt=123,  # type: ignore[arg-type]
                 )
             )
 

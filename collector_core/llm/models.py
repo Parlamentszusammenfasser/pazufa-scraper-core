@@ -79,7 +79,9 @@ class VerfassungsaenderndResult(BaseModel):
     """Whether a Gesetzentwurf amends the state constitution."""
 
     ist_verfassungsaendernd: bool = Field(
-        description="True if this law amends the state constitution (Landesverfassung).",
+        description=(
+            "True if this law amends the state constitution (Landesverfassung)."
+        ),
     )
     begruendung: str = Field(
         min_length=1,
