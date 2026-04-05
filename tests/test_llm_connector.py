@@ -771,9 +771,9 @@ class TestExtractErrorClassification:
             await connector.extract(prompt="test", response_model=Keywords)
 
     @pytest.mark.asyncio
-    async def test_mixed_errors_last_provider_error_wins(self) -> None:
-        """When attempts have a mix of validation and provider errors,
-        the last non-validation error determines the classification."""
+    async def test_last_attempt_provider_error_raises_provider_error(self) -> None:
+        """When the last attempt is a provider error, it determines the classification
+        regardless of earlier validation errors."""
         from pydantic import ValidationError as PydanticValidationError
 
         connector = _make_connector(max_retries=0)
@@ -795,6 +795,35 @@ class TestExtractErrorClassification:
         connector._instructor_client = mock_client
 
         with pytest.raises(LLMRateLimitError):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_last_attempt_validation_error_raises_validation_error(self) -> None:
+        """When the last attempt is a validation error, it determines the classification
+        regardless of earlier provider errors."""
+        from pydantic import ValidationError as PydanticValidationError
+
+        connector = _make_connector(max_retries=0)
+
+        try:
+            Keywords(sachgebiete="bad", schlagworte="bad")  # type: ignore[arg-type]
+        except PydanticValidationError as ve:
+            validation_exc = ve
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_instructor_retry(
+                failed_exceptions=[
+                    litellm.RateLimitError("rate limited", "model", "provider"),
+                    validation_exc,
+                ],
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(
+            LLMValidationError, match="could not produce valid Keywords"
+        ):
             await connector.extract(prompt="test", response_model=Keywords)
 
     @pytest.mark.asyncio

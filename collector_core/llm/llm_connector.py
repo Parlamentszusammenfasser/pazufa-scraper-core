@@ -770,7 +770,8 @@ class LLMConnector:
                     str(exc),
                 )
 
-            assert mapped_error is not None  # set by every except branch above
+            if mapped_error is None:  # pragma: no cover
+                raise RuntimeError("mapped_error unset after exception handling")
             should_retry = attempt < self.max_retries and isinstance(
                 mapped_error, (LLMRateLimitError, LLMTemporaryProviderError)
             )
@@ -1423,6 +1424,10 @@ class LLMConnector:
             if isinstance(cause, Exception) and not isinstance(
                 cause, (_validation_types + (InstructorRetryException,))
             ):
+                if isinstance(cause, IncompleteOutputException):
+                    return LLMTemporaryProviderError(
+                        "provider returned incomplete output"
+                    )
                 LOGGER.debug(
                     "Provider error detected in __cause__ chain "
                     "(cause_type=%s, message=%s)",
