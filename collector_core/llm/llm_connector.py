@@ -712,13 +712,6 @@ class LLMConnector:
             vorgang_titel, field_name="vorgang_titel"
         )
 
-        if chunk_size <= 0:
-            raise ValueError("chunk_size must be positive")
-        if chunk_overlap < 0:
-            raise ValueError("chunk_overlap must be non-negative")
-        if chunk_overlap >= chunk_size:
-            raise ValueError("chunk_overlap must be less than chunk_size")
-
         source_lines = normalized_text.splitlines()
         chunks = self._chunk_lines(source_lines, chunk_size, chunk_overlap)
         LOGGER.info(
@@ -767,6 +760,7 @@ class LLMConnector:
             result: SectionExtractionResult = await self.extract(
                 prompt=prompt,
                 response_model=SectionExtractionResult,
+                system_prompt=None,
                 validation_context={
                     "min_line": start_line + 1,
                     "max_line": end_line,
@@ -833,6 +827,13 @@ class LLMConnector:
         Returns:
             List of ``(start, end)`` index tuples.
         """
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if chunk_overlap < 0:
+            raise ValueError("chunk_overlap must be non-negative")
+        if chunk_overlap >= chunk_size:
+            raise ValueError("chunk_overlap must be less than chunk_size")
+
         total = len(lines)
         if total == 0:
             return []

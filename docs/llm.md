@@ -118,7 +118,7 @@ the module docstrings.
 | `SCHLAGWORTE_PROMPT` | `sachgebiete_list`, `vorgang_titel`, `vorgang_vnr`, `dok_typ`, `titel`, `text` | Use `format_sachgebiete_list()` for `{sachgebiete_list}` |
 | `MEINUNG_PROMPT` | `dok_typ`, `titel`, `text` | Scale: 1=Ablehnung … 5=Zustimmung |
 | `VERFASSUNGSAENDERND_PROMPT` | `land`, `titel`, `schlagworte`, `text` | Distinguishes Landesverfassung from Kommunalverfassung |
-| `SECTION_EXTRACTION_PROMPT` | `vorgang_titel`, `vorgang_vnr_part`, `text` | Used internally by `extract_relevant_section()`; `vorgang_vnr_part` is `" (Drucksache X/Y)"` or `""` |
+| `SECTION_EXTRACTION_PROMPT` | `vorgang_titel`, `vorgang_vnr_part`, `text` | Internal — used by `extract_relevant_section()`, not exported in `__init__.py`. `vorgang_vnr_part` is `" (Drucksache X/Y)"` or `""` |
 
 ## Taxonomy
 

@@ -24,7 +24,6 @@ from .prompts import (
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
     SCHLAGWORTE_PROMPT,
-    SECTION_EXTRACTION_PROMPT,
     VERFASSUNGSAENDERND_PROMPT,
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
@@ -60,6 +59,5 @@ __all__ = [
     "SCHLAGWORTE_PROMPT",
     "MEINUNG_PROMPT",
     "VERFASSUNGSAENDERND_PROMPT",
-    "SECTION_EXTRACTION_PROMPT",
     "format_sachgebiete_list",
 ]
