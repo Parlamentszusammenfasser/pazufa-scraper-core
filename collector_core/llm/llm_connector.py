@@ -195,9 +195,19 @@ class RateLimiter:
                 Only enforced when the limiter was created with *max_tokens*.
                 Ignored (and safe to pass) when token limiting is disabled.
 
+        Raises:
+            ValueError: If *estimated_tokens* exceeds *max_tokens*.  Such a
+                request can never be scheduled — the budget would always be
+                exceeded even in an otherwise empty window.
+
         Returns:
             None
         """
+        if self.max_tokens is not None and estimated_tokens > self.max_tokens:
+            raise ValueError(
+                f"estimated_tokens ({estimated_tokens}) exceeds max_tokens "
+                f"({self.max_tokens}); this request can never be scheduled"
+            )
         while True:
             async with self._lock:
                 now = time.monotonic()
@@ -1017,7 +1027,7 @@ class LLMConnector:
                 for msg in messages
             )
         except Exception:
-            LOGGER.warning(
+            LOGGER.error(
                 "Failed to estimate token count for model=%s; "
                 "skipping token-based rate limiting for this request",
                 self.model,

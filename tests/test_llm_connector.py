@@ -573,3 +573,59 @@ class TestEstimateRequestTokens:
 
         # "" (empty fallback) = 0 words, "Hello" = 1 word
         assert result == 1 + TOKEN_ESTIMATE_OUTPUT_BUFFER
+
+    def test_token_counter_failure_logs_at_error_level(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Token counter failure should be logged at ERROR, not WARNING."""
+        import logging
+
+        connector = _make_connector(
+            rate_limit_max_calls=10,
+            rate_limit_max_tokens=30_000,
+        )
+        messages = [{"role": "user", "content": "Hello"}]
+
+        with patch(
+            "collector_core.llm.llm_connector.litellm.token_counter",
+            side_effect=Exception("unsupported model"),
+        ):
+            with caplog.at_level(
+                logging.ERROR, logger="collector_core.llm.llm_connector"
+            ):
+                result = connector._estimate_request_tokens(messages)
+
+        assert result == 0
+        assert any(r.levelno == logging.ERROR for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# RateLimiter — acquire_slot with estimated_tokens exceeding max_tokens
+# ---------------------------------------------------------------------------
+
+
+class TestRateLimiterTokenExceedsBudget:
+    """acquire_slot must raise immediately when estimated_tokens > max_tokens."""
+
+    @pytest.mark.asyncio
+    async def test_raises_when_single_request_exceeds_budget(self) -> None:
+        """A request larger than the total token budget should raise ValueError."""
+        limiter = RateLimiter(max_calls=100, per_seconds=60.0, max_tokens=1_000)
+        with pytest.raises(ValueError, match="estimated_tokens.*exceeds max_tokens"):
+            await limiter.acquire_slot(estimated_tokens=5_000)
+
+    @pytest.mark.asyncio
+    async def test_raises_on_empty_window_when_request_exceeds_budget(self) -> None:
+        """Should also raise after the window has fully expired (empty _token_usage)."""
+        limiter = RateLimiter(max_calls=100, per_seconds=60.0, max_tokens=2_000)
+        # Manually drain the deque to simulate a fully-expired window.
+        limiter._token_usage.clear()
+        with pytest.raises(ValueError, match="estimated_tokens.*exceeds max_tokens"):
+            await limiter.acquire_slot(estimated_tokens=2_001)
+
+    @pytest.mark.asyncio
+    async def test_exactly_at_budget_does_not_raise(self) -> None:
+        """estimated_tokens == max_tokens is on the boundary and should be allowed."""
+        limiter = RateLimiter(max_calls=100, per_seconds=60.0, max_tokens=5_000)
+        # Should not raise — equal to budget is permitted.
+        await limiter.acquire_slot(estimated_tokens=5_000)
