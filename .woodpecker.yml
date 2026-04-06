@@ -22,12 +22,19 @@ steps:
       - python -m pip install poetry~=2.3.0
       - poetry install --with dev --no-interaction --sync
 
+  - name: check-lock
+    image: python:3.12-slim
+    depends_on: [setup]
+    commands:
+      - python -m pip install --quiet poetry~=2.3.0
+      - poetry check --lock
+
   - name: format-and-type-check
     image: python:3.12-slim
     depends_on: [setup]
     commands:
-      - .venv/bin/black --check .
-      - .venv/bin/isort --check-only .
+      - .venv/bin/ruff format --check .
+      - .venv/bin/ruff check .
       - .venv/bin/mypy .
 
   - name: test

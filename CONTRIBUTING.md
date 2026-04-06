@@ -36,6 +36,9 @@ poetry run pytest
 
 Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 
+### Pull-Requests
+For pull-requests in the development branch the author of the PR merges after approval.
+
 ## What to Work On
 
 This repository provides shared Python infrastructure for PaZuFa scrapers:
@@ -53,6 +56,9 @@ The OpenAPI spec is maintained in the main project at
 
 The current API version is effectively fixed. Suggestions can be incorporated
 for a later API revision, usually with a larger time lag.
+
+After 0.1 is done the first two digest `x.y.z` (`x` and `y`) will be in sync with version of the Core-lib, because the core lib 
+largely depends on the API. `z` can diverge to not have unecessary long version numbers.
 
 ## Generated Code
 
