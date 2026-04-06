@@ -17,6 +17,7 @@ litellm = "^1.81.13"
 instructor = {extras = ["litellm"], version = "^1.14.0"}
 w3lib = "^2.4.1"
 numpy = "^2.4.4"
+ruff = "^0.15.9"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
