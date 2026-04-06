@@ -1,10 +1,12 @@
-"""Provider-agnostic async connector for LLM text generation, summarization,
-and structured data extraction.
+"""Provider-agnostic async LLM connector.
+
+Supports text generation, summarization, and structured data extraction.
 
 Example — free-text generation:
     ```python
     import asyncio
     from collector_core.llm import LLMConnector
+
 
     async def main() -> None:
         connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
@@ -15,6 +17,7 @@ Example — free-text generation:
         )
         print(summary)
 
+
     asyncio.run(main())
     ```
 
@@ -24,9 +27,11 @@ Example — structured extraction:
     from pydantic import BaseModel
     from collector_core.llm import LLMConnector
 
+
     class Keywords(BaseModel):
         sachgebiete: list[str]
         schlagworte: list[str]
+
 
     async def main() -> None:
         connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
@@ -35,6 +40,7 @@ Example — structured extraction:
             response_model=Keywords,
         )
         print(result.sachgebiete, result.schlagworte)
+
 
     asyncio.run(main())
     ```
@@ -69,7 +75,8 @@ T = TypeVar("T", bound=BaseModel)
 LOGGER = logging.getLogger(__name__)
 
 RATE_LIMIT_MAX_CALLS: int | None = 20
-RATE_LIMIT_WINDOW_SECONDS: int = 30
+RATE_LIMIT_WINDOW_SECONDS: int = 60
+TOKEN_ESTIMATE_OUTPUT_BUFFER: int = 1_000
 REQUEST_TIMEOUT_SECONDS: float = 60.0
 MAX_RETRIES: int = 3
 RETRY_BASE_DELAY_SECONDS: float = 1.0
@@ -121,18 +128,33 @@ class LLMValidationError(LLMConnectorError):
 
 
 class RateLimiter:
-    """Limit async calls to `max_calls` within `per_seconds`."""
+    """Limit async calls to `max_calls` and/or `max_tokens` within `per_seconds`.
 
-    def __init__(self, max_calls: int, per_seconds: float) -> None:
+    When *max_tokens* is set, each call can declare how many tokens it will
+    consume via :meth:`acquire_slot`.  The limiter then ensures the rolling
+    window never exceeds the token budget.  This is useful for enforcing
+    provider TPM (tokens-per-minute) limits alongside RPM (requests-per-minute).
+    """
+
+    def __init__(
+        self,
+        max_calls: int,
+        per_seconds: float,
+        max_tokens: int | None = None,
+    ) -> None:
         """Create a local async sliding-window rate limiter.
 
         Args:
             max_calls: Maximum number of calls allowed in one window.
             per_seconds: Window size in seconds.
+            max_tokens: Optional maximum token budget within one window.
+                When set, :meth:`acquire_slot` will also enforce a token-based
+                limit.  ``None`` disables token-based limiting.
 
         Raises:
-            ValueError: If `max_calls` is not a positive integer or `per_seconds`
-                is not a positive numeric value.
+            ValueError: If `max_calls` is not a positive integer, `per_seconds`
+                is not a positive numeric value, or `max_tokens` is not a
+                positive integer.
         """
         if not isinstance(max_calls, int) or isinstance(max_calls, bool):
             raise ValueError("max_calls must be an integer")
@@ -146,27 +168,52 @@ class RateLimiter:
         if normalized_per_seconds <= 0:
             raise ValueError("per_seconds must be greater than 0")
 
+        if max_tokens is not None:
+            if not isinstance(max_tokens, int) or isinstance(max_tokens, bool):
+                raise ValueError("max_tokens must be an integer")
+            if max_tokens <= 0:
+                raise ValueError("max_tokens must be greater than 0")
+
         self.max_calls: int = max_calls
         self.per_seconds: float = normalized_per_seconds
+        self.max_tokens: int | None = max_tokens
         self._timestamps: deque[float] = deque()
+        self._token_usage: deque[tuple[float, int]] = deque()
         self._lock: asyncio.Lock = asyncio.Lock()
         LOGGER.debug(
-            "Initialized rate limiter (max_calls=%s, per_seconds=%s)",
+            "Initialized rate limiter (max_calls=%s, per_seconds=%s, max_tokens=%s)",
             self.max_calls,
             self.per_seconds,
+            self.max_tokens,
         )
 
-    async def acquire_slot(self) -> None:
+    async def acquire_slot(self, estimated_tokens: int = 0) -> None:
         """Wait until one call slot is available and reserve it.
+
+        Args:
+            estimated_tokens: Estimated token count for the upcoming request.
+                Only enforced when the limiter was created with *max_tokens*.
+                Ignored (and safe to pass) when token limiting is disabled.
+
+        Raises:
+            ValueError: If *estimated_tokens* exceeds *max_tokens*.  Such a
+                request can never be scheduled — the budget would always be
+                exceeded even in an otherwise empty window.
 
         Returns:
             None
         """
+        if self.max_tokens is not None and estimated_tokens > self.max_tokens:
+            raise ValueError(
+                f"estimated_tokens ({estimated_tokens}) exceeds max_tokens "
+                f"({self.max_tokens}); this request can never be scheduled"
+            )
         while True:
             async with self._lock:
                 now = time.monotonic()
                 cutoff = now - self.per_seconds
 
+                # Expire old request timestamps.
                 removed_count = 0
                 while self._timestamps and self._timestamps[0] <= cutoff:
                     self._timestamps.popleft()
@@ -174,20 +221,54 @@ class RateLimiter:
                 if removed_count:
                     LOGGER.debug("Rate limiter removed %s expired slots", removed_count)
 
-                if len(self._timestamps) < self.max_calls:
+                # Expire old token usage entries.
+                if self.max_tokens is not None:
+                    while self._token_usage and self._token_usage[0][0] <= cutoff:
+                        self._token_usage.popleft()
+
+                # Check request-count budget.
+                calls_ok = len(self._timestamps) < self.max_calls
+
+                # Check token budget.
+                tokens_ok = True
+                current_tokens = 0
+                if self.max_tokens is not None and estimated_tokens > 0:
+                    current_tokens = sum(t for _, t in self._token_usage)
+                    tokens_ok = (current_tokens + estimated_tokens) <= self.max_tokens
+
+                if calls_ok and tokens_ok:
                     self._timestamps.append(now)
+                    if self.max_tokens is not None and estimated_tokens > 0:
+                        self._token_usage.append((now, estimated_tokens))
                     LOGGER.debug(
-                        "Rate limiter granted slot (%s/%s in current window)",
+                        "Rate limiter granted slot (%s/%s calls, %s/%s tokens "
+                        "in current window)",
                         len(self._timestamps),
                         self.max_calls,
+                        (
+                            current_tokens + estimated_tokens
+                            if self.max_tokens is not None
+                            else "n/a"
+                        ),
+                        self.max_tokens if self.max_tokens is not None else "n/a",
                     )
                     return
 
-                wait_seconds = self.per_seconds - (now - self._timestamps[0])
+                # Compute wait time: pick the longest wait needed.
+                wait_seconds = 0.0
+                if not calls_ok:
+                    wait_seconds = self.per_seconds - (now - self._timestamps[0])
+                if not tokens_ok and self._token_usage:
+                    token_wait = self.per_seconds - (now - self._token_usage[0][0])
+                    wait_seconds = max(wait_seconds, token_wait)
+
                 LOGGER.debug(
-                    "Rate limiter reached limit (%s/%s); waiting %.3fs",
+                    "Rate limiter reached limit (calls=%s/%s, tokens=%s/%s); "
+                    "waiting %.3fs",
                     len(self._timestamps),
                     self.max_calls,
+                    current_tokens if self.max_tokens is not None else "n/a",
+                    self.max_tokens if self.max_tokens is not None else "n/a",
                     max(wait_seconds, 0.0),
                 )
 
@@ -210,6 +291,7 @@ class LLMConnector:
         temperature: float | None = None,
         rate_limit_max_calls: int | None = RATE_LIMIT_MAX_CALLS,
         rate_limit_window_seconds: float = RATE_LIMIT_WINDOW_SECONDS,
+        rate_limit_max_tokens: int | None = None,
         timeout_seconds: float = REQUEST_TIMEOUT_SECONDS,
         max_retries: int = MAX_RETRIES,
     ) -> None:
@@ -226,6 +308,15 @@ class LLMConnector:
             rate_limit_max_calls: Optional max number of async calls in the configured
                 time window.
             rate_limit_window_seconds: Length of the async rate-limit window in seconds.
+                The default (60 s) aligns with the per-minute convention used by
+                most providers for both RPM and TPM limits.
+            rate_limit_max_tokens: Optional maximum token budget within one rate-limit
+                window.  When set, each LLM call estimates its input tokens (plus a
+                fixed output buffer) and blocks until enough budget is available.
+                This is useful for enforcing provider TPM limits — for example,
+                ``rate_limit_max_tokens=30_000`` with the default 60 s window
+                is equivalent to a 30 k TPM cap.  ``None`` (the default) disables
+                token-based limiting.
             timeout_seconds: Timeout per provider call in seconds. Invalid values
                 fall back to `REQUEST_TIMEOUT_SECONDS`.
             max_retries: Number of retry attempts for retryable provider errors.
@@ -244,6 +335,7 @@ class LLMConnector:
         self._rate_limiter: RateLimiter | None = self._initialize_rate_limiter(
             rate_limit_max_calls=rate_limit_max_calls,
             rate_limit_window_seconds=rate_limit_window_seconds,
+            rate_limit_max_tokens=rate_limit_max_tokens,
         )
         self._instructor_client = instructor.from_litellm(
             litellm.acompletion, mode=instructor.Mode.TOOLS
@@ -261,7 +353,10 @@ class LLMConnector:
         )
 
     def _initialize_rate_limiter(
-        self, rate_limit_max_calls: int | None, rate_limit_window_seconds: float
+        self,
+        rate_limit_max_calls: int | None,
+        rate_limit_window_seconds: float,
+        rate_limit_max_tokens: int | None = None,
     ) -> RateLimiter | None:
         """Initialize local rate limiting and gracefully fall back to no limiter.
 
@@ -269,6 +364,8 @@ class LLMConnector:
             rate_limit_max_calls: Maximum calls within one local time window.
                 `None` disables local rate limiting.
             rate_limit_window_seconds: Length of the local rate-limit window.
+            rate_limit_max_tokens: Optional maximum token budget within one
+                rate-limit window.  ``None`` disables token-based limiting.
 
         Returns:
             A configured `RateLimiter` instance, or `None` if local limiting is disabled
@@ -279,13 +376,18 @@ class LLMConnector:
             return None
 
         try:
-            return RateLimiter(rate_limit_max_calls, rate_limit_window_seconds)
+            return RateLimiter(
+                rate_limit_max_calls,
+                rate_limit_window_seconds,
+                max_tokens=rate_limit_max_tokens,
+            )
         except ValueError as exc:
             LOGGER.warning(
                 "Failed to initialize local rate limiter. Ignoring rate limiting "
-                "(max_calls=%s, window_seconds=%s): %s",
+                "(max_calls=%s, window_seconds=%s, max_tokens=%s): %s",
                 rate_limit_max_calls,
                 rate_limit_window_seconds,
+                rate_limit_max_tokens,
                 exc,
             )
             return None
@@ -337,13 +439,15 @@ class LLMConnector:
             self.max_retries,
         )
 
+        estimated_tokens = self._estimate_request_tokens(messages)
+
         response: litellm.ModelResponse | litellm.CustomStreamWrapper | None = None
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
                 LOGGER.debug(
                     "Waiting for local rate limiter slot (attempt=%s)", attempt + 1
                 )
-                await self._rate_limiter.acquire_slot()
+                await self._rate_limiter.acquire_slot(estimated_tokens=estimated_tokens)
 
             try:
                 LOGGER.debug(
@@ -473,8 +577,8 @@ class LLMConnector:
             "character_count", character_count
         )
         LOGGER.debug(
-            "Summarization request (language=%s, sentences=%s, words=%s, characters=%s, "
-            "source_chars=%s)",
+            "Summarization request (language=%s, sentences=%s, "
+            "words=%s, characters=%s, source_chars=%s)",
             language_normalized,
             sentences_count,
             word_count,
@@ -581,13 +685,15 @@ class LLMConnector:
             self.max_retries,
         )
 
+        estimated_tokens = self._estimate_request_tokens(messages)
+
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
                 LOGGER.debug(
                     "Waiting for local rate limiter slot (attempt=%s)", attempt + 1
                 )
-                await self._rate_limiter.acquire_slot()
+                await self._rate_limiter.acquire_slot(estimated_tokens=estimated_tokens)
 
             try:
                 LOGGER.debug(
@@ -894,6 +1000,49 @@ class LLMConnector:
             Numbered text block.
         """
         return "\n".join(f"[{i + 1}] {lines[i]}" for i in range(start, end))
+
+    def _estimate_request_tokens(self, messages: list[dict[str, str]]) -> int:
+        """Estimate the total token cost of an LLM request.
+
+        Returns ``0`` immediately when token-based limiting is disabled
+        (i.e. the rate limiter is absent or has no *max_tokens* set).
+        Otherwise, counts the input tokens from *messages* and adds a fixed
+        output buffer (``TOKEN_ESTIMATE_OUTPUT_BUFFER``) to approximate the
+        full request cost.  The estimate is conservative — it may slightly
+        over-count, which is preferable to hitting provider TPM limits.
+
+        Args:
+            messages: Chat messages that will be sent to the provider.
+
+        Returns:
+            Estimated total token count (input + output buffer), or ``0``
+            when token-based limiting is not active.
+        """
+        if self._rate_limiter is None or self._rate_limiter.max_tokens is None:
+            return 0
+
+        try:
+            input_tokens = sum(
+                litellm.token_counter(model=self.model, text=msg.get("content", ""))
+                for msg in messages
+            )
+        except Exception:
+            LOGGER.error(
+                "Failed to estimate token count for model=%s; "
+                "skipping token-based rate limiting for this request",
+                self.model,
+                exc_info=True,
+            )
+            return 0
+
+        total = input_tokens + TOKEN_ESTIMATE_OUTPUT_BUFFER
+        LOGGER.debug(
+            "Estimated request tokens: input=%s, buffer=%s, total=%s",
+            input_tokens,
+            TOKEN_ESTIMATE_OUTPUT_BUFFER,
+            total,
+        )
+        return total
 
     @staticmethod
     def _extract_text(response: litellm.ModelResponse) -> str:
