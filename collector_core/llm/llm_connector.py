@@ -54,7 +54,7 @@ import math
 import random
 import time
 from collections import deque
-from typing import Any, Final, TypeVar
+from typing import Any, Final, Optional, TypeVar
 
 import instructor
 import litellm
@@ -509,7 +509,7 @@ class LLMConnector:
         response_model: type[T],
         system_prompt: str | None = DEFAULT_SYSTEM_PROMPT,
         validation_retries: int = 2,
-        validation_context: dict[str, object] | None = None,
+        validation_context: Optional[dict[str, object]] = None,
     ) -> T:
         """Extract structured data from text using the configured model.
 
