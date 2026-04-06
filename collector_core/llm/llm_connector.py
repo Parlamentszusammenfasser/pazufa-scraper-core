@@ -741,7 +741,7 @@ class LLMConnector:
                 # feed it into the existing retry / raise logic below.
                 mapped_error = classified
                 last_error = exc
-                LOGGER.debug(
+                LOGGER.warning(
                     "InstructorRetryException masks provider error "
                     "(attempt=%s/%s, mapped=%s)",
                     attempt + 1,
