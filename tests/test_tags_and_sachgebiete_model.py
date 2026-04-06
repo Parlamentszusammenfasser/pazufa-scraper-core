@@ -36,7 +36,9 @@ class TestTagIdValidation:
         assert Tag(id="Umwelt").description is None
 
     def test_description_can_be_set(self) -> None:
-        assert Tag(id="Umwelt", description="Umweltschutz").description == "Umweltschutz"
+        assert (
+            Tag(id="Umwelt", description="Umweltschutz").description == "Umweltschutz"
+        )
 
 
 class TestSachgebiet:
@@ -87,7 +89,10 @@ class TestSachgebietFile:
         f.touch()
         sf = SachgebietFile(
             source=f,
-            tags=[Sachgebiet(id="Umwelt", number=1), Sachgebiet(id="Bildung", number=2)],
+            tags=[
+                Sachgebiet(id="Umwelt", number=1),
+                Sachgebiet(id="Bildung", number=2),
+            ],
         )
         assert len(sf.tags) == 2
 
@@ -97,7 +102,10 @@ class TestSachgebietFile:
         with pytest.raises(ValidationError, match="Duplicate IDs"):
             SachgebietFile(
                 source=f,
-                tags=[Sachgebiet(id="Umwelt", number=1), Sachgebiet(id="Umwelt", number=2)],
+                tags=[
+                    Sachgebiet(id="Umwelt", number=1),
+                    Sachgebiet(id="Umwelt", number=2),
+                ],
             )
 
     def test_duplicate_numbers_raises(self, tmp_path: pytest.TempPathFactory) -> None:
@@ -106,5 +114,8 @@ class TestSachgebietFile:
         with pytest.raises(ValidationError, match="Duplicate Sachgebiet numbers"):
             SachgebietFile(
                 source=f,
-                tags=[Sachgebiet(id="Umwelt", number=1), Sachgebiet(id="Bildung", number=1)],
+                tags=[
+                    Sachgebiet(id="Umwelt", number=1),
+                    Sachgebiet(id="Bildung", number=1),
+                ],
             )
