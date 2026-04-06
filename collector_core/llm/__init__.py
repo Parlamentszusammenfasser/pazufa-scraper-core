@@ -13,8 +13,10 @@ from .llm_connector import (
 )
 from .models import (
     KurztitelResult,
+    LineRange,
     MeinungResult,
     SchlagworteResult,
+    SectionExtractionResult,
     VerfassungsaenderndResult,
     ZusammenfassungResult,
 )
@@ -45,6 +47,8 @@ __all__ = [
     "SchlagworteResult",
     "MeinungResult",
     "VerfassungsaenderndResult",
+    "LineRange",
+    "SectionExtractionResult",
     # Taxonomy
     "SACHGEBIETE",
     "SACHGEBIETE_NAMES",

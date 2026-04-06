@@ -137,6 +137,55 @@ Text (Auszug):
 """Format vars: ``land``, ``titel``, ``schlagworte``, ``text``."""
 
 
+SECTION_EXTRACTION_PROMPT = """\
+Du bist ein parlamentarischer Analyst. Deine Aufgabe ist es, in einem \
+Textabschnitt eines Parlamentsprotokolls die Zeilen zu identifizieren, \
+die sich auf einen bestimmten Vorgang beziehen.
+
+VORGANG: {vorgang_titel}{vorgang_vnr_part}
+
+AUFGABE:
+- Jede Zeile im Text ist mit einer Zeilennummer in eckigen Klammern \
+markiert, z.B. [42].
+- Gib die Zeilennummern der relevanten Abschnitte als start/end-Bereiche an.
+- Ein Bereich umfasst alle Zeilen von start bis end (inklusive).
+
+ENTSCHEIDUNG — RELEVANT ODER NICHT:
+Prüfe, ob der Vorgang im Text behandelt wird. Der Titel kann über \
+mehrere Zeilen umbrochen sein — das ist normal. Entscheidend ist, dass \
+der Vorgang inhaltlich gemeint ist, nicht ob der Titel zeichengenau \
+in einer einzelnen Zeile steht.
+- "Gesetz zur Änderung des Spielbankgesetzes" ist NICHT dasselbe wie \
+"Gesetz zur Änderung der Verfassung" — achte auf den spezifischen \
+Regelungsgegenstand.
+- Wenn der Vorgang im Text nicht behandelt wird, \
+setze is_relevant=false und relevant_lines=[].
+
+GRENZEN EINES TAGESORDNUNGSPUNKTS:
+- Beginn: "TOP X:" oder "Tagesordnungspunkt X" mit dem Vorgang
+- Ende: "Ich schließe Tagesordnungspunkt X", "Ich rufe \
+Tagesordnungspunkt Y auf", oder der nächste "TOP Y:" — \
+was zuerst kommt.
+- NACH der Schließung eines TOP ist NICHTS mehr relevant, \
+auch wenn es direkt anschließt.
+
+CHECKLISTE VOR DER ANTWORT:
+1. Kommt der Vorgang namentlich oder per Drucksachennummer im Text vor?
+   Nein → is_relevant=false, relevant_lines=[]
+2. Welche Zeilen gehören zum TOP des Vorgangs (zwischen Beginn und Ende)?
+3. Gibt es eine Erwähnung in der Tagesordnung/Inhaltsverzeichnis?
+4. Sind ALLE angegebenen Zeilennummern tatsächlich im Text vorhanden?
+
+- Gib die Zeilennummern EXAKT so an, wie sie im Text stehen. \
+Erfinde keine Zeilennummern.
+
+TEXT:
+{text}"""
+"""Format vars: ``vorgang_titel``, ``vorgang_vnr_part``, ``text``.
+
+``vorgang_vnr_part`` should be either ``" (Drucksache X/Y)"`` or ``""``."""
+
+
 def format_sachgebiete_list() -> str:
     """Format the taxonomy as a bulleted list for prompt formatting."""
     return "\n".join(f"- {name}" for name in SACHGEBIETE_NAMES)

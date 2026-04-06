@@ -90,13 +90,13 @@ class TestSchlagworteResult:
 class TestMeinungResult:
     @pytest.mark.parametrize("score", [1, 2, 3, 4, 5])
     def test_valid_scores(self, score: int) -> None:
-        r = MeinungResult(meinung=score, begruendung="Begründung.")
+        r = MeinungResult(meinung=score, begruendung="Begründung.")  # type: ignore[arg-type]
         assert r.meinung == score
 
     @pytest.mark.parametrize("score", [0, 6, -1, 10])
     def test_invalid_scores(self, score: int) -> None:
         with pytest.raises(ValidationError):
-            MeinungResult(meinung=score, begruendung="Begründung.")
+            MeinungResult(meinung=score, begruendung="Begründung.")  # type: ignore[arg-type]
 
     def test_empty_begruendung_raises(self) -> None:
         with pytest.raises(ValidationError):
@@ -128,6 +128,8 @@ class TestVerfassungsaenderndResult:
             VerfassungsaenderndResult(ist_verfassungsaendernd=True, begruendung="")
 
     def test_serialization(self) -> None:
-        r = VerfassungsaenderndResult(ist_verfassungsaendernd=False, begruendung="Test.")
+        r = VerfassungsaenderndResult(
+            ist_verfassungsaendernd=False, begruendung="Test."
+        )
         d = r.model_dump()
         assert d == {"ist_verfassungsaendernd": False, "begruendung": "Test."}

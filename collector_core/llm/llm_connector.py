@@ -54,12 +54,15 @@ import math
 import random
 import time
 from collections import deque
-from typing import Any, Final, TypeVar
+from typing import Any, Final, Optional, TypeVar
 
 import instructor
 import litellm
 from instructor.core import InstructorRetryException
 from pydantic import BaseModel
+
+from .models import SectionExtractionResult
+from .prompts import SECTION_EXTRACTION_PROMPT
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -506,6 +509,7 @@ class LLMConnector:
         response_model: type[T],
         system_prompt: str | None = DEFAULT_SYSTEM_PROMPT,
         validation_retries: int = 2,
+        validation_context: Optional[dict[str, object]] = None,
     ) -> T:
         """Extract structured data from text using the configured model.
 
@@ -522,6 +526,9 @@ class LLMConnector:
                 model when its output fails Pydantic validation. This is
                 separate from the network-level retry controlled by
                 ``max_retries``.
+            validation_context: Optional dict passed to Pydantic's
+                ``model_validate`` as context, allowing model validators
+                to access runtime information (e.g. valid line ranges).
 
         Returns:
             A validated instance of *response_model*.
@@ -598,6 +605,7 @@ class LLMConnector:
                         temperature=self.temperature,
                         timeout=self.timeout_seconds,
                         max_retries=validation_retries,
+                        validation_context=validation_context,
                     ),
                     self.timeout_seconds + 0.5,
                 )
@@ -659,6 +667,233 @@ class LLMConnector:
             await asyncio.sleep(backoff_seconds)
 
         raise LLMConnectorError("unreachable retry loop state")
+
+    async def extract_relevant_section(
+        self,
+        text: str,
+        vorgang_titel: str,
+        vorgang_vnr: str | None = None,
+        chunk_size: int = 30_000,
+        chunk_overlap: int = 1_000,
+        early_stop_after: int = 0,
+    ) -> str | None:
+        """Extract sections relevant to a Vorgang from a document.
+
+        The document is split into overlapping chunks (or treated as a single
+        chunk when short enough); for each chunk an LLM identifies relevant
+        line ranges, and the corresponding text is extracted computationally
+        (guaranteeing verbatim output).
+
+        Args:
+            text: Full document text (e.g. a parliamentary protocol).
+            vorgang_titel: Title of the Vorgang to search for.
+            vorgang_vnr: Optional Drucksache/Vorgangsnummer for context.
+            chunk_size: Target chunk size in tokens for splitting.  This
+                budget covers text lines only; the ~300-token extraction
+                prompt is added on top.  The default (30 000) leaves ample
+                headroom for typical model context windows.
+            chunk_overlap: Overlap between consecutive chunks in tokens.
+            early_stop_after: Once relevant content has been found, stop
+                after this many consecutive irrelevant chunks.  Set to
+                ``0`` to disable early stopping.  Chunks before the first
+                relevant hit are always processed.
+
+        Returns:
+            The concatenated relevant sections, or ``None`` if no relevant
+            content was found.
+
+        Raises:
+            ValueError: If *text* or *vorgang_titel* is empty/invalid.
+            LLMProviderError: If a provider call fails.
+            LLMValidationError: If the model cannot produce valid output.
+        """
+        normalized_text = self._require_non_empty_text(text, field_name="text")
+        normalized_titel = self._require_non_empty_text(
+            vorgang_titel, field_name="vorgang_titel"
+        )
+
+        source_lines = normalized_text.splitlines()
+        chunks = self._chunk_lines(source_lines, chunk_size, chunk_overlap)
+        LOGGER.info(
+            "Split document into %s chunks (chunk_size=%s, overlap=%s)",
+            len(chunks),
+            chunk_size,
+            chunk_overlap,
+        )
+
+        vorgang_vnr_part = f" (Drucksache {vorgang_vnr})" if vorgang_vnr else ""
+
+        all_line_indices: set[int] = set()
+        found_relevant = False
+        consecutive_irrelevant = 0
+
+        for chunk_idx, (start_line, end_line) in enumerate(chunks):
+            if (
+                early_stop_after > 0
+                and found_relevant
+                and consecutive_irrelevant >= early_stop_after
+            ):
+                LOGGER.info(
+                    "Early stopping after %s consecutive irrelevant chunks "
+                    "following relevant content (chunk %s/%s)",
+                    consecutive_irrelevant,
+                    chunk_idx + 1,
+                    len(chunks),
+                )
+                break
+
+            numbered_text = self._number_lines(source_lines, start_line, end_line)
+            prompt = SECTION_EXTRACTION_PROMPT.format(
+                vorgang_titel=normalized_titel,
+                vorgang_vnr_part=vorgang_vnr_part,
+                text=numbered_text,
+            )
+
+            LOGGER.debug(
+                "Processing chunk %s/%s (lines %s-%s)",
+                chunk_idx + 1,
+                len(chunks),
+                start_line + 1,
+                end_line,
+            )
+
+            result: SectionExtractionResult = await self.extract(
+                prompt=prompt,
+                response_model=SectionExtractionResult,
+                system_prompt=None,
+                validation_context={
+                    "min_line": start_line + 1,
+                    "max_line": end_line,
+                },
+            )
+
+            if not result.is_relevant or not result.relevant_lines:
+                consecutive_irrelevant += 1
+                LOGGER.debug(
+                    "Chunk %s/%s: not relevant (consecutive=%s)",
+                    chunk_idx + 1,
+                    len(chunks),
+                    consecutive_irrelevant,
+                )
+                continue
+
+            found_relevant = True
+            consecutive_irrelevant = 0
+
+            for lr in result.relevant_lines:
+                all_line_indices.update(range(lr.start - 1, lr.end))
+
+        if not all_line_indices:
+            LOGGER.info("No relevant content found in any chunk")
+            return None
+
+        unique_indices = sorted(all_line_indices)
+        parts: list[str] = []
+        for pos, idx in enumerate(unique_indices):
+            if pos > 0 and idx != unique_indices[pos - 1] + 1:
+                parts.append("")  # blank line between non-consecutive sections
+            parts.append(source_lines[idx])
+        extracted = "\n".join(parts)
+        LOGGER.info(
+            "Extracted %s lines from %s total",
+            len(unique_indices),
+            len(source_lines),
+        )
+        return extracted
+
+    def _chunk_lines(
+        self,
+        lines: list[str],
+        chunk_size: int,
+        chunk_overlap: int,
+    ) -> list[tuple[int, int]]:
+        """Split lines into overlapping chunks by token budget.
+
+        Each chunk is represented as a ``(start_index, end_index)`` tuple
+        (0-based, end exclusive) into *lines*.
+
+        Note:
+            *chunk_size* covers only the text lines, not the surrounding
+            prompt template.  Callers should account for prompt overhead
+            when choosing *chunk_size* (the default of 30 000 leaves ample
+            headroom for the ~300-token extraction prompt).
+
+        Args:
+            lines: Source text split into lines.
+            chunk_size: Target token budget per chunk (text lines only,
+                excluding prompt overhead).
+            chunk_overlap: Overlap budget in tokens.
+
+        Returns:
+            List of ``(start, end)`` index tuples.
+        """
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if chunk_overlap < 0:
+            raise ValueError("chunk_overlap must be non-negative")
+        if chunk_overlap >= chunk_size:
+            raise ValueError("chunk_overlap must be less than chunk_size")
+
+        total = len(lines)
+        if total == 0:
+            return []
+
+        # Pre-compute per-line token counts to avoid redundant tokenizer calls.
+        line_token_counts = [
+            litellm.token_counter(model=self.model, text=line) for line in lines
+        ]
+
+        chunks: list[tuple[int, int]] = []
+        start = 0
+
+        while start < total:
+            token_count = 0
+            end = start
+            while end < total:
+                if token_count + line_token_counts[end] > chunk_size and end > start:
+                    break
+                token_count += line_token_counts[end]
+                end += 1
+
+            chunks.append((start, end))
+
+            if end >= total:
+                break
+
+            overlap_tokens = 0
+            overlap_start = end
+            while overlap_start > start:
+                if (
+                    overlap_tokens + line_token_counts[overlap_start - 1]
+                    > chunk_overlap
+                ):
+                    break
+                overlap_tokens += line_token_counts[overlap_start - 1]
+                overlap_start -= 1
+
+            # Ensure forward progress: if the overlap backed up to or before
+            # the current chunk start, advance by at least one line to avoid
+            # an infinite loop (can happen when a single line exceeds
+            # chunk_size, causing a very short chunk).
+            start = max(overlap_start, start + 1)
+
+        return chunks
+
+    @staticmethod
+    def _number_lines(lines: list[str], start: int, end: int) -> str:
+        """Add ``[N]`` line number prefixes to a slice of lines.
+
+        Line numbers are 1-based (matching what the LLM sees and returns).
+
+        Args:
+            lines: Full list of source lines.
+            start: Start index (0-based, inclusive).
+            end: End index (0-based, exclusive).
+
+        Returns:
+            Numbered text block.
+        """
+        return "\n".join(f"[{i + 1}] {lines[i]}" for i in range(start, end))
 
     @staticmethod
     def _extract_text(response: litellm.ModelResponse) -> str:
