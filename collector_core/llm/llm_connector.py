@@ -55,6 +55,7 @@ Tolerant API behavior:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import random
@@ -65,7 +66,15 @@ from typing import Any, Final, Optional, TypeVar
 import instructor
 import litellm
 from instructor.core import InstructorRetryException
+from instructor.core.exceptions import (
+    AsyncValidationError as InstructorAsyncValidationError,
+)
+from instructor.core.exceptions import (
+    IncompleteOutputException,
+)
+from instructor.core.exceptions import ValidationError as InstructorValidationError
 from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
 
 from .models import SectionExtractionResult
 from .prompts import SECTION_EXTRACTION_PROMPT
@@ -688,6 +697,7 @@ class LLMConnector:
         estimated_tokens = self._estimate_request_tokens(messages)
 
         last_error: Exception | None = None
+        mapped_error: LLMProviderError | None = None
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
                 LOGGER.debug(
@@ -722,16 +732,26 @@ class LLMConnector:
                 )
                 return result  # type: ignore[no-any-return]
             except InstructorRetryException as exc:
-                raise LLMValidationError(
-                    f"Model could not produce valid {response_model.__name__} "
-                    f"after {validation_retries} validation retries"
-                ) from exc
-            except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
-                mapped_error: LLMProviderError = LLMTemporaryProviderError(
-                    "provider request timed out"
+                classified = self._classify_instructor_retry(
+                    exc, response_model.__name__, validation_retries
                 )
+                if isinstance(classified, LLMValidationError):
+                    raise classified from exc
+                # Provider error hidden inside InstructorRetryException —
+                # feed it into the existing retry / raise logic below.
+                mapped_error = classified
                 last_error = exc
                 LOGGER.warning(
+                    "InstructorRetryException masks provider error "
+                    "(attempt=%s/%s, mapped=%s)",
+                    attempt + 1,
+                    self.max_retries + 1,
+                    type(mapped_error).__name__,
+                )
+            except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
+                mapped_error = LLMTemporaryProviderError("provider request timed out")
+                last_error = exc
+                LOGGER.debug(
                     "Provider timeout (attempt=%s/%s, timeout=%.1fs)",
                     attempt + 1,
                     self.max_retries + 1,
@@ -740,7 +760,7 @@ class LLMConnector:
             except Exception as exc:
                 mapped_error = self._map_provider_exception(exc)
                 last_error = exc
-                LOGGER.warning(
+                LOGGER.debug(
                     "Provider call failed (attempt=%s/%s, error_type=%s, "
                     "mapped_error_type=%s) %s",
                     attempt + 1,
@@ -750,6 +770,8 @@ class LLMConnector:
                     str(exc),
                 )
 
+            if mapped_error is None:  # pragma: no cover
+                raise RuntimeError("mapped_error unset after exception handling")
             should_retry = attempt < self.max_retries and isinstance(
                 mapped_error, (LLMRateLimitError, LLMTemporaryProviderError)
             )
@@ -1338,6 +1360,88 @@ class LLMConnector:
                 "RETRY_JITTER_MAX_SECONDS must be greater than or equal to "
                 "RETRY_JITTER_MIN_SECONDS"
             )
+
+    def _classify_instructor_retry(
+        self,
+        exc: InstructorRetryException,
+        model_name: str,
+        validation_retries: int,
+    ) -> LLMValidationError | LLMProviderError:
+        """Map an InstructorRetryException to a connector error type.
+
+        If the last failed attempt is a provider-level error (rate-limit,
+        auth, timeout, …) rather than a validation error, the exception is
+        remapped to the matching :class:`LLMProviderError` subclass so
+        callers can distinguish infrastructure failures from genuine
+        validation failures.
+
+        Instructor stores the last error in ``exc.args[0]`` (via tenacity's
+        ``last_attempt._exception``).  We check that first, then fall back
+        to the ``__cause__`` chain.
+
+        Args:
+            exc: The retry exception raised by Instructor.
+            model_name: Name of the response model (used in the fallback
+                validation-error message).
+            validation_retries: Number of validation retries that were
+                configured (used in the fallback message).
+
+        Returns:
+            An :class:`LLMValidationError` when the last failed attempt is a
+            validation problem, or a specific :class:`LLMProviderError`
+            subclass when a provider error is detected.
+        """
+        # Validation-like errors: the model produced output that could not be
+        # parsed or validated.  Everything else is an infrastructure / provider
+        # problem that should be surfaced so the caller can decide to retry.
+        _validation_types = (
+            PydanticValidationError,
+            InstructorValidationError,
+            InstructorAsyncValidationError,
+            json.JSONDecodeError,
+        )
+
+        # exc.args[0] is the last exception from tenacity's retry loop —
+        # only the final error matters for classification.
+        last_error = exc.args[0] if exc.args else None
+
+        if isinstance(last_error, Exception) and not isinstance(
+            last_error, _validation_types
+        ):
+            if isinstance(last_error, IncompleteOutputException):
+                return LLMTemporaryProviderError("provider returned incomplete output")
+            LOGGER.debug(
+                "Provider error detected inside InstructorRetryException "
+                "(underlying_type=%s, message=%s)",
+                type(last_error).__name__,
+                str(last_error),
+            )
+            return self._map_provider_exception(last_error)
+
+        # Fallback: check the implicit __cause__ chain.
+        cause: BaseException | None = exc.__cause__
+        while cause is not None:
+            if isinstance(cause, Exception) and not isinstance(
+                cause, (_validation_types + (InstructorRetryException,))
+            ):
+                if isinstance(cause, IncompleteOutputException):
+                    return LLMTemporaryProviderError(
+                        "provider returned incomplete output"
+                    )
+                LOGGER.debug(
+                    "Provider error detected in __cause__ chain "
+                    "(cause_type=%s, message=%s)",
+                    type(cause).__name__,
+                    str(cause),
+                )
+                return self._map_provider_exception(cause)
+            cause = getattr(cause, "__cause__", None)
+
+        # Last error was a validation failure (or no error info available).
+        return LLMValidationError(
+            f"Model could not produce valid {model_name} "
+            f"after {validation_retries} validation retries"
+        )
 
     def _map_provider_exception(self, error: Exception) -> LLMProviderError:
         """Map a LiteLLM/provider exception to connector-specific error types."""
