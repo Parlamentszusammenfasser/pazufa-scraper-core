@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from collector_core.tags_and_sachgebiete_model import (
+from collector_core.schlagworte_model import (
     Tag,
     Sachgebiet,
     TagFile,

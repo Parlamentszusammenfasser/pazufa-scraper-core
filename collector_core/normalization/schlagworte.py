@@ -1,11 +1,12 @@
 from pathlib import Path
 import json
 import yaml
+from typing import Optional
 import numpy as np
 from pathlib import Path
 import logging
 
-from collector_core.tags_and_sachgebiete_model import (
+from collector_core.schlagworte_model import (
     Tag,
     Sachgebiet,
     TagFile,
@@ -22,10 +23,8 @@ GLOBAL_TAGS_FILES: list[Path] = [MAPPINGS_DIR.joinpath("global_tags.yaml")]
 SACHGEBIETE_FILES: list[Path] = [MAPPINGS_DIR.joinpath("sachgebiete.yaml")]
 """Constant list of the paths to the sachgebiet files."""
 
-TEMPORARY_FILES_FOLDER_DIR: Path = Path(__file__).parent / "temporary"
-"""Path to the directory for the temporary files written in normalization."""
-
 logger = logging.getLogger(__name__)
+
 
 # =====================================================================
 # private helper functions
@@ -109,40 +108,70 @@ def _load_sachgebiete() -> list[Sachgebiet]:
     return list(sachgebiet_list.values())
 
 
-# =====================================================================
-# Public lifetime functions
-# =====================================================================
+def _build_json(items: list[BaseModel]) -> str:
+    if not items:
+        logger.debug("_build_json called with empty list")
+    try:
+        return json.dumps(
+            [item.model_dump() for item in items],
+            ensure_ascii=False,
+            indent=2,
+        )
+    except TypeError as e:
+        raise ValueError(f"Failed to serialize {type(items[0]).__name__} items to JSON: {e}") from e
 
 
-def generate_tags_npy():
-    pass
+def _build_json_sachgebiete_no_numbers(sachgebiete: list[Sachgebiet]) -> str:
+    return _build_json([Tag.model_construct(id=s.id, description=s.description) for s in sachgebiete])
 
 
-def generate_sachgebiete_npy():
-    pass
+class Schlagwort_Resolver:
+    """Resolves, merges and provides access to the global Schlagwort vocabulary.
+
+    Load order (later entries override earlier ones):
+    1. Local tags (caller-supplied, lowest priority)
+    2. Global tags (GLOBAL_TAGS_FILES)
+    3. Sachgebiete (SACHGEBIETE_FILES, highest priority)
+
+    The local lists of the tags and sachgebiete are generated in this clases constructor.
+    They are generated fresh for each construction. This is done to prevent stale tag or sachgebiet
+    lists in the scraper.
 
 
-# =====================================================================
-# Public action functions
-# =====================================================================
+    """
+
+    def __init__(self, local_tags: Optional[list[Path]] = None) -> None:
+        # generating of lists of Objects
+        self._tags: list[Tag] = _load_tags(local_tags)
+        self._sachgebiete: list[Sachgebiet] = _load_sachgebiete()
+
+        # generating json for LLM prompts
+        self._tags_json: str = _build_json(self._tags)
+        self._sachgebiete_json: str = _build_json(self._sachgebiete)
+        self._sachgebiete_no_numbers_json: str = _build_json_sachgebiete_no_numbers(self._sachgebiete)
 
 
-def get_tags_json():
-    pass
+    # =====================================================================
+    # Public action functions
+    # =====================================================================
 
 
-def get_tags_npy():
-    pass
+    def get_tags_json():
+        pass
 
 
-def get_sachgebiete_json():
-    pass
+    def get_tags_npy():
+        pass
 
 
-def get_sachgebiete_npy():
-    pass
+    def get_sachgebiete_json():
+        pass
 
 
-def check_tags():
-    # optional give local path to tags.npy for faster checks
-    pass
+    def get_sachgebiete_npy():
+        pass
+
+
+    def check_tags():
+        # optional give local path to tags.npy for faster checks
+        pass
