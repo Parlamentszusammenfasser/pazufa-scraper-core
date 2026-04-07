@@ -12,9 +12,7 @@ import asyncio
 from collector_core import LLMConnector
 from collector_core.llm import (
     SCHLAGWORTE_PROMPT,
-    ZUSAMMENFASSUNG_PROMPT,
     SchlagworteResult,
-    ZusammenfassungResult,
     format_sachgebiete_list,
 )
 
@@ -40,10 +38,10 @@ async def enrich(volltext: str, titel: str, vorgang_vnr: str) -> None:
         return
 
     # Step 2: Enrich the (now right-sized) text
-    # Zusammenfassung
-    prompt = ZUSAMMENFASSUNG_PROMPT.format(titel=titel, text=text)
-    result = await connector.extract(prompt=prompt, response_model=ZusammenfassungResult)
-    print(result.zusammenfassung)
+    # Zusammenfassung — use summarize_dokument() for general documents,
+    # summarize_gesetzentwurf() for Gesetzentwürfe.
+    zusammenfassung = await connector.summarize_dokument(titel=titel, text=text)
+    print(zusammenfassung)
 
     # Schlagworte (with taxonomy validation)
     prompt = SCHLAGWORTE_PROMPT.format(
@@ -99,7 +97,7 @@ Each model is a standalone Pydantic `BaseModel` for use with `LLMConnector.extra
 | Model | Fields | Notes |
 |-------|--------|-------|
 | `KurztitelResult` | `kurztitel` | Short, plain-language title (5-10 words) |
-| `ZusammenfassungResult` | `zusammenfassung` | Compact summary covering goal, key measures, changed laws/articles, costs, and background where available |
+| `ZusammenfassungResult` | `zusammenfassung` | Compact plain-language summary of a parliamentary document |
 | `SchlagworteResult` | `sachgebiete`, `schlagworte` | `field_validator` rejects Sachgebiete not in the taxonomy (triggers Instructor retry) |
 | `MeinungResult` | `meinung`, `begruendung` | `meinung` is `Literal[1,2,3,4,5]` — best suited for Stellungnahmen and Beschlussempfehlungen |
 | `VerfassungsaenderndResult` | `ist_verfassungsaendernd`, `begruendung` | Bool + reasoning; prompt uses `{land}` so each scraper specifies its state |
@@ -114,7 +112,8 @@ the module docstrings.
 | Prompt | Format vars | Notes |
 |--------|-------------|-------|
 | `KURZTITEL_PROMPT` | `titel`, `abstract` | |
-| `ZUSAMMENFASSUNG_PROMPT` | `titel`, `text` | Guides the LLM to cover Ziel, Maßnahmen, geänderte Vorschriften, Kosten, Inkrafttreten, Hintergrund — but only where present in the source text |
+| `ZUSAMMENFASSUNG_PROMPT` | `titel`, `text` | Generic parliamentary-document prompt; asks for key content (what, why, context). Use for Stellungnahmen, Beschlussempfehlungen, Plenarprotokolle, etc. Prefer `LLMConnector.summarize_dokument()` over formatting this directly. |
+| `ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT` | `titel`, `text` | Gesetzentwurf-specific prompt; asks for Ziel, Maßnahmen, geänderte Vorschriften, Kosten, Inkrafttreten, Hintergrund — but only where present. Prefer `LLMConnector.summarize_gesetzentwurf()` over formatting this directly. |
 | `SCHLAGWORTE_PROMPT` | `sachgebiete_list`, `vorgang_titel`, `vorgang_vnr`, `dok_typ`, `titel`, `text` | Use `format_sachgebiete_list()` for `{sachgebiete_list}` |
 | `MEINUNG_PROMPT` | `dok_typ`, `titel`, `text` | Scale: 1=Ablehnung … 5=Zustimmung |
 | `VERFASSUNGSAENDERND_PROMPT` | `land`, `titel`, `schlagworte`, `text` | Distinguishes Landesverfassung from Kommunalverfassung |

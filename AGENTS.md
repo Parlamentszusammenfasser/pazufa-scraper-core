@@ -83,7 +83,7 @@ Then regenerate and review the diff carefully.
 ## Project Structure
 
 - [collector_core/__init__.py](collector_core/__init__.py) - public package exports
-- [collector_core/llm_connector.py](collector_core/llm_connector.py) - current LLM entrypoint; LLM-related code is expected to move into `collector_core/llm/`
+- [collector_core/llm/](collector_core/llm/) - LLM entrypoint package (connector, models, prompts, taxonomy)
 - [collector_core/api_model.py](collector_core/api_model.py) - generated Pydantic models
 - [collector_core/api_client/](collector_core/api_client/) - generated OpenAPI client
 - [tests/](tests/) - unit tests
