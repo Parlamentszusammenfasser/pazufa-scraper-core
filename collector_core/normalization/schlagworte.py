@@ -1,7 +1,19 @@
+"""Schlagwort vocabulary loading, merging, and resolution.
+
+Provides :class:`SchlagwortResolver`, which loads Tags and Sachgebiete from
+YAML files, merges them into a single vocabulary, and exposes:
+
+- JSON representations for LLM prompt injection
+- Pydantic ``Annotated`` types (``TagList``, ``SachgebietList``,
+  ``SachgebieteNumberList``) for use as field types in response models
+- Lookup helpers for converting between Sachgebiet IDs and
+  Parlamentsspiegel numbers
+"""
+
 import json
 import logging
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel
 
@@ -61,8 +73,8 @@ def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
     if local_paths:
         canonical_ids = _load_global_tag_ids()
         for path in local_paths:
-            validated = TagFile.from_path(path)
-            for tag in validated.tags:
+            tag_file = TagFile.from_path(path)
+            for tag in tag_file.tags:
                 canonical_id = _canonicalise_id(tag.id, canonical_ids)
                 if canonical_id != tag.id:
                     logger.debug("Canonical local tag %r -> %r", tag.id, canonical_id)
@@ -72,13 +84,13 @@ def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
                 )
 
     for path in GLOBAL_TAGS_FILES:
-        validated = TagFile.from_path(path)
-        for tag in validated.tags:
+        tag_file = TagFile.from_path(path)
+        for tag in tag_file.tags:
             tag_list[tag.id] = tag
 
     for path in SACHGEBIETE_FILES:  # last-write-wins
-        validated = SachgebietFile.from_path(path)
-        for sachgebiet in validated.tags:
+        sachgebiet_file = SachgebietFile.from_path(path)
+        for sachgebiet in sachgebiet_file.tags:
             tag_list[sachgebiet.id] = Tag.model_construct(
                 id=sachgebiet.id,
                 description=sachgebiet.description,
@@ -88,13 +100,17 @@ def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
 
 
 def _load_sachgebiete() -> list[Sachgebiet]:
+    """Load Sachgebiete from all sachgebiet files and return a deduplicated list.
+
+    Raises:
+        ValueError: If the same Parlamentsspiegel number appears in more than one file.
+    """
     sachgebiet_list: dict[str, Sachgebiet] = {}
     number_index: dict[int, tuple[str, Path]] = {}  # number -> (id, source path)
 
     for path in SACHGEBIETE_FILES:
-        validated = SachgebietFile.from_path(path)
-        for sachgebiet in validated.tags:
-            # validation already performed by SachgebietFile.from_path
+        sachgebiet_file = SachgebietFile.from_path(path)
+        for sachgebiet in sachgebiet_file.tags:
             if sachgebiet.number in number_index:
                 existing_id, existing_path = number_index[sachgebiet.number]
                 raise ValueError(
@@ -109,6 +125,14 @@ def _load_sachgebiete() -> list[Sachgebiet]:
 
 
 def _build_json(items: list[BaseModel]) -> str:
+    """Serialize a list of Pydantic models to a JSON string.
+
+    Args:
+        items: Models to serialize. Logs a debug message if the list is empty.
+
+    Raises:
+        ValueError: If any item cannot be serialized.
+    """
     if not items:
         logger.debug("_build_json called with empty list")
     try:
@@ -124,12 +148,29 @@ def _build_json(items: list[BaseModel]) -> str:
 
 
 def _build_json_sachgebiete_no_numbers(sachgebiete: list[Sachgebiet]) -> str:
+    """Serialize Sachgebiete to JSON, omitting the Parlamentsspiegel number."""
     return _build_json(
         [Tag.model_construct(id=s.id, description=s.description) for s in sachgebiete]
     )
 
 
-class Schlagwort_Resolver:
+def _make_validated_list(valid: set, error_msg: str) -> type:
+    """Build an Annotated list type that rejects values not in *valid*."""
+
+    def validate(v: list) -> list:
+        if invalid := set(v) - valid:
+            raise ValueError(f"{error_msg}: {invalid}")
+        return v
+
+    return Annotated[list, AfterValidator(validate)]
+
+
+# =====================================================================
+# SchlagwortResolver
+# =====================================================================
+
+
+class SchlagwortResolver:
     """Resolves, merges and provides access to the global Schlagwort vocabulary.
 
     Load order (later entries override earlier ones):
@@ -142,19 +183,20 @@ class Schlagwort_Resolver:
     to prevent stale tag or sachgebiet lists in the scraper.
     """
 
-    def __init__(self, local_tags: Optional[list[Path]] = None) -> None:
-        # generating of lists of Objects
+    def __init__(self, local_tags: list[Path] | None = None) -> None:
+        # load vocabulary
         self._tags: list[Tag] = _load_tags(local_tags)
         self._sachgebiete: list[Sachgebiet] = _load_sachgebiete()
 
-        # building JSON
+        # pre-serialise JSON representations
         self._tags_json: str = _build_json(self._tags)
         self._sachgebiete_json: str = _build_json(self._sachgebiete)
         self._sachgebiete_no_numbers_json: str = _build_json_sachgebiete_no_numbers(
             self._sachgebiete
         )
 
-        # building lookup indices
+        # build lookup indices
+        self._tag_ids: set[str] = {t.id for t in self._tags}
         self._sachgebiete_id_to_number: dict[str, int] = {
             s.id: s.number for s in self._sachgebiete
         }
@@ -162,50 +204,19 @@ class Schlagwort_Resolver:
             s.number: s.id for s in self._sachgebiete
         }
 
-        # pre-build annotated types
-        self.SachgebietList: type = self._make_sachgebiet_list()
-        self.SachgebieteNumberList: type = self._make_sachgebiet_number_list()
-        self.TagList: type = self._make_tag_list()
+        # pre-build annotated types for use as Pydantic field types
+        self.SachgebietList: type = _make_validated_list(
+            set(self._sachgebiete_id_to_number), "Invalid Sachgebiete"
+        )
+        self.SachgebieteNumberList: type = _make_validated_list(
+            set(self._sachgebiete_number_to_id), "Invalid Sachgebiet-Nummern"
+        )
+        self.TagList: type = _make_validated_list(
+            self._tag_ids, "Invalid Tags"
+        )
 
     # =====================================================================
-    # Model Extensions
-    # =====================================================================
-
-    def _make_sachgebiet_list(self) -> type:
-        valid_ids = {s.id for s in self._sachgebiete}
-
-        def validate(v: list[str]) -> list[str]:
-            invalid = set(v) - valid_ids
-            if invalid:
-                raise ValueError(f"Invalid Sachgebiete: {invalid}")
-            return v
-
-        return Annotated[list[str], AfterValidator(validate)]
-
-    def _make_sachgebiet_number_list(self) -> type:
-        valid_numbers = {s.number for s in self._sachgebiete}
-
-        def validate(v: list[int]) -> list[int]:
-            invalid = set(v) - valid_numbers
-            if invalid:
-                raise ValueError(f"Invalide Sachgebiet-Nummern: {invalid}")
-            return v
-
-        return Annotated[list[int], AfterValidator(validate)]
-
-    def _make_tag_list(self) -> type:
-        valid_ids = {t.id for t in self._tags}
-
-        def validate(v: list[str]) -> list[str]:
-            invalid = set(v) - valid_ids
-            if invalid:
-                raise ValueError(f"Ungültige Tags: {invalid}")
-            return v
-
-        return Annotated[list[str], AfterValidator(validate)]
-
-    # =====================================================================
-    # tag Actions
+    # Tag actions
     # =====================================================================
 
     def get_tags_json(self) -> str:
@@ -228,62 +239,61 @@ class Schlagwort_Resolver:
         Returns:
             True if the id matches a known tag, False otherwise.
         """
-        return any(tag.id == tag_id for tag in self._tags)
-
-    def get_tags_npy():
-        """Not implemented."""
-        pass
-
-
+        return tag_id in self._tag_ids
 
     # =====================================================================
-    # Sachgebiet Actions
+    # Sachgebiet actions
     # =====================================================================
 
-    def get_sachgebiete_json(self):
-        """Return the full Sachgebiet vocabulary including the numbers as a JSON string.
+    def get_sachgebiete_json(self) -> str:
+        """Return the full Sachgebiet vocabulary including numbers as a JSON string.
 
         Returns:
             JSON string containing the full Sachgebiet vocabulary.
         """
         return self._sachgebiete_json
 
-    def get_sachgebiete_no_numbers_json(self):
-        """Return the full Sachgebiet vocabulary excluding the numbers as a JSON string.
+    def get_sachgebiete_no_numbers_json(self) -> str:
+        """Return the Sachgebiet vocabulary without Parlamentsspiegel numbers as JSON.
 
         Returns:
-            JSON string containing the full Sachgebiet vocabulary.
+            JSON string containing Sachgebiet id and description only.
         """
         return self._sachgebiete_no_numbers_json
 
     def get_sachgebiet_number(self, sachgebiet_id: str) -> int:
-        """Return the Sachgebiet number for a given Sachgebiet ID.
+        """Return the Parlamentsspiegel number for a given Sachgebiet ID.
 
         Args:
             sachgebiet_id: The canonical Sachgebiet id to look up.
 
         Returns:
-            The Sachgebiet number, or None if the id is not found.
+            The Parlamentsspiegel number.
+
+        Raises:
+            KeyError: If the id is not found in the vocabulary.
         """
         nummer = self._sachgebiete_id_to_number.get(sachgebiet_id)
         if nummer is None:
             raise KeyError(f"Sachgebiet ID {sachgebiet_id!r} not found")
         return nummer
 
-
     def get_sachgebiet_id(self, sachgebiet_number: int) -> str:
-        """Return the Sachgebiet id for a given Sachgebiet number.
+        """Return the Sachgebiet id for a given Parlamentsspiegel number.
 
         Args:
-            sachgebiet_number: The number of the Sachgebiet to look up.
+            sachgebiet_number: The Parlamentsspiegel number to look up.
 
         Returns:
-            The Sachgebiet id, or None if the number is not found.
+            The canonical Sachgebiet id.
+
+        Raises:
+            KeyError: If the number is not found in the vocabulary.
         """
-        id = self._sachgebiete_number_to_id.get(sachgebiet_number)
-        if id is None:
+        sachgebiet_id = self._sachgebiete_number_to_id.get(sachgebiet_number)
+        if sachgebiet_id is None:
             raise KeyError(f"Sachgebiet number {sachgebiet_number!r} not found")
-        return id
+        return sachgebiet_id
 
     def check_sachgebiet_id(self, sachgebiet_id: str) -> bool:
         """Check whether a given id corresponds to a known Sachgebiet.
@@ -294,7 +304,7 @@ class Schlagwort_Resolver:
         Returns:
             True if the id matches a known Sachgebiet, False otherwise.
         """
-        return sachgebiet_id in self._id_to_number
+        return sachgebiet_id in self._sachgebiete_id_to_number
 
     def check_sachgebiet_nummer(self, sachgebiet_nummer: int) -> bool:
         """Check whether a given number corresponds to a known Sachgebiet.
@@ -305,4 +315,4 @@ class Schlagwort_Resolver:
         Returns:
             True if the number matches a known Sachgebiet, False otherwise.
         """
-        return sachgebiet_nummer in self._number_to_id
+        return sachgebiet_nummer in self._sachgebiete_number_to_id
