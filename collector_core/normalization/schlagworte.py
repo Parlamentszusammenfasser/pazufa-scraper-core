@@ -162,8 +162,9 @@ class Schlagwort_Resolver:
             s.number: s.id for s in self._sachgebiete
         }
 
-        # pre-build annotated types - computed once, reused per model extension
+        # pre-build annotated types
         self.SachgebietList: type = self._make_sachgebiet_list()
+        self.SachgebieteNumberList: type = self._make_sachgebiet_number_list()
         self.TagList: type = self._make_tag_list()
 
     # =====================================================================
@@ -227,7 +228,7 @@ class Schlagwort_Resolver:
         Returns:
             True if the id matches a known tag, False otherwise.
         """
-        return tag_id in self._tags_json
+        return any(tag.id == tag_id for tag in self._tags)
 
     def get_tags_npy():
         """Not implemented."""
