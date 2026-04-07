@@ -7,7 +7,6 @@ from .llm_connector import (
     LLMProviderError,
     LLMQuotaExceededError,
     LLMRateLimitError,
-    LLMResponseParseError,
     LLMTemporaryProviderError,
     LLMValidationError,
 )
@@ -34,7 +33,6 @@ __all__ = [
     # LLM Connector
     "LLMConnector",
     "LLMConnectorError",
-    "LLMResponseParseError",
     "LLMProviderError",
     "LLMAuthenticationError",
     "LLMQuotaExceededError",

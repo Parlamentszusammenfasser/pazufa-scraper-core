@@ -1,8 +1,8 @@
 """Provider-agnostic async LLM connector.
 
-Supports text generation, summarization, and structured data extraction.
+Supports summarization and structured data extraction.
 
-Example — free-text generation:
+Example — summarization:
     ```python
     import asyncio
     from collector_core.llm import LLMConnector
@@ -61,7 +61,7 @@ import math
 import random
 import time
 from collections import deque
-from typing import Any, Final, Optional, TypeVar
+from typing import Final, Optional, TypeVar
 
 import instructor
 import litellm
@@ -76,7 +76,7 @@ from instructor.core.exceptions import ValidationError as InstructorValidationEr
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
-from .models import SectionExtractionResult
+from .models import SectionExtractionResult, ZusammenfassungResult
 from .prompts import SECTION_EXTRACTION_PROMPT
 
 T = TypeVar("T", bound=BaseModel)
@@ -106,10 +106,6 @@ DEFAULT_SYSTEM_PROMPT: Final[str] = (
 
 class LLMConnectorError(RuntimeError):
     """Base exception for connector-level errors."""
-
-
-class LLMResponseParseError(LLMConnectorError):
-    """Raised when a provider response cannot be parsed as text."""
 
 
 class LLMProviderError(LLMConnectorError):
@@ -346,10 +342,24 @@ class LLMConnector:
             rate_limit_window_seconds=rate_limit_window_seconds,
             rate_limit_max_tokens=rate_limit_max_tokens,
         )
-        self._instructor_client = instructor.from_litellm(
-            litellm.acompletion, mode=instructor.Mode.TOOLS
+        # "litellm/-" tells Instructor to use LiteLLM as the backend.
+        # The model segment ("-") is a placeholder; the actual model is
+        # supplied per-call via model=self.model in chat.completions.create().
+        # See: https://python.useinstructor.com/integrations/litellm/
+        self._instructor_client = instructor.from_provider(
+            "litellm/-",
+            async_client=True,
+            mode=instructor.Mode.TOOLS,
         )
-        LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
+
+        def _on_validation_retry(error: Exception) -> None:
+            LOGGER.warning("Instructor validation retry triggered: %s", error)
+
+        self._instructor_client.on("completion:error", _on_validation_retry)
+        LOGGER.debug(
+            "Initialized Instructor client (mode=TOOLS); "
+            "registered completion:error hook"
+        )
 
         LOGGER.info(
             "Initialized LLMConnector (model=%s, api_key_set=%s, "
@@ -401,137 +411,6 @@ class LLMConnector:
             )
             return None
 
-    async def generate_text(
-        self, prompt: str, system_prompt: str | None = DEFAULT_SYSTEM_PROMPT
-    ) -> str:
-        """Generate text using the configured model.
-
-        Args:
-            prompt: User input prompt for the model.
-            system_prompt: Optional system-level instruction for model behavior.
-                If empty/whitespace or `None`, no system message is sent.
-
-        Returns:
-            The generated plain-text model output.
-
-        Raises:
-            ValueError: If prompt/system prompt validation fails.
-            LLMProviderError: If provider call fails and cannot be recovered by retries.
-            LLMResponseParseError: If provider response structure cannot be parsed.
-        """
-        normalized_prompt = self._require_non_empty_text(prompt, field_name="prompt")
-        normalized_system_prompt: str | None = None
-        if system_prompt is not None:
-            if not isinstance(system_prompt, str):
-                raise ValueError("system_prompt must be a string or None")
-            stripped_system_prompt = system_prompt.strip()
-            if stripped_system_prompt:
-                normalized_system_prompt = stripped_system_prompt
-
-        messages: list[dict[str, str]] = [
-            {"role": "user", "content": normalized_prompt}
-        ]
-        if normalized_system_prompt is not None:
-            messages.insert(0, {"role": "system", "content": normalized_system_prompt})
-
-        request_kwargs: dict[str, Any] = {
-            "model": self.model,
-            "api_key": self.api_key,
-            "messages": messages,
-            "temperature": self.temperature,
-            "timeout": self.timeout_seconds,
-        }
-        LOGGER.debug(
-            "Starting text generation (model=%s, prompt_chars=%s, retries=%s)",
-            self.model,
-            len(normalized_prompt),
-            self.max_retries,
-        )
-
-        estimated_tokens = self._estimate_request_tokens(messages)
-
-        response: litellm.ModelResponse | litellm.CustomStreamWrapper | None = None
-        for attempt in range(self.max_retries + 1):
-            if self._rate_limiter is not None:
-                LOGGER.debug(
-                    "Waiting for local rate limiter slot (attempt=%s)", attempt + 1
-                )
-                await self._rate_limiter.acquire_slot(estimated_tokens=estimated_tokens)
-
-            try:
-                LOGGER.debug(
-                    "Calling provider (attempt=%s/%s, timeout=%.1fs)",
-                    attempt + 1,
-                    self.max_retries + 1,
-                    self.timeout_seconds,
-                )
-                response = await asyncio.wait_for(
-                    litellm.acompletion(**request_kwargs),
-                    self.timeout_seconds + 0.5,
-                )
-                LOGGER.debug(
-                    "Provider call successful (attempt=%s/%s)",
-                    attempt + 1,
-                    self.max_retries + 1,
-                )
-                break
-            except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
-                mapped_error: LLMProviderError = LLMTemporaryProviderError(
-                    "provider request timed out"
-                )
-                original_error: Exception = exc
-                LOGGER.warning(
-                    "Provider timeout (attempt=%s/%s, timeout=%.1fs)",
-                    attempt + 1,
-                    self.max_retries + 1,
-                    self.timeout_seconds,
-                )
-            except Exception as exc:
-                mapped_error = self._map_provider_exception(exc)
-                original_error = exc
-                LOGGER.warning(
-                    "Provider call failed (attempt=%s/%s, error_type=%s, "
-                    "mapped_error_type=%s) %s",
-                    attempt + 1,
-                    self.max_retries + 1,
-                    type(exc).__name__,
-                    type(mapped_error).__name__,
-                    str(exc),
-                )
-
-            should_retry: bool = attempt < self.max_retries and (
-                isinstance(mapped_error, (LLMRateLimitError, LLMTemporaryProviderError))
-            )
-            if not should_retry:
-                LOGGER.error(
-                    "Provider request failed without retry (attempt=%s/%s, "
-                    "error_type=%s)",
-                    attempt + 1,
-                    self.max_retries + 1,
-                    type(mapped_error).__name__,
-                )
-                raise mapped_error from original_error
-
-            backoff_seconds = self._compute_retry_delay(attempt)
-            LOGGER.info(
-                "Retrying provider call in %.2fs (next_attempt=%s/%s, error_type=%s)",
-                backoff_seconds,
-                attempt + 2,
-                self.max_retries + 1,
-                type(mapped_error).__name__,
-            )
-
-            await asyncio.sleep(backoff_seconds)
-
-        if response is None:
-            raise LLMConnectorError("unreachable retry loop state")
-        if isinstance(response, (litellm.CustomStreamWrapper)):
-            raise LLMConnectorError(
-                f"Response type `CustomStreamWrapper` is not supported. "
-                f"Got: {type(response).__name__}"
-            )
-        return self._extract_text(response)
-
     async def summarize(
         self,
         text: str,
@@ -557,7 +436,8 @@ class LLMConnector:
         Raises:
             ValueError: If `text` is empty/invalid.
             LLMProviderError: If provider call fails and cannot be recovered by retries.
-            LLMResponseParseError: If provider response structure cannot be parsed.
+            LLMValidationError: If the model cannot produce a valid
+                `ZusammenfassungResult`.
 
         Notes:
             If `language` is empty/invalid, the default language (`Deutsch`) is used.
@@ -612,9 +492,12 @@ class LLMConnector:
             + source_text
         )
 
-        result = await self.generate_text(prompt, DEFAULT_SYSTEM_PROMPT)
-        LOGGER.debug("Summarization completed (output_chars=%s)", len(result))
-        return result
+        extraction_result = await self.extract(prompt, ZusammenfassungResult)
+        LOGGER.debug(
+            "Summarization completed (output_chars=%s)",
+            len(extraction_result.zusammenfassung),
+        )
+        return extraction_result.zusammenfassung
 
     async def extract(
         self,
@@ -633,8 +516,8 @@ class LLMConnector:
             prompt: User input prompt describing what to extract.
             response_model: Pydantic ``BaseModel`` subclass that defines the
                 expected output schema.
-            system_prompt: Optional system-level instruction. Behaves
-                identically to :meth:`generate_text`.
+            system_prompt: Optional system-level instruction. If
+                empty/whitespace or ``None``, no system message is sent.
             validation_retries: How many times Instructor may re-prompt the
                 model when its output fails Pydantic validation. This is
                 separate from the network-level retry controlled by
@@ -716,7 +599,7 @@ class LLMConnector:
                     client.chat.completions.create(
                         model=self.model,
                         api_key=self.api_key,
-                        messages=messages,
+                        messages=messages,  # type: ignore[arg-type]
                         response_model=response_model,
                         temperature=self.temperature,
                         timeout=self.timeout_seconds,
@@ -1065,50 +948,6 @@ class LLMConnector:
             total,
         )
         return total
-
-    @staticmethod
-    def _extract_text(response: litellm.ModelResponse) -> str:
-        """Extract plain text content from a provider response object.
-
-        Args:
-            response: Raw LiteLLM provider response object.
-
-        Returns:
-            Extracted plain-text output.
-
-        Raises:
-            LLMResponseParseError: If expected response fields are missing or empty.
-
-        Notes:
-            This parser only supports non-streaming chat-completion style responses.
-            If additional provider response schemas are needed, extend this method.
-        """
-        if not isinstance(response, litellm.ModelResponse):
-            raise LLMResponseParseError(
-                f"Unexpected provider response type: {type(response).__name__}"
-            )
-
-        # Intentionally restricted to non-streaming completion objects.
-        # Stream responses like "chat.completion.chunk" are handled as unsupported.
-        if response.object not in ("chat.completion", "model.completion"):
-            raise LLMResponseParseError(
-                f"Unexpected provider response object type: {response.object}"
-            )
-        choices: list[litellm.Choices] = response.choices  # type: ignore[assignment]
-        LOGGER.debug(
-            "Extracting text from provider response (choices_count=%s)", len(choices)
-        )
-
-        if not choices:
-            raise LLMResponseParseError("provider response did not contain choices")
-        message: litellm.Message = choices[0].message
-
-        content: str | None = message.content
-        if content is None or (isinstance(content, str) and not content.strip()):
-            raise LLMResponseParseError(
-                "provider response message did not contain content"
-            )
-        return content.strip()
 
     @staticmethod
     def _require_non_empty_text(value: str, field_name: str) -> str:

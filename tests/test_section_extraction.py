@@ -196,7 +196,7 @@ class TestExtractRelevantSection:
         connector.timeout_seconds = 60.0
         connector.max_retries = 1
         connector._rate_limiter = None
-        connector._instructor_client = None
+        connector._instructor_client = None  # type: ignore[assignment]
         return connector
 
     @pytest.mark.asyncio

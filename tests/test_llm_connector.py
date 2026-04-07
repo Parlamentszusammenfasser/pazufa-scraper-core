@@ -45,7 +45,7 @@ def _make_connector(**kwargs: object) -> LLMConnector:
         "max_retries": 3,
     }
     defaults.update(kwargs)
-    with patch("instructor.from_litellm", return_value=MagicMock()):
+    with patch("instructor.from_provider", return_value=MagicMock()):
         return LLMConnector(**defaults)  # type: ignore[arg-type]
 
 
@@ -332,6 +332,96 @@ class TestExtractInstructorInit:
     def test_instructor_client_set_after_init(self) -> None:
         connector = _make_connector()
         assert connector._instructor_client is not None
+
+
+# ---------------------------------------------------------------------------
+# summarize() — public API
+# ---------------------------------------------------------------------------
+
+
+from collector_core.llm.models import ZusammenfassungResult  # noqa: E402
+
+
+class TestSummarize:
+    """Verify summarize() delegates to extract(ZusammenfassungResult) correctly."""
+
+    @pytest.mark.asyncio
+    async def test_returns_zusammenfassung_string(self) -> None:
+        connector = _make_connector()
+        expected = "Eine prägnante Zusammenfassung des Textes."
+
+        with patch.object(
+            connector,
+            "extract",
+            new_callable=AsyncMock,
+            return_value=ZusammenfassungResult(zusammenfassung=expected),
+        ):
+            result = await connector.summarize(
+                "Langer Quellentext über Bildungspolitik."
+            )
+
+        assert result == expected
+
+    @pytest.mark.asyncio
+    async def test_empty_text_raises(self) -> None:
+        connector = _make_connector()
+        with pytest.raises(ValueError, match="text must not be empty"):
+            await connector.summarize("   ")
+
+    @pytest.mark.asyncio
+    async def test_extract_called_with_zusammenfassung_model(self) -> None:
+        connector = _make_connector()
+        mock_extract = AsyncMock(
+            return_value=ZusammenfassungResult(zusammenfassung="Zusammenfassung.")
+        )
+
+        with patch.object(connector, "extract", mock_extract):
+            await connector.summarize("Quellentext.")
+
+        call_args = mock_extract.call_args
+        assert call_args[0][1] is ZusammenfassungResult
+
+    @pytest.mark.asyncio
+    async def test_invalid_language_falls_back_to_deutsch(self) -> None:
+        connector = _make_connector()
+        captured: list[str] = []
+
+        async def capture(prompt: str, response_model: type) -> ZusammenfassungResult:
+            captured.append(prompt)
+            return ZusammenfassungResult(zusammenfassung="Zusammenfassung.")
+
+        with patch.object(connector, "extract", side_effect=capture):
+            await connector.summarize("Quellentext.", language="   ")
+
+        assert "Deutsch" in captured[0]
+
+    @pytest.mark.asyncio
+    async def test_validation_error_propagates(self) -> None:
+        connector = _make_connector()
+
+        with patch.object(
+            connector,
+            "extract",
+            new_callable=AsyncMock,
+            side_effect=LLMValidationError(
+                "could not produce valid ZusammenfassungResult"
+            ),
+        ):
+            with pytest.raises(LLMValidationError):
+                await connector.summarize("Quellentext.")
+
+    @pytest.mark.asyncio
+    async def test_provider_error_propagates(self) -> None:
+        connector = _make_connector()
+
+        with patch.object(
+            connector,
+            "extract",
+            new_callable=AsyncMock,
+            side_effect=LLMRateLimitError("rate limited"),
+        ):
+            with pytest.raises(LLMRateLimitError):
+                await connector.summarize("Quellentext.")
 
 
 # ---------------------------------------------------------------------------
