@@ -77,7 +77,11 @@ from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
 from .models import SectionExtractionResult
-from .prompts import SECTION_EXTRACTION_PROMPT
+from .prompts import (
+    SECTION_EXTRACTION_PROMPT,
+    ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT,
+    ZUSAMMENFASSUNG_PROMPT,
+)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -614,6 +618,58 @@ class LLMConnector:
 
         result = await self.generate_text(prompt, DEFAULT_SYSTEM_PROMPT)
         LOGGER.debug("Summarization completed (output_chars=%s)", len(result))
+        return result
+
+    async def summarize_dokument(self, titel: str, text: str) -> str:
+        """Summarize a parliamentary document using the general-purpose prompt.
+
+        Use this for Stellungnahmen, Beschlussempfehlungen, Plenarprotokolle, and
+        other parliamentary documents. For Gesetzentwürfe, use
+        :meth:`summarize_gesetzentwurf` instead.
+
+        Args:
+            titel: Document title.
+            text: Document text to summarize.
+
+        Returns:
+            A concise summary as a single string.
+
+        Raises:
+            ValueError: If ``titel`` or ``text`` is empty/invalid.
+            LLMProviderError: If provider call fails and cannot be recovered by retries.
+            LLMResponseParseError: If provider response structure cannot be parsed.
+        """
+        titel_validated = self._require_non_empty_text(titel, field_name="titel")
+        text_validated = self._require_non_empty_text(text, field_name="text")
+        prompt = ZUSAMMENFASSUNG_PROMPT.format(
+            titel=titel_validated, text=text_validated
+        )
+        result = await self.generate_text(prompt, DEFAULT_SYSTEM_PROMPT)
+        LOGGER.debug("summarize_dokument completed (output_chars=%s)", len(result))
+        return result
+
+    async def summarize_gesetzentwurf(self, titel: str, text: str) -> str:
+        """Summarize a Gesetzentwurf using the Gesetzentwurf-specific prompt.
+
+        Args:
+            titel: Document title.
+            text: Document text to summarize.
+
+        Returns:
+            A concise summary as a single string.
+
+        Raises:
+            ValueError: If ``titel`` or ``text`` is empty/invalid.
+            LLMProviderError: If provider call fails and cannot be recovered by retries.
+            LLMResponseParseError: If provider response structure cannot be parsed.
+        """
+        titel_validated = self._require_non_empty_text(titel, field_name="titel")
+        text_validated = self._require_non_empty_text(text, field_name="text")
+        prompt = ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT.format(
+            titel=titel_validated, text=text_validated
+        )
+        result = await self.generate_text(prompt, DEFAULT_SYSTEM_PROMPT)
+        LOGGER.debug("summarize_gesetzentwurf completed (output_chars=%s)", len(result))
         return result
 
     async def extract(

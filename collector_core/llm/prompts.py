@@ -26,8 +26,25 @@ Du bist ein parlamentarischer Analyst. Fasse das folgende parlamentarische \
 Dokument zusammen. Schreibe einen kompakten Fließtext in sachlicher, \
 allgemeinverständlicher Sprache — vermeide juristische Fachsprache wo möglich.
 
+Gehe auf die wesentlichen Inhalte ein: Worum geht es? Was wird festgestellt, \
+gefordert, beschlossen oder berichtet? Welcher Kontext oder Anlass wird genannt?
+
+Lasse Aspekte weg, zu denen der Text keine Angaben macht — erfinde nichts. \
+Verwende keine Zwischenüberschriften, sondern einen zusammenhängenden Text.
+
+Titel: {titel}
+
+Text:
+{text}"""
+"""Format vars: ``titel``, ``text``."""
+
+ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT = """\
+Du bist ein parlamentarischer Analyst. Fasse den folgenden Gesetzentwurf \
+zusammen. Schreibe einen kompakten Fließtext in sachlicher, \
+allgemeinverständlicher Sprache — vermeide juristische Fachsprache wo möglich.
+
 Gehe auf folgende Aspekte ein, sofern sie im Text erkennbar sind:
-- Ziel: Was will der Entwurf / Antrag erreichen? Welches Problem wird adressiert?
+- Ziel: Was will der Entwurf erreichen? Welches Problem wird adressiert?
 - Wesentliche Maßnahmen: Was wird konkret geregelt oder geändert?
 - Geänderte Vorschriften: Welche Gesetze oder Artikel werden geändert, \
 aufgehoben oder ergänzt? Nenne die konkreten Bezeichnungen.
