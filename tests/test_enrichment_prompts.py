@@ -1,6 +1,7 @@
 """Tests for enrichment prompt templates."""
 
 from collector_core.llm.prompts import (
+    EXPERTEN_PROMPT,
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
     SCHLAGWORTE_PROMPT,
@@ -67,6 +68,16 @@ class TestPromptFormatting:
         )
         assert "Bayern" in result
         assert "Brandenburg" not in result
+
+    def test_experten_prompt(self) -> None:
+        result = EXPERTEN_PROMPT.format(
+            dok_typ="stellungnahme",
+            titel="Stellungnahme zum Klimaschutzgesetz",
+            text="Eingereicht von Prof. Dr. Anna Müller, Universität Hamburg.",
+        )
+        assert "stellungnahme" in result
+        assert "Stellungnahme zum Klimaschutzgesetz" in result
+        assert "Prof. Dr. Anna Müller" in result
 
 
 class TestFormatSachgebieteListe:

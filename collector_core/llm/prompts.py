@@ -137,6 +137,37 @@ Text (Auszug):
 """Format vars: ``land``, ``titel``, ``schlagworte``, ``text``."""
 
 
+EXPERTEN_PROMPT = """\
+Du bist ein parlamentarischer Analyst. Extrahiere aus dem folgenden Dokument \
+alle Personen und Organisationen, die das Dokument verfasst oder eingereicht haben.
+
+AUFGABE:
+Identifiziere die Autor(en) oder einreichende(n) Partei(en) dieses Dokuments — \
+also wer das Dokument erstellt oder offiziell eingereicht hat. \
+Gib nur Personen/Organisationen an, die direkt als Verfasser oder Einreicher \
+des Dokuments erkennbar sind. Personen, die lediglich im Text erwähnt werden \
+(z.B. zitierte Politiker, referenzierte Gesetzesverfasser), sind NICHT aufzunehmen.
+
+FELDER:
+- person: Name der Person falls genannt (z.B. "Prof. Dr. Susanne Meyer"), sonst null
+- organisation: Organisation oder Kontext (Pflichtfeld; bei Einzelpersonen z.B. \
+"Sachverständiger" oder "Privatperson")
+- fachgebiet: Fachgebiet/Expertise falls erkennbar, sonst null
+- lobbyregister: Lobbyregister-URL oder -Nummer falls im Dokument angegeben, sonst null
+
+REGELN:
+- Halluziniere keine Informationen
+- Wenn ein Feld nicht erkennbar ist: null
+- Wenn keine Autoren erkennbar sind: eine Organisation "Unbekannt" zurückgeben
+
+Dokumenttyp: {dok_typ}
+Titel: {titel}
+
+Text (Auszug):
+{text}"""
+"""Format vars: ``dok_typ``, ``titel``, ``text``."""
+
+
 SECTION_EXTRACTION_PROMPT = """\
 Du bist ein parlamentarischer Analyst. Deine Aufgabe ist es, in einem \
 Textabschnitt eines Parlamentsprotokolls die Zeilen zu identifizieren, \

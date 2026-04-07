@@ -12,6 +12,8 @@ from .llm_connector import (
     LLMValidationError,
 )
 from .models import (
+    ExpertenResult,
+    ExtractedExpert,
     KurztitelResult,
     LineRange,
     MeinungResult,
@@ -21,6 +23,7 @@ from .models import (
     ZusammenfassungResult,
 )
 from .prompts import (
+    EXPERTEN_PROMPT,
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
     SCHLAGWORTE_PROMPT,
@@ -42,6 +45,8 @@ __all__ = [
     "LLMTemporaryProviderError",
     "LLMValidationError",
     # Models
+    "ExtractedExpert",
+    "ExpertenResult",
     "KurztitelResult",
     "ZusammenfassungResult",
     "SchlagworteResult",
@@ -54,6 +59,7 @@ __all__ = [
     "SACHGEBIETE_NAMES",
     "SACHGEBIETE_SET",
     # Prompts
+    "EXPERTEN_PROMPT",
     "KURZTITEL_PROMPT",
     "ZUSAMMENFASSUNG_PROMPT",
     "SCHLAGWORTE_PROMPT",

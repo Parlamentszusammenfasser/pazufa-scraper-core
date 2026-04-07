@@ -4,6 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from collector_core.llm.models import (
+    ExpertenResult,
+    ExtractedExpert,
     KurztitelResult,
     MeinungResult,
     SchlagworteResult,
@@ -133,3 +135,65 @@ class TestVerfassungsaenderndResult:
         )
         d = r.model_dump()
         assert d == {"ist_verfassungsaendernd": False, "begruendung": "Test."}
+
+
+class TestExtractedExpert:
+    def test_valid_full(self) -> None:
+        e = ExtractedExpert(
+            person="Prof. Dr. Susanne Meyer",
+            organisation="Universität Heidelberg",
+            fachgebiet="Verfassungsrecht",
+            lobbyregister="https://www.lobbyregister.bundestag.de/suche/12345",
+        )
+        assert e.person == "Prof. Dr. Susanne Meyer"
+        assert e.organisation == "Universität Heidelberg"
+        assert e.fachgebiet == "Verfassungsrecht"
+        assert e.lobbyregister == "https://www.lobbyregister.bundestag.de/suche/12345"
+
+    def test_valid_lobbyregister_as_id(self) -> None:
+        e = ExtractedExpert(organisation="DGB", lobbyregister="R001234")
+        assert e.lobbyregister == "R001234"
+
+    def test_person_none(self) -> None:
+        e = ExtractedExpert(organisation="Deutscher Gewerkschaftsbund")
+        assert e.person is None
+        assert e.fachgebiet is None
+        assert e.lobbyregister is None
+
+    def test_empty_organisation_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            ExtractedExpert(organisation="")
+
+    def test_serialization(self) -> None:
+        e = ExtractedExpert(person="Max Mustermann", organisation="Privatperson")
+        d = e.model_dump()
+        assert d["person"] == "Max Mustermann"
+        assert d["organisation"] == "Privatperson"
+        assert d["fachgebiet"] is None
+        assert d["lobbyregister"] is None
+
+
+class TestExpertenResult:
+    def test_valid_single(self) -> None:
+        r = ExpertenResult(
+            experten=[
+                ExtractedExpert(organisation="Bundesverband der Deutschen Industrie")
+            ]
+        )
+        assert len(r.experten) == 1
+
+    def test_valid_multiple(self) -> None:
+        r = ExpertenResult(
+            experten=[
+                ExtractedExpert(
+                    person="Dr. Anna Schmidt",
+                    organisation="Technische Universität Berlin",
+                ),
+                ExtractedExpert(organisation="ver.di"),
+            ]
+        )
+        assert len(r.experten) == 2
+
+    def test_empty_list_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            ExpertenResult(experten=[])
