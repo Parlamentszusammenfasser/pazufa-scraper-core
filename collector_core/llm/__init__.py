@@ -13,7 +13,9 @@ from .llm_connector import (
 )
 from .models import (
     ExpertenResult,
+    ExpertenResultNoLobbyregister,
     ExtractedExpert,
+    ExtractedExpertNoLobbyregister,
     KurztitelResult,
     LineRange,
     MeinungResult,
@@ -24,6 +26,7 @@ from .models import (
 )
 from .prompts import (
     EXPERTEN_PROMPT,
+    EXPERTEN_PROMPT_NO_LOBBYREGISTER,
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
     SCHLAGWORTE_PROMPT,
@@ -46,7 +49,9 @@ __all__ = [
     "LLMValidationError",
     # Models
     "ExtractedExpert",
+    "ExtractedExpertNoLobbyregister",
     "ExpertenResult",
+    "ExpertenResultNoLobbyregister",
     "KurztitelResult",
     "ZusammenfassungResult",
     "SchlagworteResult",
@@ -60,6 +65,7 @@ __all__ = [
     "SACHGEBIETE_SET",
     # Prompts
     "EXPERTEN_PROMPT",
+    "EXPERTEN_PROMPT_NO_LOBBYREGISTER",
     "KURZTITEL_PROMPT",
     "ZUSAMMENFASSUNG_PROMPT",
     "SCHLAGWORTE_PROMPT",

@@ -127,6 +127,52 @@ class ExpertenResult(BaseModel):
     )
 
 
+class ExtractedExpertNoLobbyregister(BaseModel):
+    """A single author or submitting party without lobby register field.
+
+    Used when lobbyregister extraction is disabled to prevent hallucination.
+    """
+
+    person: str | None = Field(
+        default=None,
+        description=(
+            "Name der Person (z.B. 'Prof. Dr. Susanne Meyer'). "
+            "None wenn nur eine Organisation ohne benannte Person."
+        ),
+    )
+    organisation: str = Field(
+        min_length=1,
+        description=(
+            "Name der Organisation oder Institution "
+            "(z.B. 'Deutscher Gewerkschaftsbund', 'Universität Heidelberg'). "
+            "Bei Einzelpersonen ohne Organisation den Kontext angeben "
+            "(z.B. 'Sachverständiger', 'Privatperson')."
+        ),
+    )
+    fachgebiet: str | None = Field(
+        default=None,
+        description=(
+            "Fachgebiet oder Expertise der Person/Organisation "
+            "(z.B. 'Verfassungsrecht', 'Arbeitsmarktpolitik')."
+        ),
+    )
+
+
+class ExpertenResultNoLobbyregister(BaseModel):
+    """Extracted authors without lobby register field.
+
+    Use this model when lobbyregister extraction is disabled in your scraper
+    to prevent the LLM from hallucinating register entries that don't exist.
+    """
+
+    experten: list[ExtractedExpertNoLobbyregister] = Field(
+        min_length=1,
+        description=(
+            "Liste aller identifizierbaren Autoren oder einreichenden Parteien."
+        ),
+    )
+
+
 class VerfassungsaenderndResult(BaseModel):
     """Whether a Gesetzentwurf amends the state constitution."""
 

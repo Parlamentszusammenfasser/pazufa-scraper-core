@@ -5,7 +5,9 @@ from pydantic import ValidationError
 
 from collector_core.llm.models import (
     ExpertenResult,
+    ExpertenResultNoLobbyregister,
     ExtractedExpert,
+    ExtractedExpertNoLobbyregister,
     KurztitelResult,
     MeinungResult,
     SchlagworteResult,
@@ -197,3 +199,67 @@ class TestExpertenResult:
     def test_empty_list_raises(self) -> None:
         with pytest.raises(ValidationError):
             ExpertenResult(experten=[])
+
+
+class TestExtractedExpertNoLobbyregister:
+    def test_valid_full(self) -> None:
+        e = ExtractedExpertNoLobbyregister(
+            person="Prof. Dr. Susanne Meyer",
+            organisation="Universität Heidelberg",
+            fachgebiet="Verfassungsrecht",
+        )
+        assert e.person == "Prof. Dr. Susanne Meyer"
+        assert e.organisation == "Universität Heidelberg"
+        assert e.fachgebiet == "Verfassungsrecht"
+
+    def test_person_none(self) -> None:
+        e = ExtractedExpertNoLobbyregister(organisation="Deutscher Gewerkschaftsbund")
+        assert e.person is None
+        assert e.fachgebiet is None
+
+    def test_empty_organisation_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            ExtractedExpertNoLobbyregister(organisation="")
+
+    def test_serialization(self) -> None:
+        e = ExtractedExpertNoLobbyregister(
+            person="Max Mustermann", organisation="Privatperson"
+        )
+        d = e.model_dump()
+        assert d["person"] == "Max Mustermann"
+        assert d["organisation"] == "Privatperson"
+        assert d["fachgebiet"] is None
+        assert "lobbyregister" not in d
+
+    def test_no_lobbyregister_field(self) -> None:
+        """Verify the model has no lobbyregister field to prevent hallucination."""
+        e = ExtractedExpertNoLobbyregister(organisation="Test Org")
+        assert not hasattr(e, "lobbyregister")
+
+
+class TestExpertenResultNoLobbyregister:
+    def test_valid_single(self) -> None:
+        r = ExpertenResultNoLobbyregister(
+            experten=[
+                ExtractedExpertNoLobbyregister(
+                    organisation="Bundesverband der Deutschen Industrie"
+                )
+            ]
+        )
+        assert len(r.experten) == 1
+
+    def test_valid_multiple(self) -> None:
+        r = ExpertenResultNoLobbyregister(
+            experten=[
+                ExtractedExpertNoLobbyregister(
+                    person="Dr. Anna Schmidt",
+                    organisation="Technische Universität Berlin",
+                ),
+                ExtractedExpertNoLobbyregister(organisation="ver.di"),
+            ]
+        )
+        assert len(r.experten) == 2
+
+    def test_empty_list_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            ExpertenResultNoLobbyregister(experten=[])
