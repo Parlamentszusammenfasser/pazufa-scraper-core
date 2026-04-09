@@ -513,5 +513,5 @@ class TestDuplicateSachgebietNumbers:
         )
         monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
         monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [file_a, file_b])
-        with pytest.raises(ValueError, match="Duplicate Parlamentsspiegel number 100"):
+        with pytest.raises(ValueError, match="Duplicate Sachgebiet number 100"):
             SchlagwortResolver()

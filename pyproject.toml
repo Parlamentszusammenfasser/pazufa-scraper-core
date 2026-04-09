@@ -17,11 +17,11 @@ litellm = "^1.81.13"
 instructor = {extras = ["litellm"], version = "^1.14.0"}
 w3lib = "^2.4.1"
 numpy = "^2.4.4"
-ruff = "^0.15.9"
+rapidfuzz = "^3.14.5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
-ruff = "^0.11.0"
+ruff = "^0.15.9"
 pytest-cov = "^7.0.0"
 mypy = "^1.19.1"
 datamodel-code-generator = {extras = ["http"], version = "^0.54.0"}

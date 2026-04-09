@@ -8,7 +8,7 @@ from pydantic import (
     FilePath,
     ValidationError,
 )
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Self
 import yaml
 from pathlib import Path
 import re
@@ -76,7 +76,7 @@ class BaseTagFile(BaseModel):
         return self
 
     @classmethod
-    def from_path(cls, path: Path) -> "BaseTagFile":
+    def from_path(cls, path: Path) -> Self:
         """Load and validate a Tag or Sachgebiet YAML file from the given path."""
         try:
             raw = yaml.safe_load(path.read_text())

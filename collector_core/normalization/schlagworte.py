@@ -7,15 +7,16 @@ YAML files, merges them into a single vocabulary, and exposes:
 - Pydantic ``Annotated`` types (``TagList``, ``SachgebietList``,
   ``SachgebieteNumberList``) for use as field types in response models
 - Lookup helpers for converting between Sachgebiet IDs and
-  Parlamentsspiegel numbers
+  Sachgebiet numbers
 """
 
 import json
 import logging
 from pathlib import Path
-from typing import Annotated
-
+from collections.abc import Sequence
+from typing import Annotated, Any
 from pydantic import AfterValidator, BaseModel
+from rapidfuzz import fuzz, process as fuzz_process
 
 from collector_core.schlagworte_model import (
     Sachgebiet,
@@ -47,13 +48,36 @@ def _load_global_tag_ids() -> set[str]:
     }
 
 
-def _canonicalise_id(tag_id: str, canonical_ids: set[str]) -> str:
-    """Return the canonical id if an exact case-insensitive match exists.
+_EXACT_MATCH_THRESHOLD: float = 100.0
+_FUZZY_MATCH_THRESHOLD: float = 90.0
 
-    Returns as-is if no match is found.
+
+def _canonicalise_id(tag_id: str, canonical_ids: set[str]) -> str:
+    """Return the canonical id for *tag_id* by matching against *canonical_ids*.
+
+    Matching is performed case-insensitively in two passes:
+
+    1. Exact case-insensitive match (score 100) — fast path.
+    2. Fuzzy character-level match via ``rapidfuzz.fuzz.ratio`` — catches
+       minor typos and OCR artefacts. Only applied when no exact match is found.
+
+    Returns *tag_id* unchanged if no match meets the fuzzy threshold.
     """
-    lookup = {c.lower(): c for c in canonical_ids}
-    return lookup.get(tag_id.lower(), tag_id)
+    lower_to_canonical: dict[str, str] = {c.lower(): c for c in canonical_ids}
+    choices: list[str] = list(lower_to_canonical)
+    match = fuzz_process.extractOne(
+        tag_id.lower(),
+        choices,
+        scorer=fuzz.ratio,
+        score_cutoff=_FUZZY_MATCH_THRESHOLD,
+    )
+    if match is None:
+        return tag_id
+    canonical_lower, score, _ = match
+    canonical = lower_to_canonical[canonical_lower]
+    if score < _EXACT_MATCH_THRESHOLD:
+        logger.debug("Fuzzy local tag %r -> %r (score %.1f)", tag_id, canonical, score)
+    return canonical
 
 
 def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
@@ -103,7 +127,7 @@ def _load_sachgebiete() -> list[Sachgebiet]:
     """Load Sachgebiete from all sachgebiet files and return a deduplicated list.
 
     Raises:
-        ValueError: If the same Parlamentsspiegel number appears in more than one file.
+        ValueError: If the same Sachgebiet number appears in more than one file.
     """
     sachgebiet_list: dict[str, Sachgebiet] = {}
     number_index: dict[int, tuple[str, Path]] = {}  # number -> (id, source path)
@@ -114,7 +138,7 @@ def _load_sachgebiete() -> list[Sachgebiet]:
             if sachgebiet.number in number_index:
                 existing_id, existing_path = number_index[sachgebiet.number]
                 raise ValueError(
-                    f"Duplicate Parlamentsspiegel number {sachgebiet.number}: "
+                    f"Duplicate Sachgebiet number {sachgebiet.number}: "
                     f"{existing_id!r} in {existing_path} "
                     f"conflicts with {sachgebiet.id!r} in {path}"
                 )
@@ -124,7 +148,7 @@ def _load_sachgebiete() -> list[Sachgebiet]:
     return list(sachgebiet_list.values())
 
 
-def _build_json(items: list[BaseModel]) -> str:
+def _build_json(items: Sequence[BaseModel]) -> str:
     """Serialize a list of Pydantic models to a JSON string.
 
     Args:
@@ -148,13 +172,13 @@ def _build_json(items: list[BaseModel]) -> str:
 
 
 def _build_json_sachgebiete_no_numbers(sachgebiete: list[Sachgebiet]) -> str:
-    """Serialize Sachgebiete to JSON, omitting the Parlamentsspiegel number."""
+    """Serialize Sachgebiete to JSON, omitting the Sachgebiet number."""
     return _build_json(
         [Tag.model_construct(id=s.id, description=s.description) for s in sachgebiete]
     )
 
 
-def _make_validated_list(valid: set, error_msg: str) -> type:
+def _make_validated_list(valid: set, error_msg: str) -> Any:
     """Build an Annotated list type that rejects values not in *valid*."""
 
     def validate(v: list) -> list:
@@ -205,13 +229,13 @@ class SchlagwortResolver:
         }
 
         # pre-build annotated types for use as Pydantic field types
-        self.SachgebietList: type = _make_validated_list(
+        self.SachgebietList: Any = _make_validated_list(
             set(self._sachgebiete_id_to_number), "Invalid Sachgebiete"
         )
-        self.SachgebieteNumberList: type = _make_validated_list(
+        self.SachgebieteNumberList: Any = _make_validated_list(
             set(self._sachgebiete_number_to_id), "Invalid Sachgebiet-Nummern"
         )
-        self.TagList: type = _make_validated_list(
+        self.TagList: Any = _make_validated_list(
             self._tag_ids, "Invalid Tags"
         )
 
@@ -254,7 +278,7 @@ class SchlagwortResolver:
         return self._sachgebiete_json
 
     def get_sachgebiete_no_numbers_json(self) -> str:
-        """Return the Sachgebiet vocabulary without Parlamentsspiegel numbers as JSON.
+        """Return the Sachgebiet vocabulary without Sachgebiet numbers as JSON.
 
         Returns:
             JSON string containing Sachgebiet id and description only.
@@ -262,13 +286,13 @@ class SchlagwortResolver:
         return self._sachgebiete_no_numbers_json
 
     def get_sachgebiet_number(self, sachgebiet_id: str) -> int:
-        """Return the Parlamentsspiegel number for a given Sachgebiet ID.
+        """Return the Sachgebiet number for a given Sachgebiet ID.
 
         Args:
             sachgebiet_id: The canonical Sachgebiet id to look up.
 
         Returns:
-            The Parlamentsspiegel number.
+            The Sachgebiet number.
 
         Raises:
             KeyError: If the id is not found in the vocabulary.
@@ -279,10 +303,10 @@ class SchlagwortResolver:
         return nummer
 
     def get_sachgebiet_id(self, sachgebiet_number: int) -> str:
-        """Return the Sachgebiet id for a given Parlamentsspiegel number.
+        """Return the Sachgebiet id for a given Sachgebiet number.
 
         Args:
-            sachgebiet_number: The Parlamentsspiegel number to look up.
+            sachgebiet_number: The Sachgebiet number to look up.
 
         Returns:
             The canonical Sachgebiet id.
@@ -310,7 +334,7 @@ class SchlagwortResolver:
         """Check whether a given number corresponds to a known Sachgebiet.
 
         Args:
-            sachgebiet_nummer: The Parlamentsspiegel number to check.
+            sachgebiet_nummer: The Sachgebiet number to check.
 
         Returns:
             True if the number matches a known Sachgebiet, False otherwise.
