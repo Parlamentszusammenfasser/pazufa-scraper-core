@@ -22,6 +22,7 @@ _RE_HYPHEN_BREAK = re.compile(r"(\w)-\n(\w)")
 # Multiple spaces/tabs within a line (not newlines)
 _RE_MULTI_SPACE = re.compile(r"[ \t]{2,}")
 
+
 # German vowels (including umlauts) for consonant-cluster detection
 _GERMAN_VOWELS: frozenset[str] = frozenset("aeiouäöüAEIOUÄÖÜ")
 
@@ -145,12 +146,13 @@ def normalise_volltext(text: str) -> str:
     3. Strip invisible/zero-width characters (soft hyphen, BOM, ZWJ, ZWSP)
     4. Strip C1 control characters (U+0080–U+009F)
     5. Normalise line endings to ``\\n``
-    6. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` → ``Landesregierung``)
+    6. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` →
+       ``Landesregierung``)
     7. Collapse multiple spaces/tabs within a line to a single space
     8. Remove paragraphs with quality score < 0.5
     9. Replace ``<`` / ``>`` with guillemets ‹ › to neutralise XSS triggers
 
-    Step 1 is a no-op on plain text that contains no entity sequences, so
+    Step 1 is a no-op on plain text containing no entity sequences, so
     applying this function to PDF-extracted text has no side effects.
 
     Args:
