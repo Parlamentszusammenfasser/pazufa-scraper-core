@@ -249,6 +249,88 @@ class TestNormaliseVolltextEdgeCases:
 
 
 # ---------------------------------------------------------------------------
+# normalise_volltext — characterisation tests for HTML input
+#
+# normalise_volltext expects plain text. These tests document its actual
+# behaviour when HTML is passed in accidentally, so that regressions are
+# visible and the limitations are explicit.
+# ---------------------------------------------------------------------------
+
+
+class TestNormaliseVolltextOnHtmlInput:
+    """Characterise normalise_volltext behaviour on HTML input.
+
+    normalise_volltext is NOT an HTML processor. These tests pin the current
+    behaviour so that any unintentional change is caught, and so that the
+    limitations are clearly documented for callers.
+    """
+
+    def test_plain_text_unaffected_by_unescape(self) -> None:
+        # html.unescape() is a no-op on text with no entity sequences.
+        text = "Der Landtag von Baden-Württemberg hat beschlossen."
+        assert normalise_volltext(text) == text
+
+    def test_html_tags_become_guillemets(self) -> None:
+        # Tags are NOT stripped — angle brackets are replaced by ‹ ›.
+        result = normalise_volltext("<p>Absatz</p>")
+        assert "<" not in result
+        assert ">" not in result
+        assert "\u2039p\u203a" in result
+        assert "Absatz" in result
+
+    def test_html_named_entities_decoded(self) -> None:
+        # html.unescape() runs first, so &amp; → & and &uuml; → ü.
+        result = normalise_volltext("Titel &amp; Inhalt &uuml;ber alles")
+        assert "&amp;" not in result
+        assert "&uuml;" not in result
+        assert "Titel & Inhalt über alles" == result
+
+    def test_nbsp_entity_decoded_to_space(self) -> None:
+        # &nbsp; → U+00A0, then NFKC collapses it to a regular space.
+        result = normalise_volltext("Wort&nbsp;Wort")
+        assert "&nbsp;" not in result
+        assert "Wort Wort" == result
+
+    def test_inline_tags_mangle_surrounding_text(self) -> None:
+        # <b>…</b> becomes ‹b›…‹/b›, cluttering the output text.
+        result = normalise_volltext("Ein <b>wichtiger</b> Antrag")
+        assert "\u2039b\u203a" in result
+        assert "\u2039/b\u203a" in result
+
+    def test_paragraph_tag_not_a_line_break(self) -> None:
+        # <p> does NOT create a paragraph break — it becomes a guillemet.
+        # Text before and after stays on the same logical line.
+        result = normalise_volltext("<p>Absatz eins</p><p>Absatz zwei</p>")
+        assert "\n\n" not in result
+
+    def test_br_tag_not_a_line_break(self) -> None:
+        # <br> does NOT insert a newline — it becomes ‹br›.
+        result = normalise_volltext("Zeile eins<br>Zeile zwei")
+        assert "Zeile eins\nZeile zwei" not in result
+        assert "\u2039br\u203a" in result
+
+    def test_numeric_html_entity_decoded(self) -> None:
+        # &#160; → U+00A0, then NFKC collapses it to a regular space.
+        result = normalise_volltext("Wort&#160;Wort")
+        assert "&#160;" not in result
+        assert "Wort Wort" == result
+
+    def test_html_heavy_paragraph_survives_quality_filter(self) -> None:
+        # Tag names (div, span, href, …) contain vowels, so the vowelless
+        # penalty stays low and the paragraph is NOT filtered out.
+        html = '<div class="content"><span>Text</span></div>'
+        result = normalise_volltext(html)
+        assert result != ""
+
+    def test_script_tag_content_survives(self) -> None:
+        # <script> content is not executed or stripped — it passes through
+        # with angle brackets replaced.
+        result = normalise_volltext("<script>alert(1)</script>")
+        assert "<script>" not in result
+        assert "alert(1)" in result
+
+
+# ---------------------------------------------------------------------------
 # _paragraph_quality_score
 # ---------------------------------------------------------------------------
 

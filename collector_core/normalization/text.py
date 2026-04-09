@@ -1,5 +1,6 @@
 """Text and date normalization for parliamentary document processing."""
 
+import html
 import re
 import unicodedata
 from datetime import date
@@ -135,27 +136,32 @@ def _paragraph_quality_score(paragraph: str) -> float:
 
 
 def normalise_volltext(text: str) -> str:
-    """Normalise German fulltext extracted from PDFs.
+    """Normalise German fulltext.
 
     Applies a sequential cleaning pipeline:
 
-    1. NFKC unicode normalisation
-    2. Strip invisible/zero-width characters (soft hyphen, BOM, ZWJ, ZWSP)
-    3. Strip C1 control characters (U+0080–U+009F)
-    4. Normalise line endings to ``\\n``
-    5. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` → ``Landesregierung``)
-    6. Collapse multiple spaces/tabs within a line to a single space
-    7. Remove paragraphs with quality score < 0.5
-    8. Replace ``<`` / ``>`` with guillemets ‹ › to neutralise XSS triggers
+    1. HTML entity decoding (``&amp;``, ``&uuml;``, ``&#160;``, …)
+    2. NFKC unicode normalisation
+    3. Strip invisible/zero-width characters (soft hyphen, BOM, ZWJ, ZWSP)
+    4. Strip C1 control characters (U+0080–U+009F)
+    5. Normalise line endings to ``\\n``
+    6. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` → ``Landesregierung``)
+    7. Collapse multiple spaces/tabs within a line to a single space
+    8. Remove paragraphs with quality score < 0.5
+    9. Replace ``<`` / ``>`` with guillemets ‹ › to neutralise XSS triggers
+
+    Step 1 is a no-op on plain text that contains no entity sequences, so
+    applying this function to PDF-extracted text has no side effects.
 
     Args:
-        text: Raw extracted text, typically from a PDF parser.
+        text: Raw extracted text from a PDF parser or HTML source.
 
     Returns:
         Cleaned text with garbled paragraphs removed and whitespace normalised.
         Returns an empty string if the input is empty or all paragraphs are
         filtered out.
     """
+    text = html.unescape(text)
     text = unicodedata.normalize("NFKC", text)
     text = _RE_INVISIBLE.sub("", text)
     # C1 controls are not produced by NFKC, so this is a separate stripping pass.
