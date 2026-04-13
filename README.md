@@ -8,6 +8,16 @@ Core library for collectors/scrapers of [PaZuFa](https://codeberg.org/PaZuFa/par
 
 A detailed documentation can be found in the [wiki](https://wiki.pazufa.de/books/scraper-core) (German).
 
+
+
+## Requests
+
+If you have a request for the Scraper-core the best way to voice it is to write a Codeberg issue. Please add the label `external-request` to it.
+
+If it is a bug you can alternatively use the lable `Bug`.
+
+For requests and questions, you can, of course contact us on Mattermost.
+
 ## Structure
 
 The library consists of three parts:
