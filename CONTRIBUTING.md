@@ -4,21 +4,44 @@ Thanks for your interest in the PaZuFa collector core.
 
 ## Quick Start
 
-Use [README.md](README.md) for installation and library usage. Contributor and
-maintainer commands live here.
+Use [SETUP.md](SETUP.md) for installation. In depth documentation in the [wiki](https://wiki.pazufa.de/books/scraper-core). 
+
+Contributor and maintainer commands live here.
 
 Install Poetry first if it is not already available:
-[python-poetry.org/docs/#installation](https://python-poetry.org/docs/#installation)
+[https://python-poetry.org/docs/#installation](https://python-poetry.org/docs/#installation)
 
 ```bash
 git clone https://codeberg.org/PaZuFa/pazufa-collector-core.git
 cd pazufa-collector-core
 poetry install --with dev
+```
 
-poetry run black .
-poetry run isort .
+Verify everything passes before opening a PR:
+
+```bash
+poetry run ruff check .
+poetry run ruff format .
 poetry run mypy .
-poetry run pytest
+poetry run pytest -v
+```
+
+## Tooling
+
+| Tool | Purpose | Run |
+|------|---------|---- |
+| `ruff check` | Linting | `poetry run ruff check .` |
+| `ruff format` | Formatting | `poetry run ruff format .` |
+| `mypy` | Static type checking | `poetry run mypy .` |
+| `pytest` | Tests | `poetry run pytest -v` |
+
+**mypy** is configured in `pyproject.toml` with strict settings (`disallow_untyped_defs`, `warn_return_any`). All new code must pass type checking. Generated files (`api_model.py`, `api_client/`) are excluded.
+
+To run tests for a specific file or directory:
+
+```bash
+poetry run pytest tests/test_specific.py
+poetry run pytest tests/test_specific.py::test_function
 ```
 
 ## Language
@@ -26,6 +49,7 @@ poetry run pytest
 - **Code, comments, commits, PR descriptions:** English
 - **LLM prompts, structured output fields, parliamentary examples:** German where the domain requires it
 - German domain terms (Vorgang, Station, Sitzung, Landtag, Ausschuss, etc.) are fine everywhere
+- **Wiki:** German
 
 ## Git Workflow
 
@@ -34,10 +58,17 @@ poetry run pytest
 3. Open a PR for review
 4. **Never push directly to `main`**
 
+Branch naming: `feat/short-description`, `fix/short-description`, `chore/short-description`.
+
 Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 
 ### Pull-Requests
-For pull-requests in the development branch the author of the PR merges after approval.
+For PRs targeting `develop`, the author merges after approval.
+
+
+## Versioning
+
+After 0.1 is done the first two digits `x.y.z` (`x` and `y`) will be in sync with the version of the Core-lib, because the core lib largely depends on the API. `z` can diverge to avoid unnecessary long version numbers.
 
 ## What to Work On
 
@@ -56,9 +87,6 @@ The OpenAPI spec is maintained in the main project at
 
 The current API version is effectively fixed. Suggestions can be incorporated
 for a later API revision, usually with a larger time lag.
-
-After 0.1 is done the first two digest `x.y.z` (`x` and `y`) will be in sync with version of the Core-lib, because the core lib 
-largely depends on the API. `z` can diverge to not have unecessary long version numbers.
 
 ## Generated Code
 
