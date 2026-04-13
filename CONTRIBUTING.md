@@ -128,6 +128,10 @@ This project includes an `AGENTS.md` with instructions for AI coding tools (Code
 - Include test evidence for behavior changes
 - Pay extra attention to generated code and avoid hand-editing it unless necessary
 
+## Communication
+
+Please update your own status on the [status page in the wiki](https://wiki.pazufa.de/books/scraper-core/page/aktueller-stand) when you start or finish work on a feature or fix.
+
 ## Questions?
 
 Open an issue on [Codeberg](https://codeberg.org/PaZuFa/pazufa-collector-core/issues) or reach out to the team.
