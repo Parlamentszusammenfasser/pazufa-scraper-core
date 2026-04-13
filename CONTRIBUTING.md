@@ -37,6 +37,27 @@ poetry run pytest -v
 
 **mypy** is configured in `pyproject.toml` with strict settings (`disallow_untyped_defs`, `warn_return_any`). All new code must pass type checking. Generated files (`api_model.py`, `api_client/`) are excluded.
 
+## Docstrings
+
+Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `collector_core/` require a docstring. Example:
+
+```python
+def my_function(arg: str) -> int:
+    """Short one-line summary.
+
+    Args:
+        arg: Description of the argument.
+
+    Returns:
+        Description of the return value.
+    """
+```
+
+Exceptions:
+- `__init__` methods (D107 — document the class instead)
+- Public modules and packages (D100, D104)
+- `tests/`, `tools/`, and generated files (`api_client/`, `api_model.py`) are fully excluded
+
 To run tests for a specific file or directory:
 
 ```bash
