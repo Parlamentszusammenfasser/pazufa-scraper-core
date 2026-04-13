@@ -69,9 +69,7 @@ from instructor.core import InstructorRetryException
 from instructor.core.exceptions import (
     AsyncValidationError as InstructorAsyncValidationError,
 )
-from instructor.core.exceptions import (
-    IncompleteOutputException,
-)
+from instructor.core.exceptions import IncompleteOutputException
 from instructor.core.exceptions import ValidationError as InstructorValidationError
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
