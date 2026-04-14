@@ -16,7 +16,7 @@ If you have a request for the Scraper-core, the best way to voice it is to write
 
 If it is a bug you can alternatively use the label `Bug`.
 
-For requests and questions, you can, of course, contact us on Mattermost.
+For requests and questions, you can, of course, contact us on [Mattermost](https://chat.pazufa.de).
 
 ## Structure
 
