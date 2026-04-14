@@ -1,10 +1,10 @@
 # Contributing to pazufa-collector-core
 
-Thanks for your interest in the PaZuFa collector core.
+Thanks for your interest in the PaZuFa scraper core.
 
 ## Quick Start
 
-Use [SETUP.md](SETUP.md) for installation. In depth documentation in the [wiki](https://wiki.pazufa.de/books/scraper-core). 
+Use [SETUP.md](SETUP.md) for installation. Place in depth documentation in the [wiki](https://wiki.pazufa.de/books/scraper-core). 
 
 Contributor and maintainer commands live here.
 
@@ -12,7 +12,7 @@ Install Poetry first if it is not already available:
 [https://python-poetry.org/docs/#installation](https://python-poetry.org/docs/#installation)
 
 ```bash
-git clone https://codeberg.org/PaZuFa/pazufa-collector-core.git
+git clone https://codeberg.org/PaZuFa/pazufa-scraper-core.git
 cd pazufa-collector-core
 poetry install --with dev
 ```
@@ -21,7 +21,7 @@ Verify everything passes before opening a PR:
 
 ```bash
 poetry run ruff check .
-poetry run ruff format .
+poetry run ruff format --check .
 poetry run mypy .
 poetry run pytest -v
 ```
@@ -89,7 +89,7 @@ For PRs targeting `develop`, the author merges after approval.
 
 ## Versioning
 
-After 0.1 is done the first two digits `x.y.z` (`x` and `y`) will be in sync with the version of the Core-lib, because the core lib largely depends on the API. `z` can diverge to avoid unnecessary long version numbers.
+After 0.1, the first two version digits (`x.y`) will track the Core-lib version, since the core lib largely depends on the API. `z` can diverge independently to avoid unnecessarily long version numbers.
 
 ## What to Work On
 
