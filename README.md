@@ -35,27 +35,6 @@ The library consists of three parts:
 
 ## Setup 
 
-The package is not yet published to PyPI. Install directly from the repository:
-
-**Poetry:**
-
-```bash
-poetry add git+https://codeberg.org/PaZuFa/pazufa-collector-core.git
-```
-
-**pip:**
-
-```bash
-pip install git+https://codeberg.org/PaZuFa/pazufa-collector-core.git
-```
-
-To pin a specific version, append `@<tag>` or `@<commit>`:
-
-```bash
-poetry add git+https://codeberg.org/PaZuFa/pazufa-collector-core.git@v0.1.0
-pip install git+https://codeberg.org/PaZuFa/pazufa-collector-core.git@v0.1.0
-```
-
 See [SETUP.md](SETUP.md) for the full setup guide, which is versioned alongside the code.
 
 ## Contribution
