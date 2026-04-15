@@ -31,9 +31,36 @@ If a design choice improves short-term convenience but increases long-term maint
 
 ## Build & Verify
 
-Use [CONTRIBUTING.md](CONTRIBUTING.md) as the source of truth for local setup,
-verification, and code generation commands. Before finishing work, run the
-relevant checks from there.
+Before finishing work, run all checks:
+
+```bash
+poetry run ruff check .
+poetry run ruff format --check .
+poetry run mypy .
+poetry run pytest -v
+```
+
+To regenerate API models and client after OpenAPI changes:
+
+```bash
+poetry run datamodel-codegen
+poetry run python tools/generate_openapi_client.py
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for further detail on tooling and code generation.
+
+## CI Pipeline
+
+The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline runs on every push and pull request:
+
+| Step | What it does |
+|------|--------------|
+| `setup` | Installs Poetry and all dependencies (including dev) into `.venv` |
+| `check-lock` | Verifies `poetry.lock` is consistent with `pyproject.toml` |
+| `format-and-type-check` | Runs `ruff format --check`, `ruff check`, and `mypy` |
+| `test` | Runs the test suite via `pytest` |
+
+The last three steps run in parallel after `setup`. All steps use `python:3.12-slim`.
 
 ## Tech Stack
 
@@ -41,7 +68,8 @@ relevant checks from there.
 - **Poetry** for dependency management
 - **Pydantic v2** for validation and structured models
 - **pytest**, **pytest-asyncio**, **pytest-cov** for testing
-- **mypy**, **black**, **isort** for static checks and formatting
+- **ruff** for linting (`ruff check`) and formatting (`ruff format`)
+- **mypy** for static type checking (strict: `disallow_untyped_defs`, `warn_return_any`)
 - **LiteLLM** + **Instructor** for provider-agnostic LLM integration
 - **Woodpecker CI** verifies formatting, type checks, and tests
 
@@ -50,11 +78,38 @@ relevant checks from there.
 - Use Python 3.12 features deliberately, but keep code straightforward
 - Public functions, methods, and classes should be typed
 - Preserve compatibility with the configured `mypy` strictness
-- Code, comments, and docstrings: **English**
-- Prompts, examples, and output schemas may be **German** where required by the parliamentary domain
-- German domain terms (Vorgang, Station, Sitzung, TOP, Sachgebiet, etc.) are fine in identifiers when they improve clarity
-- Add docstrings for public APIs and non-obvious logic
 - Prefer explicit domain exceptions over generic `Exception` or `RuntimeError`
+
+### Language
+
+| Context | Language |
+|---------|----------|
+| Code, comments, commits, PR descriptions | English |
+| LLM prompts, structured output fields, parliamentary examples | German where the domain requires it |
+| Wiki | German |
+
+German domain terms (Vorgang, Station, Sitzung, TOP, Sachgebiet, Landtag, Ausschuss, etc.) are fine in identifiers when they improve clarity.
+
+### Docstrings
+
+Docstrings follow the **Google convention** and are enforced by ruff (pydocstyle rules). All public functions, methods, and classes in `collector_core/` require a docstring:
+
+```python
+def my_function(arg: str) -> int:
+    """Short one-line summary.
+
+    Args:
+        arg: Description of the argument.
+
+    Returns:
+        Description of the return value.
+    """
+```
+
+Exceptions — no docstring required for:
+- `__init__` methods (document the class instead)
+- Public modules and packages
+- `tests/`, `tools/`, and generated files (`api_client/`, `api_model.py`)
 
 ## Testing Expectations
 
@@ -63,6 +118,24 @@ relevant checks from there.
 - Use `@pytest.mark.asyncio` for async behavior
 - Cover retry, validation, and failure paths when changing connector logic
 - If you change generated API models or clients, verify regeneration and affected tests together
+
+Run a specific test file or function:
+
+```bash
+poetry run pytest tests/test_specific.py
+poetry run pytest tests/test_specific.py::test_function
+```
+
+## Git Workflow
+
+- Branch from `develop` for features and fixes; branch from `main` for hotfixes only
+- **Never push directly to `main`**
+- Open a PR for review; for PRs targeting `develop`, the author merges after approval
+- Keep commits small and focused
+
+**Branch naming:** `feat/short-description`, `fix/short-description`, `chore/short-description`
+
+**Commit style:** conventional commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
 
 ## Generated Code
 
@@ -82,13 +155,12 @@ Then regenerate and review the diff carefully.
 
 ## Project Structure
 
-- [collector_core/__init__.py](collector_core/__init__.py) - public package exports
-- [collector_core/llm_connector.py](collector_core/llm_connector.py) - current LLM entrypoint; LLM-related code is expected to move into `collector_core/llm/`
-- [collector_core/api_model.py](collector_core/api_model.py) - generated Pydantic models
-- [collector_core/api_client/](collector_core/api_client/) - generated OpenAPI client
-- [tests/](tests/) - unit tests
-- [docs/](docs/) - module-level documentation
-- [tools/](tools/) - code generation helpers
+- `collector_core/__init__.py` - public package exports
+- `collector_core/llm_connector.py` - current LLM entrypoint; LLM-related code is expected to move into `collector_core/llm/`
+- `collector_core/api_model.py` - generated Pydantic models
+- `collector_core/api_client/` - generated OpenAPI client
+- `tests/` - unit tests
+- `tools/` - code generation helpers
 
 ## Key Domain Concepts
 
