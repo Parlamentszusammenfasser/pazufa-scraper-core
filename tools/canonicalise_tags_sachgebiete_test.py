@@ -99,8 +99,13 @@ def _swap_adjacent(s: str) -> str:
 def _transliterate_umlauts(s: str) -> str:
     table = str.maketrans(
         {
-            "ä": "ae", "ö": "oe", "ü": "ue",
-            "Ä": "Ae", "Ö": "Oe", "Ü": "Ue", "ß": "ss",
+            "ä": "ae",
+            "ö": "oe",
+            "ü": "ue",
+            "Ä": "Ae",
+            "Ö": "Oe",
+            "Ü": "Ue",
+            "ß": "ss",
         }
     )
     return s.translate(table)
@@ -263,8 +268,7 @@ def run() -> None:
     print()
 
     header = (
-        f"{'BUCKET':<8} {'TOTAL':>6} {'CORRECT':>8} {'MISS':>6} "
-        f"{'WRONG_MATCH':>12}"
+        f"{'BUCKET':<8} {'TOTAL':>6} {'CORRECT':>8} {'MISS':>6} {'WRONG_MATCH':>12}"
     )
     print(header)
     print("-" * len(header))
@@ -276,15 +280,15 @@ def run() -> None:
     print()
 
     by_bucket: dict[str, list[tuple[str, str | None, str]]] = {
-        "clean": [], "small": [], "big": []
+        "clean": [],
+        "small": [],
+        "big": [],
     }
     for (raw, expected, bucket), resolved in zip(cases, non_strict):
         by_bucket[bucket].append((raw, expected, resolved))
 
     print(f"Sample (up to {SAMPLE_PER_BUCKET} per bucket):")
-    tbl_header = (
-        f"{'BUCKET':<7} {'INPUT':<34} {'EXPECTED':<32} {'RESOLVED':<32} OK"
-    )
+    tbl_header = f"{'BUCKET':<7} {'INPUT':<34} {'EXPECTED':<32} {'RESOLVED':<32} OK"
     print(tbl_header)
     print("-" * len(tbl_header))
     for name in ("clean", "small", "big"):
@@ -297,9 +301,7 @@ def run() -> None:
             raw_disp = _truncate(repr(raw), 34)
             exp_disp = _truncate(exp_display, 32)
             res_disp = _truncate(repr(resolved), 32)
-            print(
-                f"{name:<7} {raw_disp:<34} {exp_disp:<32} {res_disp:<32} {ok}"
-            )
+            print(f"{name:<7} {raw_disp:<34} {exp_disp:<32} {res_disp:<32} {ok}")
         print()
 
     survivors = len(strict_result)

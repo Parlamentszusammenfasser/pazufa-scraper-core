@@ -1,7 +1,8 @@
 """Tests for collector_core.schlagworte_model."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 from pydantic import ValidationError
 
 from collector_core.schlagworte_model import (
@@ -11,7 +12,6 @@ from collector_core.schlagworte_model import (
     Tag,
     TagFile,
 )
-
 
 # =====================================================================
 # Fixtures
@@ -78,11 +78,11 @@ class TestTagIdValidation:
     @pytest.mark.parametrize(
         "invalid_id",
         [
-            "Tag1",           # digit
-            "Tag!",           # special char
-            "Tag@Schlagwort", # @ symbol
-            "A",              # single character (regex requires ≥2 chars)
-            "",               # empty string
+            "Tag1",  # digit
+            "Tag!",  # special char
+            "Tag@Schlagwort",  # @ symbol
+            "A",  # single character (regex requires ≥2 chars)
+            "",  # empty string
         ],
     )
     def test_invalid_ids_raise_validation_error(self, invalid_id: str) -> None:
@@ -189,7 +189,10 @@ class TestSachgebietFile:
     def test_valid_file_with_multiple_sachgebiete(self, source_file: Path) -> None:
         sf = SachgebietFile(
             source=source_file,
-            tags=[Sachgebiet(id="Umwelt", number=1), Sachgebiet(id="Bildung", number=2)],
+            tags=[
+                Sachgebiet(id="Umwelt", number=1),
+                Sachgebiet(id="Bildung", number=2),
+            ],
         )
         assert len(sf.tags) == 2
 
@@ -256,19 +259,27 @@ class TestSachgebietFileFromPath:
 
 class TestSchlagwortIDResolution:
     def test_matched_true_when_score_above_zero(self) -> None:
-        r = SchlagwortIDResolution(original_id="Umwelt", resolved_id="Umwelt", score=0.9)
+        r = SchlagwortIDResolution(
+            original_id="Umwelt", resolved_id="Umwelt", score=0.9
+        )
         assert r.matched is True
 
     def test_matched_false_when_score_is_zero(self) -> None:
-        r = SchlagwortIDResolution(original_id="Umwelt", resolved_id="Umwelt", score=0.0)
+        r = SchlagwortIDResolution(
+            original_id="Umwelt", resolved_id="Umwelt", score=0.0
+        )
         assert r.matched is False
 
     def test_changed_true_when_ids_differ(self) -> None:
-        r = SchlagwortIDResolution(original_id="umwelt", resolved_id="Umwelt", score=0.9)
+        r = SchlagwortIDResolution(
+            original_id="umwelt", resolved_id="Umwelt", score=0.9
+        )
         assert r.changed is True
 
     def test_changed_false_when_ids_are_equal(self) -> None:
-        r = SchlagwortIDResolution(original_id="Umwelt", resolved_id="Umwelt", score=0.9)
+        r = SchlagwortIDResolution(
+            original_id="Umwelt", resolved_id="Umwelt", score=0.9
+        )
         assert r.changed is False
 
     def test_no_match_score_zero_and_changed_false(self) -> None:

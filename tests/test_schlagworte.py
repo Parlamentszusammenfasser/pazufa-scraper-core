@@ -15,7 +15,6 @@ from collector_core.normalization.schlagworte import (
 )
 from collector_core.schlagworte_model import Sachgebiet, Tag
 
-
 # =====================================================================
 # Fixtures
 # =====================================================================
@@ -76,7 +75,6 @@ def patched_resolver(
     monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
     monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
     return SchlagwortResolver()
-
 
 
 # =====================================================================
@@ -406,7 +404,7 @@ class TestLocalTags:
         tags_yaml: Path,
         sachgebiete_yaml: Path,
     ) -> None:
-        """A local tag whose id matches a global tag case-insensitively is normalised."""
+        """Local tag matching a global tag case-insensitively is normalised."""
         local = tmp_path / "local.yaml"
         local.write_text(
             "tags:\n  - id: digitalisierung\n    description: lowercase variant\n",

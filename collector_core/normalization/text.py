@@ -75,7 +75,6 @@ _GERMAN_MONTHS: dict[str, int] = {
 # --- Private helpers ----------------------------------------------------------
 
 
-
 def _paragraph_quality_score(paragraph: str) -> float:
     """Score paragraph quality from 0.0 (garbled) to 1.0 (clean).
 
@@ -137,7 +136,7 @@ def _paragraph_quality_score(paragraph: str) -> float:
 
 
 def normalise_volltext(text: str) -> str:
-    """Normalise German fulltext.
+    r"""Normalise German fulltext.
 
     Applies a sequential cleaning pipeline:
 
@@ -193,7 +192,8 @@ def normalise_datum(text: str) -> str:
     Supported input formats:
 
     - ``02.04.2026`` / ``2.4.2026`` — German dot notation
-    - ``2. April 2026``             — German long format (full and abbreviated month names)
+    - ``2. April 2026``             — German long format (full and abbreviated month
+      names)
     - ``2026-04-02``                — ISO 8601 passthrough
 
     Unicode spaces (e.g. U+00A0 NBSP, U+202F narrow no-break space) are

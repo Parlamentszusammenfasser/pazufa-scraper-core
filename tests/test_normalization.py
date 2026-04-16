@@ -5,7 +5,6 @@ import pytest
 from collector_core.normalization import normalise_datum, normalise_volltext
 from collector_core.normalization.text import _paragraph_quality_score
 
-
 # ---------------------------------------------------------------------------
 # normalise_volltext
 # ---------------------------------------------------------------------------
@@ -96,7 +95,9 @@ class TestNormaliseVolltextHyphenBreak:
         assert "Landesregierung" in result
 
     def test_compound_word_rejoin(self) -> None:
-        result = normalise_volltext("Gesetzentwurf zur Änderung des Bundes-\nnaturschutzgesetzes")
+        result = normalise_volltext(
+            "Gesetzentwurf zur Änderung des Bundes-\nnaturschutzgesetzes"
+        )
         assert "Bundesnaturschutzgesetzes" in result
 
     def test_hyphen_at_end_of_line_without_continuation(self) -> None:
@@ -445,14 +446,14 @@ class TestNormaliseDatum:
             "not a date",
             "",
             "32.13.2025",
-            "29.02.2025",       # 2025 is not a leap year
-            "00.01.2025",       # day 0 is invalid
-            "01.00.2025",       # month 0 is invalid
-            "01.13.2025",       # month 13 is invalid
-            "2025-13-01",       # month 13 in ISO
-            "2025-01-32",       # day 32 in ISO
-            "5. Foobar 2025",   # unknown month name
-            "abc-de-fg",        # letters in ISO format
+            "29.02.2025",  # 2025 is not a leap year
+            "00.01.2025",  # day 0 is invalid
+            "01.00.2025",  # month 0 is invalid
+            "01.13.2025",  # month 13 is invalid
+            "2025-13-01",  # month 13 in ISO
+            "2025-01-32",  # day 32 in ISO
+            "5. Foobar 2025",  # unknown month name
+            "abc-de-fg",  # letters in ISO format
         ],
     )
     def test_invalid_dates(self, input_date: str) -> None:

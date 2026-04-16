@@ -5,10 +5,7 @@ import logging
 from inspect import stack
 from typing import Any
 
-
 from .text import normalise_volltext
-
-
 
 # =====================================================================
 # Constants
@@ -29,7 +26,7 @@ HASH_VARIANT_TEXT = "text"
 # =====================================================================
 
 
-def _check_type(data: Any, expected_type: type)->None:
+def _check_type(data: Any, expected_type: type) -> None:
     if not isinstance(data, expected_type):
         # information for error message
         caller_name = stack()[1].function

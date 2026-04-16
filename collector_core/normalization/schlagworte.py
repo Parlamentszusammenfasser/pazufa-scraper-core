@@ -56,6 +56,7 @@ def _load_global_tag_ids() -> set[str]:
         tag.id for path in GLOBAL_TAGS_FILES for tag in TagFile.from_path(path).tags
     }
 
+
 def _processor_ids(input_id_text: str) -> str:
     """Normalize and clean an ID string for fuzzy comparison.
 
@@ -73,6 +74,7 @@ def _processor_ids(input_id_text: str) -> str:
     id_text = id_text.lower().strip()
     id_text = _RE_PUNCT.sub("", id_text)
     return id_text
+
 
 def _canonicalise_ids(
     raw_ids: list[str],
@@ -336,7 +338,6 @@ class SchlagwortResolver:
         """
         resolved_ids = _canonicalise_ids(tag_ids, self._tag_ids_list, strict)
         return [r.resolved_id for r in resolved_ids]
-
 
     # =====================================================================
     # Sachgebiet actions

@@ -38,10 +38,10 @@ TEST_CASES: list[tuple[str, str | None]] = [
     ("  Digitalisierung  ", "Digitalisierung"),
     ("\tUmwelt\n", "Umwelt"),
     # --- minor typos (should still clear the 90.0 cutoff) ---
-    ("Digitalisirung", "Digitalisierung"),      # missing 'e'
-    ("Wohnungsbauu", "Wohnungsbau"),            # doubled 'u'
-    ("Energiewendee", "Energiewende"),          # doubled 'e'
-    ("Pflegennotstand", "Pflegenotstand"),      # doubled 'n'
+    ("Digitalisirung", "Digitalisierung"),  # missing 'e'
+    ("Wohnungsbauu", "Wohnungsbau"),  # doubled 'u'
+    ("Energiewendee", "Energiewende"),  # doubled 'e'
+    ("Pflegennotstand", "Pflegenotstand"),  # doubled 'n'
     # --- punctuation (stripped by processor) ---
     ("Umwelt.", "Umwelt"),
     ("Bildung!", "Bildung"),
@@ -52,10 +52,10 @@ TEST_CASES: list[tuple[str, str | None]] = [
     ("Innere Sicherheit", "Innere Sicherheit"),
     ("Arbeit und Beschäftigung", "Arbeit und Beschäftigung"),
     # --- heavy typos / partial forms — expected to MISS the cutoff ---
-    ("Dgitalisierung", None),                   # missing 'i' at position 1 — borderline
-    ("Wohnung", None),                          # substring only
-    ("Energie", None),                          # substring of Energiewende
-    ("Bild", None),                             # too short
+    ("Dgitalisierung", None),  # missing 'i' at position 1 — borderline
+    ("Wohnung", None),  # substring only
+    ("Energie", None),  # substring of Energiewende
+    ("Bild", None),  # too short
     # --- completely unknown terms ---
     ("Quantenphysik", None),
     ("FooBarBaz", None),
@@ -86,7 +86,9 @@ def run_demo() -> None:
 
     print(f"Vocabulary size: {len(resolver._tag_ids_list)} tags")
     print(f"Inputs:          {len(raw_inputs)}")
-    print(f"Non-strict out:  {len(non_strict)} (unchanged length — misses returned as-is)")
+    print(
+        f"Non-strict out:  {len(non_strict)} (unchanged length — misses returned as-is)"
+    )
     print(f"Strict out:      {len(strict)} (misses dropped)")
     print()
 
@@ -107,8 +109,11 @@ def run_demo() -> None:
     print(f"Strict output ({len(strict)} survived):")
     print(strict)
     print()
-    dropped = [raw for raw, canonical in zip(raw_inputs, non_strict) if raw == canonical
-               and raw not in resolver._tag_ids_list]
+    dropped = [
+        raw
+        for raw, canonical in zip(raw_inputs, non_strict)
+        if raw == canonical and raw not in resolver._tag_ids_list
+    ]
     print(f"Dropped by strict mode ({len(dropped)}): {dropped}")
 
     print()

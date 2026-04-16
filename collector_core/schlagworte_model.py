@@ -181,7 +181,7 @@ class SchlagwortIDResolution(BaseModel):
     resolved_id: str
     score: float = Field(..., description="0.0 means no match cleared cutoff")
 
-    @computed_field     # Since pydantic 2.0.3 this is allowed. (Pycharm displays error)
+    @computed_field  # Since pydantic 2.0.3 this is allowed. (Pycharm displays error)
     @property
     def changed(self) -> bool:
         """Return True if the resolved ID differs from the original ID."""
