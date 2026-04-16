@@ -12,16 +12,15 @@ YAML files, merges them into a single vocabulary, and exposes:
 
 import json
 import logging
+import re
+import unicodedata
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
 
 from pydantic import AfterValidator, BaseModel
 from rapidfuzz import fuzz
-from rapidfuzz import process as fuzz_process
 from rapidfuzz.process import cdist
-import unicodedata
-import re
 
 from collector_core.schlagworte_model import (
     Sachgebiet,
@@ -58,19 +57,17 @@ def _load_global_tag_ids() -> set[str]:
     }
 
 def _processor_ids(input_id_text: str) -> str:
-    """
-    Normalizes, cleans, and processes the input id text for rapid fuzz comparison.
+    """Normalize and clean an ID string for fuzzy comparison.
 
-    The function performs Unicode normalization, converts the text to lowercase,
-    removes leading and trailing whitespace, and eliminates punctuation from the
-    provided identifier string. normalise_volltext() not used, because it has a
-    to high performance cost.
+    Performs Unicode normalization, lowercases, strips whitespace, and removes
+    punctuation. ``normalise_volltext()`` is intentionally not used due to its
+    higher performance cost.
 
     Args:
         input_id_text: The input string to be processed.
 
     Returns:
-        str: The processed and standardized identifier string.
+        The processed and standardized identifier string.
     """
     id_text = unicodedata.normalize("NFKC", input_id_text)  # ü stays ü, ﬁ → fi
     id_text = id_text.lower().strip()
@@ -271,6 +268,7 @@ class SchlagwortResolver:
         self._sachgebiete_id_to_number: dict[str, int] = {
             s.id: s.number for s in self._sachgebiete
         }
+        self._sachgebiete_ids_list: list[str] = list(self._sachgebiete_id_to_number)
         self._sachgebiete_number_to_id: dict[int, str] = {
             s.number: s.id for s in self._sachgebiete
         }
@@ -322,17 +320,22 @@ class SchlagwortResolver:
             True if the ID matched a known tag above the fuzzy cutoff, False otherwise.
         """
         check_id = _canonicalise_ids([tag_id], self._tag_ids_list)[0]
-
-        logging.debug(f"Fuzzy check returned: {check_id}")
-
+        logger.debug("Fuzzy check returned: %s", check_id)
         return check_id.matched
 
-    def canonicalise_tags(self, tag_ids: list[str], strict:bool = False) -> list[str]:
+    def canonicalise_tags(self, tag_ids: list[str], strict: bool = False) -> list[str]:
+        """Canonicalise a list of tag IDs against the known vocabulary.
 
+        Args:
+            tag_ids: Raw tag IDs to resolve.
+            strict: If True, unmatched IDs are dropped; if False, they are
+                returned unchanged.
+
+        Returns:
+            List of resolved canonical tag IDs.
+        """
         resolved_ids = _canonicalise_ids(tag_ids, self._tag_ids_list, strict)
-
-        return {r.resolved_id for r in resolutions}
-
+        return [r.resolved_id for r in resolved_ids]
 
 
     # =====================================================================
@@ -410,3 +413,19 @@ class SchlagwortResolver:
             True if the number matches a known Sachgebiet, False otherwise.
         """
         return sachgebiet_nummer in self._sachgebiete_number_to_id
+
+    def canonicalise_sachgebiete(self, sachgebiet_ids: list[str]) -> list[str]:
+        """Canonicalise a list of Sachgebiet IDs against the known vocabulary.
+
+        Unmatched IDs are dropped (strict mode).
+
+        Args:
+            sachgebiet_ids: Raw Sachgebiet IDs to resolve.
+
+        Returns:
+            List of resolved canonical Sachgebiet IDs.
+        """
+        resolved_ids = _canonicalise_ids(
+            sachgebiet_ids, self._sachgebiete_ids_list, True
+        )
+        return [r.resolved_id for r in resolved_ids]
