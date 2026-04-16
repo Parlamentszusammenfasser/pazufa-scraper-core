@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -122,37 +123,41 @@ class TestBuildJsonSachgebieteNoNumbers:
 
 class TestMakeValidatedList:
     @pytest.fixture()
-    def str_list_type(self) -> type:
-        return _make_validated_list({"Alfa", "Beta", "Gamma"}, "Invalid items")
+    def str_list_type(self) -> type[Any]:
+        return _make_validated_list({"Alfa", "Beta", "Gamma"}, "Invalid items")  # type: ignore[no-any-return]
 
     @pytest.fixture()
-    def int_list_type(self) -> type:
-        return _make_validated_list({1, 2, 3}, "Invalid numbers")
+    def int_list_type(self) -> type[Any]:
+        return _make_validated_list({1, 2, 3}, "Invalid numbers")  # type: ignore[no-any-return]
 
-    def test_valid_string_values_pass(self, str_list_type: type) -> None:
-        adapter = TypeAdapter(str_list_type)
+    def test_valid_string_values_pass(self, str_list_type: type[Any]) -> None:
+        adapter: TypeAdapter[Any] = TypeAdapter(str_list_type)
         assert adapter.validate_python(["Alfa", "Beta"]) == ["Alfa", "Beta"]
 
-    def test_invalid_string_raises_validation_error(self, str_list_type: type) -> None:
-        adapter = TypeAdapter(str_list_type)
+    def test_invalid_string_raises_validation_error(
+        self, str_list_type: type[Any]
+    ) -> None:
+        adapter: TypeAdapter[Any] = TypeAdapter(str_list_type)
         with pytest.raises(ValidationError, match="Invalid items"):
             adapter.validate_python(["Alfa", "Unknown"])
 
-    def test_empty_list_passes(self, str_list_type: type) -> None:
-        adapter = TypeAdapter(str_list_type)
+    def test_empty_list_passes(self, str_list_type: type[Any]) -> None:
+        adapter: TypeAdapter[Any] = TypeAdapter(str_list_type)
         assert adapter.validate_python([]) == []
 
-    def test_valid_int_values_pass(self, int_list_type: type) -> None:
-        adapter = TypeAdapter(int_list_type)
+    def test_valid_int_values_pass(self, int_list_type: type[Any]) -> None:
+        adapter: TypeAdapter[Any] = TypeAdapter(int_list_type)
         assert adapter.validate_python([1, 2]) == [1, 2]
 
-    def test_invalid_int_raises_validation_error(self, int_list_type: type) -> None:
-        adapter = TypeAdapter(int_list_type)
+    def test_invalid_int_raises_validation_error(
+        self, int_list_type: type[Any]
+    ) -> None:
+        adapter: TypeAdapter[Any] = TypeAdapter(int_list_type)
         with pytest.raises(ValidationError, match="Invalid numbers"):
             adapter.validate_python([1, 99])
 
-    def test_all_invalid_raises(self, str_list_type: type) -> None:
-        adapter = TypeAdapter(str_list_type)
+    def test_all_invalid_raises(self, str_list_type: type[Any]) -> None:
+        adapter: TypeAdapter[Any] = TypeAdapter(str_list_type)
         with pytest.raises(ValidationError):
             adapter.validate_python(["X", "Y"])
 

@@ -181,13 +181,13 @@ class SchlagwortIDResolution(BaseModel):
     resolved_id: str
     score: float = Field(..., description="0.0 means no match cleared cutoff")
 
-    @computed_field  # Since pydantic 2.0.3 this is allowed. (Pycharm displays error)
+    @computed_field  # type: ignore[prop-decorator]  # pydantic 2.0.3+ supports this
     @property
     def changed(self) -> bool:
         """Return True if the resolved ID differs from the original ID."""
         return self.original_id != self.resolved_id
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def matched(self) -> bool:
         """Return True if the score is above 0.0, indicating a successful match."""
