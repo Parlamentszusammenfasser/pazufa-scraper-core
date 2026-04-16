@@ -12,15 +12,21 @@ YAML files, merges them into a single vocabulary, and exposes:
 
 import json
 import logging
-from pathlib import Path
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Annotated, Any
+
 from pydantic import AfterValidator, BaseModel
-from rapidfuzz import fuzz, process as fuzz_process
+from rapidfuzz import fuzz
+from rapidfuzz import process as fuzz_process
+from rapidfuzz.process import cdist
+import unicodedata
+import re
 
 from collector_core.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
+    SchlagwortIDResolution,
     Tag,
     TagFile,
 )
@@ -35,6 +41,10 @@ SACHGEBIETE_FILES: list[Path] = [MAPPINGS_DIR.joinpath("sachgebiete.yaml")]
 
 logger = logging.getLogger(__name__)
 
+_EXACT_MATCH_THRESHOLD: float = 100.0
+_FUZZY_MATCH_THRESHOLD: float = 90.0
+
+_RE_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 
 # =====================================================================
 # private helper functions
@@ -47,37 +57,66 @@ def _load_global_tag_ids() -> set[str]:
         tag.id for path in GLOBAL_TAGS_FILES for tag in TagFile.from_path(path).tags
     }
 
-
-_EXACT_MATCH_THRESHOLD: float = 100.0
-_FUZZY_MATCH_THRESHOLD: float = 90.0
-
-
-def _canonicalise_id(tag_id: str, canonical_ids: set[str]) -> str:
-    """Return the canonical id for *tag_id* by matching against *canonical_ids*.
-
-    Matching is performed case-insensitively in two passes:
-
-    1. Exact case-insensitive match (score 100) — fast path.
-    2. Fuzzy character-level match via ``rapidfuzz.fuzz.ratio`` — catches
-       minor typos and OCR artefacts. Only applied when no exact match is found.
-
-    Returns *tag_id* unchanged if no match meets the fuzzy threshold.
+def _processor_ids(input_id_text: str) -> str:
     """
-    lower_to_canonical: dict[str, str] = {c.lower(): c for c in canonical_ids}
-    choices: list[str] = list(lower_to_canonical)
-    match = fuzz_process.extractOne(
-        tag_id.lower(),
-        choices,
-        scorer=fuzz.ratio,
-        score_cutoff=_FUZZY_MATCH_THRESHOLD,
+    Normalizes, cleans, and processes the input id text for rapid fuzz comparison.
+
+    The function performs Unicode normalization, converts the text to lowercase,
+    removes leading and trailing whitespace, and eliminates punctuation from the
+    provided identifier string. normalise_volltext() not used, because it has a
+    to high performance cost.
+
+    Args:
+        input_id_text: The input string to be processed.
+
+    Returns:
+        str: The processed and standardized identifier string.
+    """
+    id_text = unicodedata.normalize("NFKC", input_id_text)  # ü stays ü, ﬁ → fi
+    id_text = id_text.lower().strip()
+    id_text = _RE_PUNCT.sub("", id_text)
+    return id_text
+
+def _canonicalise_ids(
+    raw_ids: list[str],
+    canonical_ids: list[str],
+    strict: bool = False,
+    cutoff: float = _FUZZY_MATCH_THRESHOLD,
+) -> list[SchlagwortIDResolution]:
+
+    # C++ Matrix call
+    matrix = cdist(
+        raw_ids,
+        canonical_ids,
+        scorer=fuzz.token_sort_ratio,
+        processor=_processor_ids,
+        score_cutoff=cutoff,  # scores below cutoff → 0.0
     )
-    if match is None:
-        return tag_id
-    canonical_lower, score, _ = match
-    canonical = lower_to_canonical[canonical_lower]
-    if score < _EXACT_MATCH_THRESHOLD:
-        logger.debug("Fuzzy local tag %r -> %r (score %.1f)", tag_id, canonical, score)
-    return canonical
+
+    result: list[SchlagwortIDResolution] = []
+
+    for i, raw_id in enumerate(raw_ids):
+        row = matrix[i]
+        best_idx: int = row.argmax()
+        best_score: float = row[best_idx]
+
+        if 0.0 == best_score:
+            if not strict:
+                result.append(
+                    SchlagwortIDResolution(
+                        original_id=raw_id, resolved_id=raw_id, score=0.0
+                    )
+                )
+
+        else:
+            resolved_id = canonical_ids[best_idx]
+            result.append(
+                SchlagwortIDResolution(
+                    original_id=raw_id, resolved_id=resolved_id, score=best_score
+                )
+            )
+
+    return result
 
 
 def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
@@ -89,32 +128,39 @@ def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
     2. Global tags (GLOBAL_TAGS_FILES)
     3. Sachgebiete (SACHGEBIETE_FILES, highest priority)
 
+    Local tag IDs are canonicalised against the global tag vocabulary in a single
+    batch call to :func:`_canonicalise_ids` before being merged.
+
     Returns a deduplicated list of Tags keyed by id.
     """
     tag_list: dict[str, Tag] = {}
     local_paths: list[Path] = local_tags or []
 
     if local_paths:
-        canonical_ids = _load_global_tag_ids()
+        local_tag_objects: list[Tag] = []
         for path in local_paths:
-            tag_file = TagFile.from_path(path)
-            for tag in tag_file.tags:
-                canonical_id = _canonicalise_id(tag.id, canonical_ids)
-                if canonical_id != tag.id:
-                    logger.debug("Canonical local tag %r -> %r", tag.id, canonical_id)
-                tag_list[canonical_id] = Tag.model_construct(
-                    id=canonical_id,
-                    description=tag.description,
-                )
+            local_tag_objects.extend(TagFile.from_path(path).tags)
+
+        canonical_ids: list[str] = list(_load_global_tag_ids())
+        raw_ids: list[str] = [tag.id for tag in local_tag_objects]
+        resolutions = _canonicalise_ids(raw_ids, canonical_ids)
+        id_map: dict[str, str] = {r.original_id: r.resolved_id for r in resolutions}
+
+        for tag in local_tag_objects:
+            resolved_id = id_map[tag.id]
+            if resolved_id != tag.id:
+                logger.debug("Canonical local tag %r -> %r", tag.id, resolved_id)
+            tag_list[resolved_id] = Tag.model_construct(
+                id=resolved_id,
+                description=tag.description,
+            )
 
     for path in GLOBAL_TAGS_FILES:
-        tag_file = TagFile.from_path(path)
-        for tag in tag_file.tags:
+        for tag in TagFile.from_path(path).tags:
             tag_list[tag.id] = tag
 
     for path in SACHGEBIETE_FILES:  # last-write-wins
-        sachgebiet_file = SachgebietFile.from_path(path)
-        for sachgebiet in sachgebiet_file.tags:
+        for sachgebiet in SachgebietFile.from_path(path).tags:
             tag_list[sachgebiet.id] = Tag.model_construct(
                 id=sachgebiet.id,
                 description=sachgebiet.description,
@@ -221,6 +267,7 @@ class SchlagwortResolver:
 
         # build lookup indices
         self._tag_ids: set[str] = {t.id for t in self._tags}
+        self._tag_ids_list: list[str] = list(self._tag_ids)
         self._sachgebiete_id_to_number: dict[str, int] = {
             s.id: s.number for s in self._sachgebiete
         }
@@ -235,9 +282,7 @@ class SchlagwortResolver:
         self.SachgebieteNumberList: Any = _make_validated_list(
             set(self._sachgebiete_number_to_id), "Invalid Sachgebiet-Nummern"
         )
-        self.TagList: Any = _make_validated_list(
-            self._tag_ids, "Invalid Tags"
-        )
+        self.TagList: Any = _make_validated_list(self._tag_ids, "Invalid Tags")
 
     # =====================================================================
     # Tag actions
@@ -264,6 +309,31 @@ class SchlagwortResolver:
             True if the id matches a known tag, False otherwise.
         """
         return tag_id in self._tag_ids
+
+    def fuzzy_check_tag(self, tag_id: str) -> bool:
+        """Fuzzy-match a tag ID against the known vocabulary.
+
+        Uses :func:`_canonicalise_ids` to find the best fuzzy match.
+
+        Args:
+            tag_id: The raw tag ID to check.
+
+        Returns:
+            True if the ID matched a known tag above the fuzzy cutoff, False otherwise.
+        """
+        check_id = _canonicalise_ids([tag_id], self._tag_ids_list)[0]
+
+        logging.debug(f"Fuzzy check returned: {check_id}")
+
+        return check_id.matched
+
+    def canonicalise_tags(self, tag_ids: list[str], strict:bool = False) -> list[str]:
+
+        resolved_ids = _canonicalise_ids(tag_ids, self._tag_ids_list, strict)
+
+        return {r.resolved_id for r in resolutions}
+
+
 
     # =====================================================================
     # Sachgebiet actions

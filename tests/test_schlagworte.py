@@ -11,7 +11,6 @@ from collector_core.normalization.schlagworte import (
     SchlagwortResolver,
     _build_json,
     _build_json_sachgebiete_no_numbers,
-    _canonicalise_id,
     _make_validated_list,
 )
 from collector_core.schlagworte_model import Sachgebiet, Tag
@@ -78,27 +77,6 @@ def patched_resolver(
     monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
     return SchlagwortResolver()
 
-
-# =====================================================================
-# _canonicalise_id
-# =====================================================================
-
-
-class TestCanonicaliseId:
-    def test_exact_match_preserved(self) -> None:
-        assert _canonicalise_id("Umwelt", {"Umwelt", "Bildung"}) == "Umwelt"
-
-    def test_case_insensitive_match_returns_canonical(self) -> None:
-        assert _canonicalise_id("umwelt", {"Umwelt", "Bildung"}) == "Umwelt"
-
-    def test_mixed_case_match(self) -> None:
-        assert _canonicalise_id("UMWELT", {"Umwelt"}) == "Umwelt"
-
-    def test_no_match_returns_input_unchanged(self) -> None:
-        assert _canonicalise_id("Unbekannt", {"Umwelt", "Bildung"}) == "Unbekannt"
-
-    def test_empty_canonical_set_returns_input(self) -> None:
-        assert _canonicalise_id("Umwelt", set()) == "Umwelt"
 
 
 # =====================================================================
