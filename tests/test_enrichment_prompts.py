@@ -6,6 +6,7 @@ from collector_core.llm.prompts import (
     MEINUNG_PROMPT,
     SCHLAGWORTE_PROMPT,
     VERFASSUNGSAENDERND_PROMPT,
+    ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT,
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
 )
@@ -24,6 +25,19 @@ class TestPromptFormatting:
         result = ZUSAMMENFASSUNG_PROMPT.format(titel="Titel", text="Gesetzestext hier.")
         assert "Titel" in result
         assert "Gesetzestext hier." in result
+        # Generic prompt should not contain Gesetzentwurf-specific structure.
+        assert "Geänderte Vorschriften" not in result
+        assert "Inkrafttreten" not in result
+
+    def test_zusammenfassung_gesetzentwurf_prompt(self) -> None:
+        result = ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT.format(
+            titel="Gesetzentwurf", text="Gesetzestext hier."
+        )
+        assert "Gesetzentwurf" in result
+        assert "Gesetzestext hier." in result
+        # Gesetzentwurf-specific structure must be present.
+        assert "Geänderte Vorschriften" in result
+        assert "Inkrafttreten" in result
 
     def test_schlagworte_prompt(self) -> None:
         result = SCHLAGWORTE_PROMPT.format(

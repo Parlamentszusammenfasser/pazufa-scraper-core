@@ -1007,3 +1007,132 @@ class TestExtractErrorClassification:
 
         with pytest.raises(LLMProviderError, match="provider request failed"):
             await connector.extract(prompt="test", response_model=Keywords)
+
+
+# ---------------------------------------------------------------------------
+# summarize_dokument() and summarize_gesetzentwurf()
+# ---------------------------------------------------------------------------
+
+
+class TestSummarizeDokument:
+    """Tests for LLMConnector.summarize_dokument()."""
+
+    @pytest.mark.asyncio
+    async def test_returns_generated_text(self) -> None:
+        connector = _make_connector()
+        with patch.object(
+            connector,
+            "generate_text",
+            new=AsyncMock(return_value="Eine allgemeine Zusammenfassung."),
+        ):
+            result = await connector.summarize_dokument(
+                titel="Stellungnahme", text="Inhalt des Dokuments."
+            )
+        assert result == "Eine allgemeine Zusammenfassung."
+
+    @pytest.mark.asyncio
+    async def test_empty_titel_raises(self) -> None:
+        connector = _make_connector()
+        with pytest.raises(ValueError):
+            await connector.summarize_dokument(titel="   ", text="Inhalt.")
+
+    @pytest.mark.asyncio
+    async def test_empty_text_raises(self) -> None:
+        connector = _make_connector()
+        with pytest.raises(ValueError):
+            await connector.summarize_dokument(titel="Titel", text="   ")
+
+    @pytest.mark.asyncio
+    async def test_prompt_contains_titel_and_text(self) -> None:
+        connector = _make_connector()
+        captured: list[str] = []
+
+        async def capture_prompt(prompt: str, *args: object, **kwargs: object) -> str:
+            captured.append(prompt)
+            return "ok"
+
+        with patch.object(connector, "generate_text", new=capture_prompt):
+            await connector.summarize_dokument(
+                titel="Mein Titel", text="Mein Textinhalt."
+            )
+
+        assert len(captured) == 1
+        assert "Mein Titel" in captured[0]
+        assert "Mein Textinhalt." in captured[0]
+
+
+class TestSummarizeGesetzentwurf:
+    """Tests for LLMConnector.summarize_gesetzentwurf()."""
+
+    @pytest.mark.asyncio
+    async def test_returns_generated_text(self) -> None:
+        connector = _make_connector()
+        with patch.object(
+            connector,
+            "generate_text",
+            new=AsyncMock(return_value="Zusammenfassung des Gesetzentwurfs."),
+        ):
+            result = await connector.summarize_gesetzentwurf(
+                titel="Gesetzentwurf", text="Normtext."
+            )
+        assert result == "Zusammenfassung des Gesetzentwurfs."
+
+    @pytest.mark.asyncio
+    async def test_empty_titel_raises(self) -> None:
+        connector = _make_connector()
+        with pytest.raises(ValueError):
+            await connector.summarize_gesetzentwurf(titel="   ", text="Normtext.")
+
+    @pytest.mark.asyncio
+    async def test_empty_text_raises(self) -> None:
+        connector = _make_connector()
+        with pytest.raises(ValueError):
+            await connector.summarize_gesetzentwurf(titel="Titel", text="   ")
+
+    @pytest.mark.asyncio
+    async def test_prompt_contains_titel_and_text(self) -> None:
+        connector = _make_connector()
+        captured: list[str] = []
+
+        async def capture_prompt(prompt: str, *args: object, **kwargs: object) -> str:
+            captured.append(prompt)
+            return "ok"
+
+        with patch.object(connector, "generate_text", new=capture_prompt):
+            await connector.summarize_gesetzentwurf(
+                titel="Entwurf Schulgesetz", text="Gesetzestext."
+            )
+
+        assert len(captured) == 1
+        assert "Entwurf Schulgesetz" in captured[0]
+        assert "Gesetzestext." in captured[0]
+
+    @pytest.mark.asyncio
+    async def test_uses_different_prompt_than_dokument(self) -> None:
+        """Gesetzentwurf method uses a more specific prompt than summarize_dokument."""
+        connector = _make_connector()
+        gesetzentwurf_prompts: list[str] = []
+        dokument_prompts: list[str] = []
+
+        async def capture_gesetzentwurf(
+            prompt: str, *args: object, **kwargs: object
+        ) -> str:
+            gesetzentwurf_prompts.append(prompt)
+            return "ok"
+
+        async def capture_dokument(prompt: str, *args: object, **kwargs: object) -> str:
+            dokument_prompts.append(prompt)
+            return "ok"
+
+        with patch.object(connector, "generate_text", new=capture_gesetzentwurf):
+            await connector.summarize_gesetzentwurf(titel="T", text="Text.")
+        with patch.object(connector, "generate_text", new=capture_dokument):
+            await connector.summarize_dokument(titel="T", text="Text.")
+
+        assert gesetzentwurf_prompts[0] != dokument_prompts[0]
+        # Gesetzentwurf prompt must contain law-specific structure.
+        assert "Geänderte Vorschriften" in gesetzentwurf_prompts[0]
+        assert "Inkrafttreten" in gesetzentwurf_prompts[0]
+        # Generic prompt must not contain Gesetzentwurf-specific structure.
+        assert "Geänderte Vorschriften" not in dokument_prompts[0]
+        assert "Inkrafttreten" not in dokument_prompts[0]
