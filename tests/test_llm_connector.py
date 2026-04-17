@@ -272,9 +272,7 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch(
-            "corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock
-        ):
+        with patch("corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
             result = await connector.extract(prompt="test", response_model=Keywords)
 
         assert result.sachgebiete == ["Justiz"]
@@ -312,9 +310,7 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch(
-            "corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock
-        ):
+        with patch("corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
             with pytest.raises(LLMTemporaryProviderError):
                 await connector.extract(prompt="test", response_model=Keywords)
 
@@ -687,9 +683,7 @@ class TestEstimateRequestTokens:
             "corelib.llm.llm_connector.litellm.token_counter",
             side_effect=Exception("unsupported model"),
         ):
-            with caplog.at_level(
-                logging.ERROR, logger="corelib.llm.llm_connector"
-            ):
+            with caplog.at_level(logging.ERROR, logger="corelib.llm.llm_connector"):
                 result = connector._estimate_request_tokens(messages)
 
         assert result == 0
