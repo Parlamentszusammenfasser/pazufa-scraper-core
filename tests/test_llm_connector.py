@@ -335,7 +335,6 @@ class TestExtractInstructorInit:
 # ---------------------------------------------------------------------------
 
 
-from corelib.llm.models import ZusammenfassungResult  # noqa: E402
 
 
 class TestSummarize:
