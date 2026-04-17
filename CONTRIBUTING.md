@@ -1,4 +1,4 @@
-# Contributing to pazufa-collector-core
+# Contributing to pazufa-scraper-core
 
 Thanks for your interest in the PaZuFa scraper core.
 
@@ -13,7 +13,7 @@ Install Poetry first if it is not already available:
 
 ```bash
 git clone https://codeberg.org/PaZuFa/pazufa-scraper-core.git
-cd pazufa-collector-core
+cd pazufa-scraper-core
 poetry install --with dev
 ```
 
@@ -39,7 +39,7 @@ poetry run pytest -v
 
 ## Docstrings
 
-Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `collector_core/` require a docstring. Example:
+Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `corelib/` require a docstring. Example:
 
 ```python
 def my_function(arg: str) -> int:
@@ -113,8 +113,8 @@ for a later API revision, usually with a larger time lag.
 
 Some files are generated and should usually not be edited by hand:
 
-- [collector_core/api_model.py](collector_core/api_model.py) from `datamodel-codegen`
-- [collector_core/api_client/](collector_core/api_client/) from `openapi-python-client`
+- [corelib/api_model.py](corelib/api_model.py) from `datamodel-codegen`
+- [corelib/api_client/](corelib/api_client/) from `openapi-python-client`
 
 If you change API-related behavior, prefer updating the OpenAPI source or generator configuration and then regenerate:
 
@@ -155,4 +155,4 @@ Please update your own status on the [status page in the wiki](https://wiki.pazu
 
 ## Questions?
 
-Open an issue on [Codeberg](https://codeberg.org/PaZuFa/pazufa-collector-core/issues) or reach out to the team.
+Open an issue on [Codeberg](https://codeberg.org/PaZuFa/pazufa-scraper-core/issues) or reach out to the team.

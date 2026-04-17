@@ -5,7 +5,7 @@ Supports text generation, summarization, and structured data extraction.
 Example — free-text generation:
     ```python
     import asyncio
-    from collector_core.llm import LLMConnector
+    from corelib.llm import LLMConnector
 
 
     async def main() -> None:
@@ -25,7 +25,7 @@ Example — structured extraction:
     ```python
     import asyncio
     from pydantic import BaseModel
-    from collector_core.llm import LLMConnector
+    from corelib.llm import LLMConnector
 
 
     class Keywords(BaseModel):

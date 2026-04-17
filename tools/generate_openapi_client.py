@@ -9,8 +9,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 OPENAPI = REPO_ROOT / "openapi.yaml"
 CONFIG = Path(__file__).resolve().parent / "openapi-python-client.yaml"
 
-GEN_PKG_NAME = "collector_core_api_client"
-DEST = REPO_ROOT / "collector_core" / "api_client"
+GEN_PKG_NAME = "corelib_api_client"
+DEST = REPO_ROOT / "corelib" / "api_client"
 
 
 def run(cmd: list[str]) -> None:

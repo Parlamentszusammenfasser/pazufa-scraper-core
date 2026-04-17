@@ -1,6 +1,6 @@
 """Tests for enrichment prompt templates."""
 
-from collector_core.llm.prompts import (
+from corelib.llm.prompts import (
     EXPERTEN_PROMPT,
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
@@ -10,7 +10,7 @@ from collector_core.llm.prompts import (
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
 )
-from collector_core.llm.sachgebiete_taxonomy import SACHGEBIETE_NAMES
+from corelib.llm.sachgebiete_taxonomy import SACHGEBIETE_NAMES
 
 
 class TestPromptFormatting:

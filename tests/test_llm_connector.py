@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     from instructor.core import InstructorRetryException
 
-from collector_core.llm.llm_connector import (
+from corelib.llm.llm_connector import (
     TOKEN_ESTIMATE_OUTPUT_BUFFER,
     LLMAuthenticationError,
     LLMConnector,
@@ -273,7 +273,7 @@ class TestExtractNetworkRetry:
         connector._instructor_client = mock_client
 
         with patch(
-            "collector_core.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock
+            "corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock
         ):
             result = await connector.extract(prompt="test", response_model=Keywords)
 
@@ -313,7 +313,7 @@ class TestExtractNetworkRetry:
         connector._instructor_client = mock_client
 
         with patch(
-            "collector_core.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock
+            "corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock
         ):
             with pytest.raises(LLMTemporaryProviderError):
                 await connector.extract(prompt="test", response_model=Keywords)
@@ -339,7 +339,7 @@ class TestExtractInstructorInit:
 # ---------------------------------------------------------------------------
 
 
-from collector_core.llm.models import ZusammenfassungResult  # noqa: E402
+from corelib.llm.models import ZusammenfassungResult  # noqa: E402
 
 
 class TestSummarize:
@@ -626,7 +626,7 @@ class TestEstimateRequestTokens:
         ]
 
         with patch(
-            "collector_core.llm.llm_connector.litellm.token_counter",
+            "corelib.llm.llm_connector.litellm.token_counter",
             side_effect=lambda model, text: len(text.split()),
         ):
             result = connector._estimate_request_tokens(messages)
@@ -644,7 +644,7 @@ class TestEstimateRequestTokens:
         messages = [{"role": "user", "content": "Hello"}]
 
         with patch(
-            "collector_core.llm.llm_connector.litellm.token_counter",
+            "corelib.llm.llm_connector.litellm.token_counter",
             side_effect=Exception("unsupported model"),
         ):
             result = connector._estimate_request_tokens(messages)
@@ -663,7 +663,7 @@ class TestEstimateRequestTokens:
         ]
 
         with patch(
-            "collector_core.llm.llm_connector.litellm.token_counter",
+            "corelib.llm.llm_connector.litellm.token_counter",
             side_effect=lambda model, text: len(text.split()) if text else 0,
         ):
             result = connector._estimate_request_tokens(messages)
@@ -684,11 +684,11 @@ class TestEstimateRequestTokens:
         messages = [{"role": "user", "content": "Hello"}]
 
         with patch(
-            "collector_core.llm.llm_connector.litellm.token_counter",
+            "corelib.llm.llm_connector.litellm.token_counter",
             side_effect=Exception("unsupported model"),
         ):
             with caplog.at_level(
-                logging.ERROR, logger="collector_core.llm.llm_connector"
+                logging.ERROR, logger="corelib.llm.llm_connector"
             ):
                 result = connector._estimate_request_tokens(messages)
 

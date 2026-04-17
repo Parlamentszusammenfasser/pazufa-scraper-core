@@ -1,4 +1,4 @@
-# AGENTS.md — pazufa-collector-core
+# AGENTS.md — pazufa-scraper-core
 
 Cross-tool instructions for AI coding agents working on this project.
 
@@ -92,7 +92,7 @@ German domain terms (Vorgang, Station, Sitzung, TOP, Sachgebiet, Landtag, Aussch
 
 ### Docstrings
 
-Docstrings follow the **Google convention** and are enforced by ruff (pydocstyle rules). All public functions, methods, and classes in `collector_core/` require a docstring:
+Docstrings follow the **Google convention** and are enforced by ruff (pydocstyle rules). All public functions, methods, and classes in `corelib/` require a docstring:
 
 ```python
 def my_function(arg: str) -> int:
@@ -141,8 +141,8 @@ poetry run pytest tests/test_specific.py::test_function
 
 These paths are generated and should not be hand-edited unless the task explicitly requires it:
 
-- [collector_core/api_model.py](collector_core/api_model.py)
-- [collector_core/api_client/](collector_core/api_client/)
+- [corelib/api_model.py](corelib/api_model.py)
+- [corelib/api_client/](corelib/api_client/)
 
 Prefer changing one of these inputs instead:
 
@@ -155,10 +155,10 @@ Then regenerate and review the diff carefully.
 
 ## Project Structure
 
-- `collector_core/__init__.py` - public package exports
-- `collector_core/llm_connector.py` - current LLM entrypoint; LLM-related code is expected to move into `collector_core/llm/`
-- `collector_core/api_model.py` - generated Pydantic models
-- `collector_core/api_client/` - generated OpenAPI client
+- `corelib/__init__.py` - public package exports
+- `corelib/llm_connector.py` - current LLM entrypoint; LLM-related code is expected to move into `corelib/llm/`
+- `corelib/api_model.py` - generated Pydantic models
+- `corelib/api_client/` - generated OpenAPI client
 - `tests/` - unit tests
 - `tools/` - code generation helpers
 
@@ -174,4 +174,4 @@ Then regenerate and review the diff carefully.
 
 - Main project repo: [codeberg.org/PaZuFa/parlamentszusammenfasser](https://codeberg.org/PaZuFa/parlamentszusammenfasser)
 - Website: [codeberg.org/PaZuFa/pazufa-website](https://codeberg.org/PaZuFa/pazufa-website)
-- Shared library: [codeberg.org/PaZuFa/pazufa-collector-core](https://codeberg.org/PaZuFa/pazufa-collector-core)
+- Shared library: [codeberg.org/PaZuFa/pazufa-scraper-core](https://codeberg.org/PaZuFa/pazufa-scraper-core)
