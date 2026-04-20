@@ -26,13 +26,13 @@ The examples below prescribe a version `0.1` and above, but under `0.2`.
 **Poetry:**
 
 ```bash
-poetry add "collector-core~=0.1"
+poetry add "scraper-core~=0.1"
 ```
 
 **pip:**
 
 ```bash
-pip install "collector-core~=0.1"
+pip install "scraper-core~=0.1"
 ```
 
 
@@ -42,7 +42,7 @@ Clone the repository and install it with dev dependencies:
 
 ```bash
 git clone https://codeberg.org/PaZuFa/pazufa-scraper-core.git
-cd pazufa-collector-core
+cd pazufa-scraper-core
 poetry install --with dev
 ```
 

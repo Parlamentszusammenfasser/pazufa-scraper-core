@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from collector_core.llm.models import (
+from corelib.llm.models import (
     ExpertenResult,
     ExpertenResultNoLobbyregister,
     ExtractedExpert,

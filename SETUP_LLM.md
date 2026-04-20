@@ -1,6 +1,6 @@
 # LLM setup
 
-`collector_core.llm` provides Pydantic response models, prompt templates, and
+`corelib.llm` provides Pydantic response models, prompt templates, and
 the Parlamentsspiegel Sachgebiete taxonomy for LLM-based enrichment of
 parliamentary documents.
 
@@ -14,7 +14,7 @@ hood — set the API key for your chosen provider in the environment, e.g.
 `export OPENAI_API_KEY="sk-..."`.
 
 ```python
-from collector_core import LLMConnector
+from corelib import LLMConnector
 
 connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
 

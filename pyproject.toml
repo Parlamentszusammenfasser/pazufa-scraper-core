@@ -1,5 +1,5 @@
 [project]
-name = "collector-core"
+name = "scraper-core"
 license = "GPL-3.0"
 version = "0.1.0"
 description = "Core library for collecting parliamentary data"
@@ -9,7 +9,7 @@ requires-python = ">=3.12,<4.0"
 dynamic = ["dependencies"]
 
 [tool.poetry]
-packages = [{include = "collector_core"}]
+packages = [{include = "corelib"}]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
@@ -46,8 +46,8 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
 "tools/**" = ["D"]
-"collector_core/api_client/**" = ["D", "E501"]
-"collector_core/api_model.py" = ["D", "E501"]
+"corelib/api_client/**" = ["D", "E501"]
+"corelib/api_model.py" = ["D", "E501"]
 # ^^^ currently auto generated, if switched to handwritten this will be no longer excluded.
 
 [tool.ruff.lint.pydocstyle]
@@ -56,16 +56,16 @@ convention = "google"
 
 [tool.ruff.format]
 docstring-code-format = true
-exclude = ["collector_core/api_client/**", "collector_core/api_model.py"]
+exclude = ["corelib/api_client/**", "corelib/api_model.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --cov=collector_core --cov-report=term-missing --cov-report=xml:coverage.xml"
+addopts = "-q --cov=corelib --cov-report=term-missing --cov-report=xml:coverage.xml"
 
 [tool.coverage.run]
 omit = [
-  "collector_core/api_model.py",
-  "collector_core/api_client/*",
+  "corelib/api_model.py",
+  "corelib/api_client/*",
 ]
 
 [tool.mypy]
@@ -81,7 +81,7 @@ ignore_missing_imports = true
 disable-timestamp = true
 formatters = ["ruff", "ruff-format"]
 input-file-type = "openapi"
-output = "collector_core/api_model.py"
+output = "corelib/api_model.py"
 output-model-type = "pydantic_v2.BaseModel"
 target-python-version = "3.12"
 url = "https://codeberg.org/PaZuFa/parlamentszusammenfasser/raw/tag/v0.2.3/docs/specs/openapi.yml"
