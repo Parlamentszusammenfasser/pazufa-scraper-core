@@ -1,22 +1,30 @@
-# LLM setup
+# LLM module setup
 
-`corelib.llm` provides Pydantic response models, prompt templates, and
-the Parlamentsspiegel Sachgebiete taxonomy for LLM-based enrichment of
-parliamentary documents.
+`corelib.llm` uses [litellm](https://docs.litellm.ai) under the
+hood, which means that [any LLM provider supported by litellm](https://docs.litellm.ai/docs/providers) can be used.
 
-Full reference (models, prompts, taxonomy, section extraction) lives on the
-wiki: <https://wiki.pazufa.de/books/scraper-core/page/llm>.
+## Configuring the API key
 
-## Minimal example
+Set the API key for your chosen provider as an environment variable:
 
-`LLMConnector` uses [litellm](https://docs.litellm.ai/docs/providers) under the
-hood — set the API key for your chosen provider in the environment, e.g.
-`export OPENAI_API_KEY="sk-..."`.
+```bash
+# OpenAI
+export OPENAI_API_KEY="sk-..."
+
+# Or e.g. Anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+Alternatively, the key can be passed directly to the `LLMConnector`:
 
 ```python
 from corelib import LLMConnector
 
-connector = LLMConnector(model="openai/gpt-4o-mini", temperature=0.1)
-
-zusammenfassung = await connector.summarize_dokument(titel=titel, text=text)
+connector = LLMConnector(model="openai/gpt-4o-mini", api_key="sk-...")
 ```
+
+## Further documentation
+
+Detailed information on models, prompts, taxonomy, and section extraction is
+available on the wiki:
+<https://wiki.pazufa.de/books/scraper-core/page/llm>.
