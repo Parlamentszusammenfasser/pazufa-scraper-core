@@ -18,17 +18,16 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import AfterValidator, BaseModel
-from rapidfuzz import fuzz
-from rapidfuzz.process import cdist
-
-from collector_core.schlagworte_model import (
+from corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
     SchlagwortIDResolution,
     Tag,
     TagFile,
 )
+from pydantic import AfterValidator, BaseModel
+from rapidfuzz import fuzz
+from rapidfuzz.process import cdist
 
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
@@ -322,7 +321,8 @@ class SchlagwortResolver:
         """
         check_id = _canonicalise_ids([tag_id], self._tag_ids_list)[0]
         logger.debug("Fuzzy check returned: %s", check_id)
-        return check_id.matched
+        # explicitly typed for mypy
+        return bool(check_id.matched)
 
     def canonicalise_tags(self, tag_ids: list[str], strict: bool = False) -> list[str]:
         """Canonicalise a list of tag IDs against the known vocabulary.

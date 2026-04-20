@@ -1,20 +1,19 @@
-"""Tests for collector_core.normalization.schlagworte."""
+"""Tests for corelib.normalization.schlagworte."""
 
 import json
 from pathlib import Path
 from typing import Any
 
+import corelib.normalization.schlagworte as schlagworte_mod
 import pytest
-from pydantic import TypeAdapter, ValidationError
-
-import collector_core.normalization.schlagworte as schlagworte_mod
-from collector_core.normalization.schlagworte import (
+from corelib.normalization.schlagworte import (
     SchlagwortResolver,
     _build_json,
     _build_json_sachgebiete_no_numbers,
     _make_validated_list,
 )
-from collector_core.schlagworte_model import Sachgebiet, Tag
+from corelib.schlagworte_model import Sachgebiet, Tag
+from pydantic import TypeAdapter, ValidationError
 
 # =====================================================================
 # Fixtures

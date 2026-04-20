@@ -2,7 +2,7 @@
 sachgebiet-derived inputs.
 
 Reads all Sachgebiet IDs from
-``collector_core/normalization/mappings/sachgebiete.yaml`` (via the resolver's
+``corelib/normalization/mappings/sachgebiete.yaml`` (via the resolver's
 own loader) and builds a test list where:
 
  - 40% are exact (clean) hits
@@ -24,11 +24,11 @@ from __future__ import annotations
 import random
 from collections.abc import Callable
 
-from collector_core.normalization.schlagworte import (
+from corelib.normalization.schlagworte import (
     SACHGEBIETE_FILES,
     SchlagwortResolver,
 )
-from collector_core.schlagworte_model import SachgebietFile
+from corelib.schlagworte_model import SachgebietFile
 
 Perturbation = Callable[[str], str]
 

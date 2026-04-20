@@ -1,9 +1,8 @@
 """Tests for normalization utilities."""
 
 import pytest
-
-from collector_core.normalization import normalise_datum, normalise_volltext
-from collector_core.normalization.text import _paragraph_quality_score
+from corelib.normalization import normalise_datum, normalise_volltext
+from corelib.normalization.text import _paragraph_quality_score
 
 # ---------------------------------------------------------------------------
 # normalise_volltext

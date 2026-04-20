@@ -3,8 +3,7 @@
 import hashlib
 
 import pytest
-
-from collector_core.normalization.hash import (
+from corelib.normalization.hash import (
     HASH_ALGORITHM_SHA_1,
     HASH_ALGORITHM_SHA_256,
     HASH_CONNECTOR,
@@ -16,7 +15,7 @@ from collector_core.normalization.hash import (
     hash_text,
     hash_text_sha_256,
 )
-from collector_core.normalization.text import normalise_volltext
+from corelib.normalization.text import normalise_volltext
 
 SHA1_BYTES_VARIANT = HASH_ALGORITHM_SHA_1 + HASH_CONNECTOR + HASH_VARIANT_BYTES
 SHA256_BYTES_VARIANT = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_BYTES

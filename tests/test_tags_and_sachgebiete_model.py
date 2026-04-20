@@ -1,17 +1,16 @@
-"""Tests for collector_core.schlagworte_model."""
+"""Tests for corelib.schlagworte_model."""
 
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
-
-from collector_core.schlagworte_model import (
+from corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
     SchlagwortIDResolution,
     Tag,
     TagFile,
 )
+from pydantic import ValidationError
 
 # =====================================================================
 # Fixtures
