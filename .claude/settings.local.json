@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ruff check:*)",
+      "Bash(python -m pytest tests/test_normalization.py -q)",
+      "Bash(python -m pytest tests/test_normalization.py)",
+      "Bash(python -m pytest tests/test_normalization.py::TestNormaliseVolltextOnHtmlInput -v)",
+      "Bash(git branch:*)",
+      "Bash(git mv:*)",
+      "Bash(python -m pytest tests/ --tb=short)"
+    ]
+  }
+}
