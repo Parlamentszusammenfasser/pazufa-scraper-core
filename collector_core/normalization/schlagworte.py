@@ -82,7 +82,6 @@ def _canonicalise_ids(
     strict: bool = False,
     cutoff: float = _FUZZY_MATCH_THRESHOLD,
 ) -> list[SchlagwortIDResolution]:
-
     # C++ Matrix call
     matrix = cdist(
         raw_ids,
