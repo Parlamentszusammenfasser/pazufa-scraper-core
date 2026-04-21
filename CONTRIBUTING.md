@@ -140,7 +140,7 @@ Branch naming: `feat/short-description`, `fix/short-description`, `chore/short-d
 
 Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 
-poetr### Pull-Requests
+### Pull-Requests
 For PRs targeting `develop`, the author merges after approval.
 
 
