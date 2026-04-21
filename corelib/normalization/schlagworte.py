@@ -82,6 +82,13 @@ def _canonicalise_ids(
     cutoff: float = _FUZZY_MATCH_THRESHOLD,
 ) -> list[SchlagwortIDResolution]:
 
+    # Catching possible errors that a Matrix with an empty row or column would create.
+    if not raw_ids or not canonical_ids:
+        raise ValueError(
+            f"raw_ids and canonical_ids must not be empty, "
+            f"got {len(raw_ids)} raw and {len(canonical_ids)} canonical IDs"
+        )
+
     # C++ Matrix call
     matrix = cdist(
         raw_ids,
@@ -98,7 +105,7 @@ def _canonicalise_ids(
         best_idx: int = row.argmax()
         best_score: float = row[best_idx]
 
-        if 0.0 == best_score:
+        if best_score == 0:
             if not strict:
                 result.append(
                     SchlagwortIDResolution(
@@ -113,6 +120,9 @@ def _canonicalise_ids(
                     original_id=raw_id, resolved_id=resolved_id, score=best_score
                 )
             )
+
+    if not result:
+        logger.warning(f"Cannonicalising of ids gave out 0 results. With strict = {strict}")
 
     return result
 
@@ -210,10 +220,9 @@ def _build_json(items: Sequence[BaseModel]) -> str:
             indent=2,
         )
     except TypeError as e:
-        raise ValueError(
-            f"Failed to serialize {type(items[0]).__name__} items to JSON: {e}"
-        ) from e
-
+        sample_type = type(items[0]).__name__ if items else None
+        context = f" ({sample_type} items)" if sample_type else ""
+        raise ValueError(f"Failed to serialize items to JSON{context}: {e}") from e
 
 def _build_json_sachgebiete_no_numbers(sachgebiete: list[Sachgebiet]) -> str:
     """Serialize Sachgebiete to JSON, omitting the Sachgebiet number."""

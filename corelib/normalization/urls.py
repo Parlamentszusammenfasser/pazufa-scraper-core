@@ -16,7 +16,7 @@ def normalize_url(url: str) -> str:
     parsed = urlparse(str(url))
     if parsed.scheme not in ("http", "https"):
         raise ValueError(
-            f"None Valid URL scheme '{parsed.scheme}': only http und https are allowed."
+            f"Invalid URL scheme '{parsed.scheme}': only http and https are allowed."
         )
 
     return canonicalize_url(url)

@@ -104,11 +104,19 @@ class TestHashTextSha256:
         _, variant = hash_text_sha_256("Hallo Welt")
         assert variant == SHA256_TEXT_VARIANT
 
-    def test_empty_string(self) -> None:
-        digest, variant = hash_text_sha_256("")
-        expected = hashlib.sha256(normalize_volltext("").encode("utf-8")).hexdigest()
-        assert digest == expected
-        assert variant == SHA256_TEXT_VARIANT
+    def test_empty_string_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="garbled or blank"):
+            hash_text_sha_256("")
+
+    def test_whitespace_only_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="garbled or blank"):
+            hash_text_sha_256("   \n\t  ")
+
+    def test_garbled_text_raises_value_error(self) -> None:
+        # C1 control characters and Latin-Extended-B — triggers quality filter
+        garbled = "\x80\x81\x82\x83\x84 \u0180\u0181\u0182\u0183\u0184"
+        with pytest.raises(ValueError, match="garbled or blank"):
+            hash_text_sha_256(garbled)
 
     def test_different_inputs_produce_different_hashes(self) -> None:
         digest_a, _ = hash_text_sha_256("foo")

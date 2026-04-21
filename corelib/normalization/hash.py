@@ -95,11 +95,18 @@ def hash_text_sha_256(text: str) -> tuple[str, str]:
     Returns a tuple of ``(hash, variant)`` where variant is ``"sha256+text"``.
 
     Raises :class:`TypeError` if *text* is not :class:`str`.
+    Raises :class:`ValueError` if the normalized text is empty (garbled or
+        blank input).
     """
     _check_type(text, str)
 
-    normalized = normalize_volltext(text).encode("utf-8")
-    hash_content = hashlib.sha256(normalized).hexdigest()
+    normalized = normalize_volltext(text)
+    if not normalized:
+        raise ValueError(
+            "Cannot hash text: normalization produced an empty string "
+            "(input is garbled or blank)"
+        )
+    hash_content = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
     hash_type = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_TEXT
 
     return hash_content, hash_type
