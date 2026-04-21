@@ -17,7 +17,7 @@ import unicodedata
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
-
+import numpy as np
 from corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 _EXACT_MATCH_THRESHOLD: float = 100.0
 _FUZZY_MATCH_THRESHOLD: float = 90.0
+_NEAR_TIE_EPSILON: float = 2.0
 
 _RE_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 
@@ -114,6 +115,23 @@ def _canonicalise_ids(
                 )
 
         else:
+            # Warn when the runner-up score is within _NEAR_TIE_EPSILON of the best.
+            sorted_scores = np.sort(row)[::-1]
+            if len(sorted_scores) >= 2:
+                second_best_score = sorted_scores[1]
+                if best_score - second_best_score <= _NEAR_TIE_EPSILON and second_best_score > 0:
+                    second_best_idx = int(np.where(row == second_best_score)[0][0])
+                    logger.warning(
+                        "Near-tie for %r: %r (%.2f) vs %r (%.2f), delta=%.2f <= epsilon=%.2f",
+                        raw_id,
+                        canonical_ids[best_idx],
+                        best_score,
+                        canonical_ids[second_best_idx],
+                        second_best_score,
+                        best_score - second_best_score,
+                        _NEAR_TIE_EPSILON,
+                    )
+
             resolved_id = canonical_ids[best_idx]
             result.append(
                 SchlagwortIDResolution(

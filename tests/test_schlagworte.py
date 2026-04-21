@@ -1,6 +1,7 @@
 """Tests for corelib.normalization.schlagworte."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,7 @@ from corelib.normalization.schlagworte import (
     SchlagwortResolver,
     _build_json,
     _build_json_sachgebiete_no_numbers,
+    _canonicalise_ids,
     _make_validated_list,
 )
 from corelib.schlagworte_model import Sachgebiet, Tag
@@ -467,6 +469,53 @@ class TestLocalTags:
         resolver = SchlagwortResolver()
         tag = next(t for t in resolver._tags if t.id == "Umwelt")
         assert tag.description == "Sachgebiet description"
+
+
+# =====================================================================
+# Duplicate Sachgebiet number detection
+# =====================================================================
+
+
+# =====================================================================
+# _canonicalise_ids — near-tie warning
+# =====================================================================
+
+
+class TestCanonicaliseIdsNearTieWarning:
+    """Tests for the near-tie warning in _canonicalise_ids."""
+
+    def test_near_tie_emits_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Two canonical IDs that score almost identically trigger a warning."""
+        # Both candidates differ by only one character, producing a near-tie.
+        canonical = ["Umweltschutz A", "Umweltschutz B"]
+        raw = ["Umweltschutz C"]
+        with caplog.at_level(logging.WARNING, logger="corelib.normalization.schlagworte"):
+            _canonicalise_ids(raw, canonical)
+        assert any("Near-tie" in msg for msg in caplog.messages)
+
+    def test_no_warning_for_clear_winner(self, caplog: pytest.LogCaptureFixture) -> None:
+        """An exact match with no close runner-up should not warn."""
+        canonical = ["Digitalisierung", "Wohnungsbau"]
+        raw = ["Digitalisierung"]
+        with caplog.at_level(logging.WARNING, logger="corelib.normalization.schlagworte"):
+            _canonicalise_ids(raw, canonical)
+        assert not any("Near-tie" in msg for msg in caplog.messages)
+
+    def test_no_warning_when_no_match(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Completely unmatched input (score 0) should not trigger a near-tie warning."""
+        canonical = ["Digitalisierung", "Wohnungsbau"]
+        raw = ["xyzxyzxyz"]
+        with caplog.at_level(logging.WARNING, logger="corelib.normalization.schlagworte"):
+            _canonicalise_ids(raw, canonical)
+        assert not any("Near-tie" in msg for msg in caplog.messages)
+
+    def test_near_tie_still_resolves_to_best(self) -> None:
+        """Even with a near-tie warning, the best match is still returned."""
+        canonical = ["Umweltschutz A", "Umweltschutz B"]
+        raw = ["Umweltschutz C"]
+        results = _canonicalise_ids(raw, canonical)
+        assert len(results) == 1
+        assert results[0].resolved_id in canonical
 
 
 # =====================================================================
