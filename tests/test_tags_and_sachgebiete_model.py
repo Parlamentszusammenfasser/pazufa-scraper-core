@@ -3,6 +3,8 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
+
 from corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
@@ -10,7 +12,6 @@ from corelib.schlagworte_model import (
     Tag,
     TagFile,
 )
-from pydantic import ValidationError
 
 # =====================================================================
 # Fixtures

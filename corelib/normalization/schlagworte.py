@@ -17,7 +17,12 @@ import unicodedata
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
+
 import numpy as np
+from pydantic import AfterValidator, BaseModel
+from rapidfuzz import fuzz
+from rapidfuzz.process import cdist
+
 from corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
@@ -25,9 +30,6 @@ from corelib.schlagworte_model import (
     Tag,
     TagFile,
 )
-from pydantic import AfterValidator, BaseModel
-from rapidfuzz import fuzz
-from rapidfuzz.process import cdist
 
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
@@ -41,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 _EXACT_MATCH_THRESHOLD: float = 100.0
 _FUZZY_MATCH_THRESHOLD: float = 90.0
-_NEAR_TIE_EPSILON: float = 2.0
+_NEAR_TIE_EPSILON: float = 1.0
 
 _RE_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 
@@ -119,10 +121,14 @@ def _canonicalise_ids(
             sorted_scores = np.sort(row)[::-1]
             if len(sorted_scores) >= 2:
                 second_best_score = sorted_scores[1]
-                if best_score - second_best_score <= _NEAR_TIE_EPSILON and second_best_score > 0:
+                if (
+                    best_score - second_best_score <= _NEAR_TIE_EPSILON
+                    and second_best_score > 0
+                ):
                     second_best_idx = int(np.where(row == second_best_score)[0][0])
                     logger.warning(
-                        "Near-tie for %r: %r (%.2f) vs %r (%.2f), delta=%.2f <= epsilon=%.2f",
+                        "Near-tie for %r: %r (%.2f) vs %r (%.2f),"
+                        " delta=%.2f <= epsilon=%.2f",
                         raw_id,
                         canonical_ids[best_idx],
                         best_score,
@@ -140,7 +146,9 @@ def _canonicalise_ids(
             )
 
     if not result:
-        logger.warning(f"Cannonicalising of ids gave out 0 results. With strict = {strict}")
+        logger.warning(
+            f"Cannonicalising of ids gave out 0 results. With strict = {strict}"
+        )
 
     return result
 
@@ -241,6 +249,7 @@ def _build_json(items: Sequence[BaseModel]) -> str:
         sample_type = type(items[0]).__name__ if items else None
         context = f" ({sample_type} items)" if sample_type else ""
         raise ValueError(f"Failed to serialize items to JSON{context}: {e}") from e
+
 
 def _build_json_sachgebiete_no_numbers(sachgebiete: list[Sachgebiet]) -> str:
     """Serialize Sachgebiete to JSON, omitting the Sachgebiet number."""

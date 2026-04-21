@@ -1,6 +1,7 @@
 """Tests for URL normalisation utilities."""
 
 import pytest
+
 from corelib.normalization.urls import normalize_url
 
 

@@ -3,6 +3,7 @@
 import hashlib
 
 import pytest
+
 from corelib.normalization.hash import (
     HASH_ALGORITHM_SHA_1,
     HASH_ALGORITHM_SHA_256,

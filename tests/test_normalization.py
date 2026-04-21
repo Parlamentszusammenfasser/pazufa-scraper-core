@@ -1,6 +1,7 @@
 """Tests for normalization utilities."""
 
 import pytest
+
 from corelib.normalization import normalize_datum, normalize_volltext
 from corelib.normalization.text import _paragraph_quality_score
 
