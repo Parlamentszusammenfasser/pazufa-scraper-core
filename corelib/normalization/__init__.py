@@ -1,13 +1,13 @@
 """Text and date normalization utilities for parliamentary data."""
 
 from .hash import hash_bytes, hash_text
-from .text import normalise_datum, normalise_volltext
-from .urls import normalise_url
+from .text import normalize_datum, normalize_volltext
+from .urls import normalize_url
 
 __all__ = [
     "hash_bytes",
     "hash_text",
-    "normalise_datum",
-    "normalise_url",
-    "normalise_volltext",
+    "normalize_datum",
+    "normalize_url",
+    "normalize_volltext",
 ]

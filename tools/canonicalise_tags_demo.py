@@ -28,7 +28,7 @@ TEST_CASES: list[tuple[str, str | None]] = [
     ("Verkehr", "Verkehr"),
     ("Klima", "Klima"),
     ("Landwirtschaft", "Landwirtschaft"),
-    # --- wrong casing (normalised away by processor) ---
+    # --- wrong casing (normalized away by processor) ---
     ("digitalisierung", "Digitalisierung"),
     ("WOHNUNGSBAU", "Wohnungsbau"),
     ("energiewende", "Energiewende"),

@@ -408,7 +408,7 @@ class TestLocalTags:
         tags_yaml: Path,
         sachgebiete_yaml: Path,
     ) -> None:
-        """Local tag matching a global tag case-insensitively is normalised."""
+        """Local tag matching a global tag case-insensitively is normalized."""
         local = tmp_path / "local.yaml"
         local.write_text(
             "tags:\n  - id: digitalisierung\n    description: lowercase variant\n",

@@ -135,8 +135,8 @@ def _paragraph_quality_score(paragraph: str) -> float:
 # --- Public Functions ---------------------------------------------------------------
 
 
-def normalise_volltext(text: str) -> str:
-    r"""Normalise German fulltext.
+def normalize_volltext(text: str) -> str:
+    r"""Normalize German fulltext.
 
     Applies a sequential cleaning pipeline:
 
@@ -144,12 +144,12 @@ def normalise_volltext(text: str) -> str:
     2. NFKC unicode normalisation
     3. Strip invisible/zero-width characters (soft hyphen, BOM, ZWJ, ZWSP)
     4. Strip C1 control characters (U+0080–U+009F)
-    5. Normalise line endings to ``\\n``
+    5. Normalize line endings to ``\\n``
     6. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` →
        ``Landesregierung``)
     7. Collapse multiple spaces/tabs within a line to a single space
     8. Remove paragraphs with quality score < 0.5
-    9. Replace ``<`` / ``>`` with guillemets ‹ › to neutralise XSS triggers
+    9. Replace ``<`` / ``>`` with guillemets ‹ › to neutralize XSS triggers
 
     Step 1 is a no-op on plain text containing no entity sequences, so
     applying this function to PDF-extracted text has no side effects.
@@ -158,7 +158,7 @@ def normalise_volltext(text: str) -> str:
         text: Raw extracted text from a PDF parser or HTML source.
 
     Returns:
-        Cleaned text with garbled paragraphs removed and whitespace normalised.
+        Cleaned text with garbled paragraphs removed and whitespace normalized.
         Returns an empty string if the input is empty or all paragraphs are
         filtered out.
     """
@@ -167,7 +167,7 @@ def normalise_volltext(text: str) -> str:
     text = _RE_INVISIBLE.sub("", text)
     # C1 controls are not produced by NFKC, so this is a separate stripping pass.
     text = _RE_C1_CONTROLS.sub("", text)
-    # Normalise line endings before hyphen-break rejoining, so the pattern
+    # Normalize line endings before hyphen-break rejoining, so the pattern
     # always sees bare \n.  Note: this runs before paragraph splitting, so
     # _RE_HYPHEN_BREAK will not fire across paragraph boundaries (those are
     # separated by \n\s*\n, never a bare word-hyphen-newline-word sequence).
@@ -186,7 +186,7 @@ def normalise_volltext(text: str) -> str:
     return text.strip()
 
 
-def normalise_datum(text: str) -> str:
+def normalize_datum(text: str) -> str:
     """Parse a German or ISO date string to ISO 8601 (YYYY-MM-DD).
 
     Supported input formats:

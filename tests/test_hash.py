@@ -15,7 +15,7 @@ from corelib.normalization.hash import (
     hash_text,
     hash_text_sha_256,
 )
-from corelib.normalization.text import normalise_volltext
+from corelib.normalization.text import normalize_volltext
 
 SHA1_BYTES_VARIANT = HASH_ALGORITHM_SHA_1 + HASH_CONNECTOR + HASH_VARIANT_BYTES
 SHA256_BYTES_VARIANT = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_BYTES
@@ -94,10 +94,10 @@ class TestHashTextSha256:
         assert isinstance(result, tuple)
         assert len(result) == 2
 
-    def test_hash_is_sha256_of_normalised_text(self) -> None:
+    def test_hash_is_sha256_of_normalized_text(self) -> None:
         text = "Hallo Welt"
         digest, _ = hash_text_sha_256(text)
-        expected = hashlib.sha256(normalise_volltext(text).encode("utf-8")).hexdigest()
+        expected = hashlib.sha256(normalize_volltext(text).encode("utf-8")).hexdigest()
         assert digest == expected
 
     def test_variant_is_correct(self) -> None:
@@ -106,7 +106,7 @@ class TestHashTextSha256:
 
     def test_empty_string(self) -> None:
         digest, variant = hash_text_sha_256("")
-        expected = hashlib.sha256(normalise_volltext("").encode("utf-8")).hexdigest()
+        expected = hashlib.sha256(normalize_volltext("").encode("utf-8")).hexdigest()
         assert digest == expected
         assert variant == SHA256_TEXT_VARIANT
 
@@ -181,10 +181,10 @@ class TestHashText:
         assert isinstance(result, tuple)
         assert len(result) == 2
 
-    def test_hash_is_sha256_of_normalised_text(self) -> None:
+    def test_hash_is_sha256_of_normalized_text(self) -> None:
         text = "Hallo Welt"
         digest, _ = hash_text(text)
-        expected = hashlib.sha256(normalise_volltext(text).encode("utf-8")).hexdigest()
+        expected = hashlib.sha256(normalize_volltext(text).encode("utf-8")).hexdigest()
         assert digest == expected
 
     def test_variant_is_correct(self) -> None:

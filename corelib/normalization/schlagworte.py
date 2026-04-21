@@ -60,7 +60,7 @@ def _processor_ids(input_id_text: str) -> str:
     """Normalize and clean an ID string for fuzzy comparison.
 
     Performs Unicode normalization, lowercases, strips whitespace, and removes
-    punctuation. ``normalise_volltext()`` is intentionally not used due to its
+    punctuation. ``normalize_volltext()`` is intentionally not used due to its
     higher performance cost.
 
     Args:

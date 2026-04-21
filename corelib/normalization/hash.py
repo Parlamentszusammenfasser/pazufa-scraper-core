@@ -5,7 +5,7 @@ import logging
 from inspect import stack
 from typing import Any
 
-from .text import normalise_volltext
+from .text import normalize_volltext
 
 # =====================================================================
 # Constants
@@ -50,9 +50,9 @@ def _check_type(data: Any, expected_type: type) -> None:
 
 
 def hash_bytes_sha_1(data: bytes) -> tuple[str, str]:
-    """SHA-1 hash of raw bytes (please use when possible).
+    """SHA-1 hash of raw bytes (not implemented in Backend yet).
 
-    Hash is computed directly from the raw bytes without any normalisation.
+    Hash is computed directly from the raw bytes without any normalization.
 
     Returns a tuple of ``(hash, variant)`` where variant is ``"sha1+rawbytes"``.
 
@@ -67,11 +67,11 @@ def hash_bytes_sha_1(data: bytes) -> tuple[str, str]:
 
 
 def hash_bytes_sha_256(data: bytes) -> tuple[str, str]:
-    """Not Implemented in Backend yet.
+    """SHA-256 hash of raw bytes (please use when possible).
 
     SHA-256 hash of raw bytes (please use when possible).
 
-    Hash is computed directly from the raw bytes without any normalisation.
+    Hash is computed directly from the raw bytes without any normalization.
 
     Returns a tuple of ``(hash, variant)`` where variant is ``"sha256+rawbytes"``.
 
@@ -86,7 +86,7 @@ def hash_bytes_sha_256(data: bytes) -> tuple[str, str]:
 
 
 def hash_text_sha_256(text: str) -> tuple[str, str]:
-    """SHA-256 hash of normalised text (please only use when rawbyte-hash not possible).
+    """SHA-256 hash of normalized text (please only use when rawbyte-hash not possible).
 
     Hashes over the output of :func:`normalise_volltext` so that minor
     formatting differences do not produce different hashes for semantically
@@ -98,8 +98,8 @@ def hash_text_sha_256(text: str) -> tuple[str, str]:
     """
     _check_type(text, str)
 
-    normalised = normalise_volltext(text).encode("utf-8")
-    hash_content = hashlib.sha256(normalised).hexdigest()
+    normalized = normalize_volltext(text).encode("utf-8")
+    hash_content = hashlib.sha256(normalized).hexdigest()
     hash_type = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_TEXT
 
     return hash_content, hash_type

@@ -1,62 +1,62 @@
 """Tests for normalization utilities."""
 
 import pytest
-from corelib.normalization import normalise_datum, normalise_volltext
+from corelib.normalization import normalize_datum, normalize_volltext
 from corelib.normalization.text import _paragraph_quality_score
 
 # ---------------------------------------------------------------------------
-# normalise_volltext
+# normalize_volltext
 # ---------------------------------------------------------------------------
 
 
-class TestNormaliseVolltextNfkc:
+class TestnormalizeVolltextNfkc:
     def test_fi_ligature_decomposed(self) -> None:
-        assert "fi" in normalise_volltext("\ufb01nden")
+        assert "fi" in normalize_volltext("\ufb01nden")
 
     def test_ff_ligature_decomposed(self) -> None:
-        assert "ff" in normalise_volltext("\ufb00nen")
+        assert "ff" in normalize_volltext("\ufb00nen")
 
     def test_superscript_digits(self) -> None:
         # NFKC maps ² → 2
-        assert "m2" in normalise_volltext("m\u00b2")
+        assert "m2" in normalize_volltext("m\u00b2")
 
     def test_fullwidth_latin(self) -> None:
         # Ａ (U+FF21) → A
-        assert normalise_volltext("\uff21ntrag") == "Antrag"
+        assert normalize_volltext("\uff21ntrag") == "Antrag"
 
 
-class TestNormaliseVolltextInvisibleChars:
+class TestnormalizeVolltextInvisibleChars:
     def test_soft_hyphen_stripped(self) -> None:
-        result = normalise_volltext("Bundes\u00adtag")
+        result = normalize_volltext("Bundes\u00adtag")
         assert "\u00ad" not in result
         assert "Bundestag" in result
 
     def test_bom_stripped(self) -> None:
-        result = normalise_volltext("\ufeffHallo Welt")
+        result = normalize_volltext("\ufeffHallo Welt")
         assert "\ufeff" not in result
         assert result == "Hallo Welt"
 
     def test_zero_width_space_stripped(self) -> None:
-        result = normalise_volltext("Hallo\u200bWelt")
+        result = normalize_volltext("Hallo\u200bWelt")
         assert "\u200b" not in result
         assert "HalloWelt" in result
 
     def test_zwj_stripped(self) -> None:
-        result = normalise_volltext("Hallo\u200dWelt")
+        result = normalize_volltext("Hallo\u200dWelt")
         assert "\u200d" not in result
 
     def test_zwnj_stripped(self) -> None:
-        result = normalise_volltext("Hallo\u200cWelt")
+        result = normalize_volltext("Hallo\u200cWelt")
         assert "\u200c" not in result
 
     def test_multiple_invisible_chars_at_once(self) -> None:
-        result = normalise_volltext("\ufeffBundes\u00adtag\u200b Berlin\u200c")
+        result = normalize_volltext("\ufeffBundes\u00adtag\u200b Berlin\u200c")
         assert result == "Bundestag Berlin"
 
 
-class TestNormaliseVolltextC1Controls:
+class TestnormalizeVolltextC1Controls:
     def test_c1_controls_stripped(self) -> None:
-        result = normalise_volltext("Hallo\x85Welt\x96hier")
+        result = normalize_volltext("Hallo\x85Welt\x96hier")
         assert "\x85" not in result
         assert "\x96" not in result
         assert "HalloWelthier" == result
@@ -64,96 +64,96 @@ class TestNormaliseVolltextC1Controls:
     def test_all_c1_range_stripped(self) -> None:
         # Every byte from 0x80 to 0x9F should be removed
         c1 = "".join(chr(c) for c in range(0x80, 0xA0))
-        result = normalise_volltext(f"A{c1}B")
+        result = normalize_volltext(f"A{c1}B")
         assert result == "AB"
 
     def test_c1_only_string(self) -> None:
         c1_only = "".join(chr(c) for c in range(0x80, 0xA0))
-        assert normalise_volltext(c1_only) == ""
+        assert normalize_volltext(c1_only) == ""
 
 
-class TestNormaliseVolltextLineEndings:
+class TestnormalizeVolltextLineEndings:
     def test_crlf_normalized(self) -> None:
-        result = normalise_volltext("Zeile eins\r\nZeile zwei\rZeile drei")
+        result = normalize_volltext("Zeile eins\r\nZeile zwei\rZeile drei")
         assert "\r" not in result
         assert "Zeile eins\nZeile zwei\nZeile drei" == result
 
     def test_bare_cr_normalized(self) -> None:
-        result = normalise_volltext("Eins\rZwei\rDrei")
+        result = normalize_volltext("Eins\rZwei\rDrei")
         assert "\r" not in result
         assert "Eins\nZwei\nDrei" == result
 
     def test_mixed_line_endings(self) -> None:
-        result = normalise_volltext("Eins\r\nZwei\rDrei\nVier")
+        result = normalize_volltext("Eins\r\nZwei\rDrei\nVier")
         assert result == "Eins\nZwei\nDrei\nVier"
 
 
-class TestNormaliseVolltextHyphenBreak:
+class TestnormalizeVolltextHyphenBreak:
     def test_basic_rejoin(self) -> None:
-        result = normalise_volltext("Landes-\nregierung beschlossen")
+        result = normalize_volltext("Landes-\nregierung beschlossen")
         assert "Landesregierung" in result
 
     def test_compound_word_rejoin(self) -> None:
-        result = normalise_volltext(
+        result = normalize_volltext(
             "Gesetzentwurf zur Änderung des Bundes-\nnaturschutzgesetzes"
         )
         assert "Bundesnaturschutzgesetzes" in result
 
     def test_hyphen_at_end_of_line_without_continuation(self) -> None:
         # Hyphen followed by blank line (paragraph break) should NOT rejoin
-        result = normalise_volltext("Absatz eins-\n\nAbsatz zwei")
+        result = normalize_volltext("Absatz eins-\n\nAbsatz zwei")
         assert "Absatz eins-" in result or "Absatz eins" in result
         assert "Absatz zwei" in result
 
     def test_hyphen_not_between_word_chars_untouched(self) -> None:
         # Hyphen followed by newline then space should not rejoin
-        result = normalise_volltext("Ergebnis: 5-\n 3 Stimmen")
+        result = normalize_volltext("Ergebnis: 5-\n 3 Stimmen")
         assert "53" not in result
 
     def test_hyphen_with_crlf_rejoined(self) -> None:
-        # CRLF is normalised to LF first, so the hyphen-break still fires
-        result = normalise_volltext("Landes-\r\nregierung")
+        # CRLF is normalized to LF first, so the hyphen-break still fires
+        result = normalize_volltext("Landes-\r\nregierung")
         assert "Landesregierung" in result
 
     def test_multiple_hyphen_breaks(self) -> None:
         text = "Bundes-\nregierung und Landes-\nparlament"
-        result = normalise_volltext(text)
+        result = normalize_volltext(text)
         assert "Bundesregierung" in result
         assert "Landesparlament" in result
 
 
-class TestNormaliseVolltextMultiSpace:
+class TestnormalizeVolltextMultiSpace:
     def test_double_spaces_collapsed(self) -> None:
-        result = normalise_volltext("Der  Landtag   von   Baden-Württemberg")
+        result = normalize_volltext("Der  Landtag   von   Baden-Württemberg")
         assert "  " not in result
         assert "Der Landtag von Baden-Württemberg" in result
 
     def test_tabs_collapsed(self) -> None:
-        result = normalise_volltext("Spalte\t\tZwei")
+        result = normalize_volltext("Spalte\t\tZwei")
         assert "\t" not in result
         assert "Spalte Zwei" in result
 
     def test_mixed_spaces_and_tabs(self) -> None:
-        result = normalise_volltext("A \t B")
+        result = normalize_volltext("A \t B")
         assert result == "A B"
 
     def test_single_space_preserved(self) -> None:
-        result = normalise_volltext("Hallo Welt")
+        result = normalize_volltext("Hallo Welt")
         assert result == "Hallo Welt"
 
     def test_newlines_not_collapsed(self) -> None:
         # Paragraph-separating blank lines must survive
         text = "Absatz eins.\n\nAbsatz zwei."
-        result = normalise_volltext(text)
+        result = normalize_volltext(text)
         assert "\n\n" in result
 
 
-class TestNormaliseVolltextParagraphQuality:
+class TestnormalizeVolltextParagraphQuality:
     def test_garbled_paragraph_removed(self) -> None:
         clean = "Dies ist ein normaler deutscher Absatz mit korrektem Text."
         garbled = "\u0180\u0181\u0182\u0183\u0184\u0185\u0186\u0187\u0188\u0189"
         text = f"{clean}\n\n{garbled}"
-        result = normalise_volltext(text)
+        result = normalize_volltext(text)
         assert clean in result
         assert garbled not in result
 
@@ -161,14 +161,14 @@ class TestNormaliseVolltextParagraphQuality:
         clean = "Die Landesregierung wird aufgefordert zu berichten."
         garbled = "ĚĞƌ&ƌĂŬƚŝŽŶ ǁćŚƌůĞŝƐƚƵŶŐ ŝƚĞůůƚ"
         text = f"{clean}\n\n{garbled}"
-        result = normalise_volltext(text)
+        result = normalize_volltext(text)
         assert clean in result
         assert "ĚĞƌ" not in result
 
     def test_multiple_clean_paragraphs_preserved(self) -> None:
         p1 = "Der Landtag hat in seiner heutigen Sitzung beschlossen."
         p2 = "Die Landesregierung wird aufgefordert zu berichten."
-        result = normalise_volltext(f"{p1}\n\n{p2}")
+        result = normalize_volltext(f"{p1}\n\n{p2}")
         assert p1 in result
         assert p2 in result
         assert "\n\n" in result
@@ -176,24 +176,24 @@ class TestNormaliseVolltextParagraphQuality:
     def test_all_garbled_paragraphs_removed(self) -> None:
         g1 = "\u0180\u0181\u0182\u0183\u0184\u0185\u0186\u0187\u0188\u0189"
         g2 = "\u018a\u018b\u018c\u018d\u018e\u018f\u0190\u0191\u0192\u0193"
-        result = normalise_volltext(f"{g1}\n\n{g2}")
+        result = normalize_volltext(f"{g1}\n\n{g2}")
         assert result == ""
 
     def test_short_paragraph_all_caps_kept(self) -> None:
         text = "EINLEITUNG\n\nDie Landesregierung wird aufgefordert zu berichten."
-        result = normalise_volltext(text)
+        result = normalize_volltext(text)
         assert "EINLEITUNG" in result
 
 
-class TestNormaliseVolltextAngleBrackets:
+class TestnormalizeVolltextAngleBrackets:
     def test_angle_brackets_replaced(self) -> None:
-        result = normalise_volltext("<poststelle@lfdi.bwl.de>")
+        result = normalize_volltext("<poststelle@lfdi.bwl.de>")
         assert "<" not in result
         assert ">" not in result
         assert "\u2039poststelle@lfdi.bwl.de\u203a" == result
 
     def test_nested_angle_brackets(self) -> None:
-        result = normalise_volltext("a < b > c")
+        result = normalize_volltext("a < b > c")
         assert "<" not in result
         assert ">" not in result
         assert "\u2039" in result
@@ -201,28 +201,28 @@ class TestNormaliseVolltextAngleBrackets:
 
     def test_no_angle_brackets_unchanged(self) -> None:
         text = "Normaler Text ohne Klammern"
-        assert normalise_volltext(text) == text
+        assert normalize_volltext(text) == text
 
 
-class TestNormaliseVolltextEdgeCases:
+class TestnormalizeVolltextEdgeCases:
     def test_empty_string(self) -> None:
-        assert normalise_volltext("") == ""
+        assert normalize_volltext("") == ""
 
     def test_whitespace_only(self) -> None:
-        assert normalise_volltext("   \n\n   ") == ""
+        assert normalize_volltext("   \n\n   ") == ""
 
     def test_clean_text_unchanged(self) -> None:
         text = "Der Landtag von Baden-Württemberg hat beschlossen."
-        assert normalise_volltext(text) == text
+        assert normalize_volltext(text) == text
 
     def test_leading_trailing_whitespace_stripped(self) -> None:
-        assert normalise_volltext("  Hallo Welt  ") == "Hallo Welt"
+        assert normalize_volltext("  Hallo Welt  ") == "Hallo Welt"
 
     def test_idempotent(self) -> None:
         # Applying normalisation twice should give the same result
         text = "Landes-\nregierung  hat\x85 beschlossen\r\n"
-        once = normalise_volltext(text)
-        twice = normalise_volltext(once)
+        once = normalize_volltext(text)
+        twice = normalize_volltext(once)
         assert once == twice
 
     def test_full_pipeline_combined(self) -> None:
@@ -233,7 +233,7 @@ class TestNormaliseVolltextEdgeCases:
             "\ufeffDer  Landtag\x85 hat die Landes-\r\nregierung <aufgefordert>"
             f"\n\n{garbled}"
         )
-        result = normalise_volltext(text)
+        result = normalize_volltext(text)
         assert "\ufeff" not in result
         assert "\x85" not in result
         assert "\r" not in result
@@ -244,65 +244,65 @@ class TestNormaliseVolltextEdgeCases:
 
     def test_unicode_letters_in_hyphen_break(self) -> None:
         # German umlauts should be treated as word characters by \w
-        result = normalise_volltext("Über-\ngangsregelung")
+        result = normalize_volltext("Über-\ngangsregelung")
         assert "Übergangsregelung" in result
 
 
 # ---------------------------------------------------------------------------
-# normalise_volltext — HTML input characterisation
+# normalize_volltext — HTML input characterisation
 #
 # Tags are NOT stripped — only entities are decoded. These tests document
 # the predictable behaviour so callers know what to expect.
 # ---------------------------------------------------------------------------
 
 
-class TestNormaliseVolltextOnHtmlInput:
+class TestnormalizeVolltextOnHtmlInput:
     def test_plain_text_unaffected_by_unescape(self) -> None:
         # html.unescape() is a no-op on text with no entity sequences.
         text = "Der Landtag von Baden-Württemberg hat beschlossen."
-        assert normalise_volltext(text) == text
+        assert normalize_volltext(text) == text
 
     def test_html_named_entities_decoded(self) -> None:
-        result = normalise_volltext("Titel &amp; Inhalt &uuml;ber alles")
+        result = normalize_volltext("Titel &amp; Inhalt &uuml;ber alles")
         assert "&amp;" not in result
         assert "&uuml;" not in result
         assert "Titel & Inhalt über alles" == result
 
     def test_nbsp_entity_decoded_to_space(self) -> None:
         # &nbsp; → U+00A0, then NFKC collapses it to a regular space.
-        result = normalise_volltext("Wort&nbsp;Wort")
+        result = normalize_volltext("Wort&nbsp;Wort")
         assert "&nbsp;" not in result
         assert "Wort Wort" == result
 
     def test_numeric_html_entity_decoded(self) -> None:
         # &#160; → U+00A0, then NFKC collapses it to a regular space.
-        result = normalise_volltext("Wort&#160;Wort")
+        result = normalize_volltext("Wort&#160;Wort")
         assert "&#160;" not in result
         assert "Wort Wort" == result
 
     def test_html_tags_become_guillemets(self) -> None:
         # Tags are NOT stripped — angle brackets are replaced by ‹ ›.
-        result = normalise_volltext("<p>Absatz</p>")
+        result = normalize_volltext("<p>Absatz</p>")
         assert "<" not in result
         assert "\u2039p\u203a" in result
         assert "Absatz" in result
 
     def test_inline_tags_mangle_surrounding_text(self) -> None:
-        result = normalise_volltext("Ein <b>wichtiger</b> Antrag")
+        result = normalize_volltext("Ein <b>wichtiger</b> Antrag")
         assert "\u2039b\u203a" in result
         assert "\u2039/b\u203a" in result
 
     def test_paragraph_tag_not_a_line_break(self) -> None:
-        result = normalise_volltext("<p>Absatz eins</p><p>Absatz zwei</p>")
+        result = normalize_volltext("<p>Absatz eins</p><p>Absatz zwei</p>")
         assert "\n\n" not in result
 
     def test_br_tag_not_a_line_break(self) -> None:
-        result = normalise_volltext("Zeile eins<br>Zeile zwei")
+        result = normalize_volltext("Zeile eins<br>Zeile zwei")
         assert "Zeile eins\nZeile zwei" not in result
         assert "\u2039br\u203a" in result
 
     def test_script_tag_content_survives(self) -> None:
-        result = normalise_volltext("<script>alert(1)</script>")
+        result = normalize_volltext("<script>alert(1)</script>")
         assert "<script>" not in result
         assert "alert(1)" in result
 
@@ -394,11 +394,11 @@ class TestParagraphQualityScore:
 
 
 # ---------------------------------------------------------------------------
-# normalise_datum
+# normalize_datum
 # ---------------------------------------------------------------------------
 
 
-class TestNormaliseDatum:
+class TestnormalizeDatum:
     @pytest.mark.parametrize(
         ("input_date", "expected"),
         [
@@ -437,7 +437,7 @@ class TestNormaliseDatum:
         ],
     )
     def test_valid_dates(self, input_date: str, expected: str) -> None:
-        assert normalise_datum(input_date) == expected
+        assert normalize_datum(input_date) == expected
 
     @pytest.mark.parametrize(
         "input_date",
@@ -457,28 +457,28 @@ class TestNormaliseDatum:
     )
     def test_invalid_dates(self, input_date: str) -> None:
         with pytest.raises(ValueError):
-            normalise_datum(input_date)
+            normalize_datum(input_date)
 
     def test_whitespace_stripped(self) -> None:
-        assert normalise_datum("  02.04.2026  ") == "2026-04-02"
+        assert normalize_datum("  02.04.2026  ") == "2026-04-02"
 
     def test_nbsp_in_long_format(self) -> None:
-        assert normalise_datum("2.\u00a0April\u00a02026") == "2026-04-02"
+        assert normalize_datum("2.\u00a0April\u00a02026") == "2026-04-02"
 
     def test_narrow_no_break_space(self) -> None:
         # U+202F narrow no-break space — collapsed by NFKC
-        assert normalise_datum("2.\u202fApril\u202f2026") == "2026-04-02"
+        assert normalize_datum("2.\u202fApril\u202f2026") == "2026-04-02"
 
     def test_month_name_case_insensitive(self) -> None:
         # The regex captures [A-Za-z…] and lowercases for lookup
-        assert normalise_datum("2. april 2026") == "2026-04-02"
-        assert normalise_datum("2. APRIL 2026") == "2026-04-02"
+        assert normalize_datum("2. april 2026") == "2026-04-02"
+        assert normalize_datum("2. APRIL 2026") == "2026-04-02"
 
     def test_iso_passthrough_unchanged(self) -> None:
         # ISO dates should round-trip exactly
-        assert normalise_datum("2026-04-02") == "2026-04-02"
+        assert normalize_datum("2026-04-02") == "2026-04-02"
 
     def test_boundary_dates(self) -> None:
         # Year regex requires exactly 4 digits
-        assert normalise_datum("1.1.0001") == "0001-01-01"
-        assert normalise_datum("31.12.9999") == "9999-12-31"
+        assert normalize_datum("1.1.0001") == "0001-01-01"
+        assert normalize_datum("31.12.9999") == "9999-12-31"
