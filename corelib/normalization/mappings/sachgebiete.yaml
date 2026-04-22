@@ -1,0 +1,652 @@
+tags:
+  - id: Staat und Politik
+    number: 1000
+    description: Grundlagen des Staatswesens, politische Systeme und demokratische Prozesse
+
+  - id: Staatsaufbau
+    number: 1010
+    description: Verfassungsstruktur, Gewaltenteilung und staatliche Organisationsformen
+
+  - id: Menschenrechte
+    number: 1030
+    description: Grundrechte, Bürgerrechte und deren Schutz auf nationaler und internationaler Ebene
+
+  - id: Nation
+    number: 1050
+    description: Nationale Identität, Staatsbürgerschaft und nationales Selbstverständnis
+
+  - id: Ideologien
+    number: 1060
+    description: Politische Weltanschauungen, Parteiprogramme und gesellschaftliche Leitbilder
+
+  - id: Politische Kräfte
+    number: 1070
+    description: Parteien, Verbände, Bürgerinitiativen und weitere politische Akteure
+
+  - id: Wahlen
+    number: 1080
+    description: Wahlrecht, Wahlverfahren, Wahlkampf und Wahlergebnisse
+
+  - id: Parlament
+    number: 1100
+    description: Parlamentarische Verfahren, Gesetzgebung und parlamentarische Kontrolle
+
+  - id: Abgeordnete
+    number: 1110
+    description: Rechte und Pflichten der Parlamentsmitglieder, Mandatsführung und Immunität
+
+  - id: Öffentliche Verwaltung
+    number: 1200
+    description: Behördenorganisation, Verwaltungsverfahren und E-Government
+
+  - id: Bundesregierung
+    number: 1210
+    description: Kabinett, Bundesministerien und bundesexekutive Aufgaben
+
+  - id: Landesregierung
+    number: 1220
+    description: Landesministerien, Landesbehörden und landesexekutive Aufgaben
+
+  - id: Kommunale Angelegenheiten
+    number: 1230
+    description: Gemeinden, Landkreise, kommunale Selbstverwaltung und Daseinsvorsorge
+
+  - id: Öffentlicher Dienst
+    number: 1240
+    description: Beamtenrecht, Tarifrecht im öffentlichen Sektor und Personalwesen
+
+  - id: Innere Sicherheit
+    number: 1300
+    description: Öffentliche Sicherheit, Kriminalitätsbekämpfung und Gefahrenabwehr
+
+  - id: Polizei
+    number: 1310
+    description: Polizeiorganisation, Polizeirecht und polizeiliche Maßnahmen
+
+  - id: Verfassungsschutz
+    number: 1320
+    description: Verfassungsschutz, Nachrichtendienste und Spionageabwehr
+
+  - id: Ordnungsrecht
+    number: 1330
+    description: Ordnungswidrigkeiten, Gefahrenabwehrrecht und behördliche Eingriffsbefugnisse
+
+  - id: Katastrophen- und Zivilschutz
+    number: 1340
+    description: Bevölkerungsschutz, Katastrophenhilfe und zivile Notfallvorsorge
+
+  - id: Rettungswesen
+    number: 1350
+    description: Feuerwehr, Rettungsdienste und Notfallversorgung
+
+  - id: Verteidigung
+    number: 1400
+    description: Bundeswehr, Verteidigungspolitik und militärische Sicherheit
+
+  - id: Wehrdienst
+    number: 1410
+    description: Wehrpflicht, Freiwilliger Wehrdienst und Zivildienstleistende
+
+  - id: Rüstung
+    number: 1420
+    description: Rüstungsproduktion, Rüstungsexporte und Beschaffungswesen der Bundeswehr
+
+  - id: Abrüstung
+    number: 1430
+    description: Abrüstungsverträge, Konversion von Rüstungsbetrieben und Rüstungskontrolle
+
+  - id: Außenpolitik
+    number: 1500
+    description: Außenbeziehungen, diplomatische Aktivitäten und außenpolitische Strategien
+
+  - id: Internationale Beziehungen
+    number: 1510
+    description: Bilaterale und multilaterale Beziehungen, Staatsverträge und Diplomatie
+
+  - id: Internationale Organisationen
+    number: 1520
+    description: UN, NATO, OSZE und weitere internationale Institutionen
+
+  - id: Entwicklungszusammenarbeit
+    number: 1530
+    description: Entwicklungshilfe, internationale Kooperation und humanitäre Hilfe
+
+  - id: Europapolitik
+    number: 1540
+    description: Deutsche EU-Politik, Europäischer Rat und europapolitische Positionen
+
+  - id: Europäische Union
+    number: 1600
+    description: EU-Institutionen, EU-Recht und europäische Integration
+
+  - id: Organe der EU
+    number: 1610
+    description: Europaparlament, Kommission, Rat und weitere EU-Institutionen
+
+  - id: Programme der EU
+    number: 1620
+    description: EU-Förderprogramme, Strukturfonds und europäische Initiativen
+
+  - id: Wirtschaft
+    number: 2000
+    description: Wirtschaftspolitik, Konjunktur und wirtschaftliche Rahmenbedingungen
+
+  - id: Gewerbliche Wirtschaft
+    number: 2010
+    description: Industrie, Gewerbe, Unternehmensförderung und Standortpolitik
+
+  - id: Handel
+    number: 2020
+    description: Binnenhandel, Einzelhandel und Handelsrecht
+
+  - id: Dienstleistungen
+    number: 2030
+    description: Dienstleistungssektor, freie Berufe und Dienstleistungsrecht
+
+  - id: Versicherungen
+    number: 2040
+    description: Versicherungswirtschaft, Versicherungsrecht und Verbraucherschutz
+
+  - id: Mittelständische Wirtschaft
+    number: 2050
+    description: KMU-Förderung, Handwerk und mittelständische Unternehmensstrukturen
+
+  - id: Außenwirtschaft
+    number: 2060
+    description: Export, Import, Außenhandelsrecht und internationale Wirtschaftsbeziehungen
+
+  - id: Verbraucher
+    number: 2070
+    description: Verbraucherschutz, Produktsicherheit und Verbraucherrechte
+
+  - id: Preis- und Kartellrecht
+    number: 2080
+    description: Wettbewerbsrecht, Kartellbekämpfung und Preisregulierung
+
+  - id: Gewerbeaufsicht
+    number: 2090
+    description: Betriebssicherheit, Arbeitsschutzaufsicht und gewerbliche Überwachung
+
+  - id: Energie
+    number: 2100
+    description: Energiepolitik, Energieversorgung und Energieeffizienz
+
+  - id: Fossile Energien
+    number: 2110
+    description: Kohle, Erdgas, Erdöl und deren Nutzung und Regulierung
+
+  - id: Kernenergie
+    number: 2120
+    description: Atomkraft, nukleare Sicherheit und Atomausstieg
+
+  - id: Erneuerbare Energien
+    number: 2130
+    description: Solar-, Wind-, Wasser- und Bioenergie sowie Energiewende
+
+  - id: Bergbau
+    number: 2200
+    description: Bergbaurecht, Rohstoffförderung und Bodenschätze
+
+  - id: Technologie
+    number: 2300
+    description: Technologiepolitik, Innovationsförderung und technologischer Wandel
+
+  - id: Arbeit und Beschäftigung
+    number: 2400
+    description: Arbeitsmarktpolitik, Beschäftigungsförderung und Arbeitsrecht
+
+  - id: Arbeitsmarkt
+    number: 2410
+    description: Arbeitslosigkeit, Vermittlung, Arbeitsmarktinstrumente und Fachkräftemangel
+
+  - id: Berufsausbildung
+    number: 2420
+    description: Duales Ausbildungssystem, Ausbildungsberufe und Berufsbildungspolitik
+
+  - id: Arbeitsentgelt
+    number: 2430
+    description: Mindestlohn, Tarifverträge, Lohnentwicklung und Entgeltgerechtigkeit
+
+  - id: Mitbestimmung
+    number: 2440
+    description: Betriebsräte, Gewerkschaften und betriebliche Mitbestimmungsrechte
+
+  - id: Arbeitsbedingungen
+    number: 2450
+    description: Arbeitszeit, Arbeitsschutz, Homeoffice und Arbeitnehmerrechte
+
+  - id: Standardisierung
+    number: 2500
+    description: Technische Normen, Qualitätsstandards und Standardisierungsorganisationen
+
+  - id: Normung
+    number: 2510
+    description: DIN-Normen, ISO-Standards und nationale Normungsverfahren
+
+  - id: Eich- und Messwesen
+    number: 2520
+    description: Eichrecht, Messgenauigkeit und gesetzliches Messwesen
+
+  - id: Vermessungs- und Katasterwesen
+    number: 2530
+    description: Liegenschaftskataster, Geodaten und amtliche Vermessung
+
+  - id: Verkehr
+    number: 2600
+    description: Verkehrspolitik, Verkehrsinfrastruktur und Mobilitätssysteme
+
+  - id: Öffentlicher Personenverkehr
+    number: 2610
+    description: ÖPNV, Nahverkehr, Buslinien und Mobilitätsangebote
+
+  - id: Güterverkehr
+    number: 2620
+    description: Logistik, Frachtverkehr und Transportrecht
+
+  - id: Straßenverkehr
+    number: 2630
+    description: Straßenverkehrsrecht, Kraftfahrzeuge und Verkehrssicherheit
+
+  - id: Schienenverkehr
+    number: 2640
+    description: Deutsche Bahn, Bahninfrastruktur und Bahnpolitik
+
+  - id: Luftverkehr
+    number: 2650
+    description: Flughäfen, Luftfahrtrecht und Flugsicherheit
+
+  - id: Schifffahrt
+    number: 2660
+    description: Binnenschifffahrt, Seeschifffahrt und Wasserstraßen
+
+  - id: Raumfahrt
+    number: 2700
+    description: Raumfahrtpolitik, Satellitentechnologie und Weltraumrecht
+
+  - id: Bauwesen
+    number: 2800
+    description: Baurecht, Bauplanung und Bauwirtschaft
+
+  - id: Verkehrswegebau
+    number: 2810
+    description: Straßen-, Schienen- und Wasserwegebau sowie Infrastrukturinvestitionen
+
+  - id: Städtebau
+    number: 2820
+    description: Stadtplanung, Stadtentwicklung und Bauleitplanung
+
+  - id: Wohnungswesen
+    number: 2830
+    description: Wohnungsbau, Mietrecht, Wohngeld und Wohnraumversorgung
+
+  - id: Wasserbau
+    number: 2840
+    description: Deichbau, Hochwasserschutz und wasserbauliche Anlagen
+
+  - id: Recht
+    number: 3100
+    description: Rechtssystem, Rechtsreformen und allgemeine Rechtspolitik
+
+  - id: Strafrecht
+    number: 3110
+    description: Strafgesetzbuch, Strafverfolgung und Strafvollzug
+
+  - id: Zivilrecht
+    number: 3120
+    description: BGB, Vertragsrecht, Familienrecht und zivilrechtliche Verfahren
+
+  - id: Öffentliches Recht
+    number: 3130
+    description: Verwaltungsrecht, Verfassungsrecht und öffentlich-rechtliche Normen
+
+  - id: Urheberschutz
+    number: 3140
+    description: Urheberrecht, geistiges Eigentum und Lizenzrecht
+
+  - id: Verfassungsgerichtsbarkeit
+    number: 3200
+    description: Bundesverfassungsgericht, Normenkontrolle und Verfassungsbeschwerden
+
+  - id: Justiz
+    number: 3300
+    description: Justizsystem, Rechtsprechung und Justizbehörden
+
+  - id: Gerichte und Staatsanwaltschaften
+    number: 3310
+    description: Gerichtsorganisation, Strafverfolgungsbehörden und Gerichtsverfahren
+
+  - id: Justizverwaltung
+    number: 3320
+    description: Gerichtsverwaltung, Rechtshilfe und Justizpersonal
+
+  - id: Justizvollzug
+    number: 3330
+    description: Strafvollzug, Gefängnisse und Resozialisierung
+
+  - id: Juristische Berufe
+    number: 3400
+    description: Rechtsanwälte, Notare, Richter und juristische Ausbildung
+
+  - id: Bildung
+    number: 4100
+    description: Bildungspolitik, Bildungssystem und Chancengerechtigkeit
+
+  - id: Schulen
+    number: 4200
+    description: Schulpolitik, Schulorganisation und Schulentwicklung
+
+  - id: Lehrer
+    number: 4210
+    description: Lehrerausbildung, Lehrerversorgung und Lehrerberuf
+
+  - id: Allgemeinbildende Schulen
+    number: 4220
+    description: Grundschulen, Gymnasien, Gesamtschulen und Schulabschlüsse
+
+  - id: Berufsbildende Schulen
+    number: 4230
+    description: Berufsschulen, Fachoberschulen und berufsbildende Abschlüsse
+
+  - id: Sonderpädagogik
+    number: 4240
+    description: Förderschulen, inklusive Bildung und sonderpädagogische Unterstützung
+
+  - id: Privatschulen
+    number: 4250
+    description: Freie Schulen, konfessionelle Schulen und Schulträgerrecht
+
+  - id: Frühkindliche Bildung
+    number: 4260
+    description: Kitas, Kindergärten, frühkindliche Förderung und Betreuungsangebote
+
+  - id: Hochschulwesen
+    number: 4300
+    description: Hochschulpolitik, Hochschulrecht und Studienfinanzierung
+
+  - id: Universitäten
+    number: 4310
+    description: Forschungsuniversitäten, Promotionsrecht und universitäre Lehre
+
+  - id: Kunst- und Musikhochschulen
+    number: 4320
+    description: Kunstakademien, Musikhochschulen und künstlerische Ausbildung
+
+  - id: Hochschulen für angewandte Wissenschaften
+    number: 4330
+    description: Fachhochschulen, praxisorientierte Studiengänge und angewandte Forschung
+
+  - id: Wissenschaft
+    number: 4400
+    description: Forschungspolitik, Wissenschaftsfinanzierung und Forschungseinrichtungen
+
+  - id: Erwachsenenbildung
+    number: 4500
+    description: Volkshochschulen, Weiterbildung und lebenslanges Lernen
+
+  - id: Gesellschaft
+    number: 5000
+    description: Gesellschaftlicher Wandel, Bevölkerungsentwicklung und Sozialpolitik
+
+  - id: Lebensgemeinschaften
+    number: 5010
+    description: Ehe, Familie, eingetragene Partnerschaften und Lebensformen
+
+  - id: Sexuelle Identität
+    number: 5020
+    description: LGBTQ+-Rechte, geschlechtliche Vielfalt und Antidiskriminierung
+
+  - id: Kinder
+    number: 5030
+    description: Kinderrechte, Jugendschutz, Jugendarbeit und Jugendpolitik
+
+  - id: Frauen
+    number: 5040
+    description: Gleichstellung, Frauenförderung, Geschlechtergerechtigkeit und Männerpolitik
+
+  - id: Menschen mit Behinderungen
+    number: 5050
+    description: Inklusion, Barrierefreiheit und Rechte von Menschen mit Behinderungen
+
+  - id: Alte Menschen
+    number: 5060
+    description: Seniorenpolitik, Alterssicherung und altersgerechte Versorgung
+
+  - id: Ausländer
+    number: 5070
+    description: Ausländerrecht, Migration, Integration und Asylpolitik
+
+  - id: Sonstige gesellschaftliche Gruppen
+    number: 5080
+    description: Minderheiten, gesellschaftliche Randgruppen und besondere Bevölkerungsgruppen
+
+  - id: Soziales
+    number: 5100
+    description: Sozialpolitik, soziale Sicherung und soziale Gerechtigkeit
+
+  - id: Sozialversicherung
+    number: 5110
+    description: Kranken-, Renten-, Unfall- und Pflegeversicherung
+
+  - id: Sozialleistungen
+    number: 5120
+    description: Sozialhilfe, Grundsicherung, Bürgergeld und soziale Transferleistungen
+
+  - id: Soziale Einrichtungen
+    number: 5130
+    description: Sozialstationen, Beratungsstellen und gemeinnützige Träger
+
+  - id: Versorgung
+    number: 5140
+    description: Grundversorgung, Daseinsvorsorge und soziale Infrastruktur
+
+  - id: Pflege
+    number: 5150
+    description: Pflegeversicherung, Pflegeheime, ambulante Pflege und Pflegeberufe
+
+  - id: Gesundheit
+    number: 5200
+    description: Gesundheitspolitik, öffentliche Gesundheit und Gesundheitsversorgung
+
+  - id: Gesundheitsschutz
+    number: 5210
+    description: Prävention, Infektionsschutz und gesundheitliche Aufklärung
+
+  - id: Gesundheitseinrichtungen
+    number: 5220
+    description: Krankenhäuser, Arztpraxen, MVZ und Gesundheitsinfrastruktur
+
+  - id: Medizinische Berufe
+    number: 5230
+    description: Ärzte, Pflegepersonal, Heilberufe und medizinische Ausbildung
+
+  - id: Arzneimittel
+    number: 5240
+    description: Medikamentenzulassung, Pharmaindustrie und Arzneimittelsicherheit
+
+  - id: Rauschmittel
+    number: 5250
+    description: Drogenpolitik, Suchtprävention, Cannabis und illegale Substanzen
+
+  - id: Psychiatrie
+    number: 5260
+    description: Psychische Gesundheit, psychiatrische Versorgung und Psychotherapie
+
+  - id: Tod
+    number: 5270
+    description: Sterbehilfe, Palliativversorgung, Bestattungsrecht und Organspende
+
+  - id: Umwelt
+    number: 6100
+    description: Umweltpolitik, Umweltschutz und ökologische Nachhaltigkeit
+
+  - id: Natur
+    number: 6110
+    description: Naturschutz, Biodiversität, Schutzgebiete und Artenschutz
+
+  - id: Tier
+    number: 6120
+    description: Tierschutz, Tierhaltung, Tierrecht und Nutztierhaltung
+
+  - id: Boden
+    number: 6130
+    description: Bodenschutz, Flächenversiegelung, Altlasten und Bodensanierung
+
+  - id: Wasser
+    number: 6140
+    description: Gewässerschutz, Trinkwasser, Grundwasser und Wasserrecht
+
+  - id: Klima
+    number: 6150
+    description: Klimaschutz, Klimawandel, CO2-Reduktion und Klimaanpassung
+
+  - id: Schadstoffe
+    number: 6160
+    description: Luftreinhaltung, Emissionsschutz, Immissionsschutzrecht und Schadstoffregulierung
+
+  - id: Abfall
+    number: 6200
+    description: Abfallrecht, Kreislaufwirtschaft, Recycling und Entsorgung
+
+  - id: Abwasser
+    number: 6300
+    description: Abwasserbehandlung, Kanalisation und Gewässerreinhaltung
+
+  - id: Raumordnung
+    number: 6400
+    description: Raumplanung, Landesplanung und regionale Entwicklung
+
+  - id: Ländlicher Raum
+    number: 6410
+    description: Strukturpolitik für ländliche Gebiete, Dorfentwicklung und Landflucht
+
+  - id: Landwirtschaft
+    number: 6500
+    description: Agrarpolitik, Landwirtschaftsförderung und landwirtschaftliche Produktion
+
+  - id: Landwirtschaftliche Betriebe
+    number: 6510
+    description: Hofstrukturen, Betriebsgrößen und landwirtschaftliches Unternehmensrecht
+
+  - id: Agrarmarkt
+    number: 6520
+    description: Agrarpreise, Marktorganisation und landwirtschaftlicher Handel
+
+  - id: Landwirtschaftliche Berufe
+    number: 6530
+    description: Ausbildung in der Landwirtschaft, Landwirtschaftsberufe und Agrarberatung
+
+  - id: Wald
+    number: 6600
+    description: Forstwirtschaft, Waldschutz, Waldbewirtschaftung und Holzwirtschaft
+
+  - id: Jagd
+    number: 6700
+    description: Jagdrecht, Fischereirecht, Jagdpachtrecht und Wildtiermanagement
+
+  - id: Ernährung
+    number: 6800
+    description: Lebensmittelrecht, Ernährungspolitik und Lebensmittelsicherheit
+
+  - id: Tierkrankheiten
+    number: 6900
+    description: Tierseuchenbekämpfung, Veterinärwesen und Tierseuchen
+
+  - id: Kunst
+    number: 7100
+    description: Kulturpolitik, Kunstförderung, kulturelles Erbe und kreative Wirtschaft
+
+  - id: Denkmalschutz
+    number: 7200
+    description: Denkmalpflege, Baudenkmäler, Kulturdenkmäler und Denkmalschutzrecht
+
+  - id: Religionsgemeinschaften
+    number: 7300
+    description: Kirchenrecht, Religionsfreiheit, Staat-Kirche-Verhältnis und Glaubensgemeinschaften
+
+  - id: Freizeit
+    number: 7400
+    description: Freizeitgestaltung, Tourismus, Erholung und Freizeitinfrastruktur
+
+  - id: Messen
+    number: 7500
+    description: Messerecht, Ausstellungswesen, Messestandorte und Veranstaltungsrecht
+
+  - id: Sport
+    number: 7600
+    description: Sportpolitik, Sportförderung, Sportstätten und Leistungssport
+
+  - id: Informationsgesellschaft
+    number: 7700
+    description: Digitale Gesellschaft, Medienpolitik, Informationsfreiheit und Netzpolitik
+
+  - id: Printmedien
+    number: 7710
+    description: Zeitungen, Zeitschriften, Presserecht und Presseförderung
+
+  - id: Rundfunk
+    number: 7720
+    description: Öffentlich-rechtlicher Rundfunk, Privatfernsehen und Rundfunkrecht
+
+  - id: Film
+    number: 7730
+    description: Filmförderung, Filmrecht, Kino und audiovisuelle Medien
+
+  - id: Informations- und Kommunikationstechnologien
+    number: 7740
+    description: IT-Infrastruktur, Breitbandausbau, Telekommunikationsrecht und Digitalisierung
+
+  - id: Datenschutz
+    number: 7750
+    description: DSGVO, Datenschutzrecht, Datensicherheit und informationelle Selbstbestimmung
+
+  - id: Statistik
+    number: 7800
+    description: Amtliche Statistik, Datenerhebung und Statistikrecht
+
+  - id: Abgaben
+    number: 8100
+    description: Steuern, Gebühren, Beiträge und Abgabenrecht
+
+  - id: Finanzverwaltung
+    number: 8200
+    description: Finanzämter, Steuerverwaltung und Finanzbehörden
+
+  - id: Öffentlicher Haushalt
+    number: 8300
+    description: Haushaltsplanung, Haushaltsdebatte und öffentliche Ausgaben
+
+  - id: Öffentliche Schulden
+    number: 8310
+    description: Staatsverschuldung, Schuldenbremse und Kreditaufnahme
+
+  - id: Öffentliches Vermögen
+    number: 8320
+    description: Staatsvermögen, Beteiligungen und öffentliche Liegenschaften
+
+  - id: Haushaltskontrolle
+    number: 8330
+    description: Rechnungshof, Haushaltsüberwachung und Finanzkontrolle
+
+  - id: Finanzausgleich
+    number: 8340
+    description: Länderfinanzausgleich, kommunaler Finanzausgleich und Bund-Länder-Finanzen
+
+  - id: Öffentliche Vergabe
+    number: 8350
+    description: Vergaberecht, öffentliche Ausschreibungen und Beschaffungswesen
+
+  - id: Finanzmarkt
+    number: 8400
+    description: Bankenregulierung, Kapitalmarkt, Finanzaufsicht und Finanzsystem
+
+  - id: Vermögen
+    number: 8600
+    description: Vermögensrecht, Erbrecht und private Vermögensverwaltung
+
+  - id: Glücksspiel
+    number: 8700
+    description: Glücksspielrecht, Sportwetten, Lotterien und Spielsuchtprävention
+
+  - id: Stiftung
+    number: 8800
+    description: Stiftungsrecht, gemeinnützige Stiftungen und Stiftungsförderung
