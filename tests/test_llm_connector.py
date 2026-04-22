@@ -1012,12 +1012,16 @@ class TestSummarizeDokument:
     """Tests for LLMConnector.summarize_dokument()."""
 
     @pytest.mark.asyncio
-    async def test_returns_generated_text(self) -> None:
+    async def test_returns_zusammenfassung_string(self) -> None:
         connector = _make_connector()
         with patch.object(
             connector,
-            "generate_text",
-            new=AsyncMock(return_value="Eine allgemeine Zusammenfassung."),
+            "extract",
+            new=AsyncMock(
+                return_value=ZusammenfassungResult(
+                    zusammenfassung="Eine allgemeine Zusammenfassung."
+                )
+            ),
         ):
             result = await connector.summarize_dokument(
                 titel="Stellungnahme", text="Inhalt des Dokuments."
@@ -1041,11 +1045,13 @@ class TestSummarizeDokument:
         connector = _make_connector()
         captured: list[str] = []
 
-        async def capture_prompt(prompt: str, *args: object, **kwargs: object) -> str:
+        async def capture_extract(
+            prompt: str, response_model: type, **kwargs: object
+        ) -> ZusammenfassungResult:
             captured.append(prompt)
-            return "ok"
+            return ZusammenfassungResult(zusammenfassung="ok")
 
-        with patch.object(connector, "generate_text", new=capture_prompt):
+        with patch.object(connector, "extract", new=capture_extract):
             await connector.summarize_dokument(
                 titel="Mein Titel", text="Mein Textinhalt."
             )
@@ -1059,12 +1065,16 @@ class TestSummarizeGesetzentwurf:
     """Tests for LLMConnector.summarize_gesetzentwurf()."""
 
     @pytest.mark.asyncio
-    async def test_returns_generated_text(self) -> None:
+    async def test_returns_zusammenfassung_string(self) -> None:
         connector = _make_connector()
         with patch.object(
             connector,
-            "generate_text",
-            new=AsyncMock(return_value="Zusammenfassung des Gesetzentwurfs."),
+            "extract",
+            new=AsyncMock(
+                return_value=ZusammenfassungResult(
+                    zusammenfassung="Zusammenfassung des Gesetzentwurfs."
+                )
+            ),
         ):
             result = await connector.summarize_gesetzentwurf(
                 titel="Gesetzentwurf", text="Normtext."
@@ -1088,11 +1098,13 @@ class TestSummarizeGesetzentwurf:
         connector = _make_connector()
         captured: list[str] = []
 
-        async def capture_prompt(prompt: str, *args: object, **kwargs: object) -> str:
+        async def capture_extract(
+            prompt: str, response_model: type, **kwargs: object
+        ) -> ZusammenfassungResult:
             captured.append(prompt)
-            return "ok"
+            return ZusammenfassungResult(zusammenfassung="ok")
 
-        with patch.object(connector, "generate_text", new=capture_prompt):
+        with patch.object(connector, "extract", new=capture_extract):
             await connector.summarize_gesetzentwurf(
                 titel="Entwurf Schulgesetz", text="Gesetzestext."
             )
@@ -1109,18 +1121,20 @@ class TestSummarizeGesetzentwurf:
         dokument_prompts: list[str] = []
 
         async def capture_gesetzentwurf(
-            prompt: str, *args: object, **kwargs: object
-        ) -> str:
+            prompt: str, response_model: type, **kwargs: object
+        ) -> ZusammenfassungResult:
             gesetzentwurf_prompts.append(prompt)
-            return "ok"
+            return ZusammenfassungResult(zusammenfassung="ok")
 
-        async def capture_dokument(prompt: str, *args: object, **kwargs: object) -> str:
+        async def capture_dokument(
+            prompt: str, response_model: type, **kwargs: object
+        ) -> ZusammenfassungResult:
             dokument_prompts.append(prompt)
-            return "ok"
+            return ZusammenfassungResult(zusammenfassung="ok")
 
-        with patch.object(connector, "generate_text", new=capture_gesetzentwurf):
+        with patch.object(connector, "extract", new=capture_gesetzentwurf):
             await connector.summarize_gesetzentwurf(titel="T", text="Text.")
-        with patch.object(connector, "generate_text", new=capture_dokument):
+        with patch.object(connector, "extract", new=capture_dokument):
             await connector.summarize_dokument(titel="T", text="Text.")
 
         assert gesetzentwurf_prompts[0] != dokument_prompts[0]
