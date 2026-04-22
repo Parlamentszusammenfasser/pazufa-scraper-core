@@ -50,7 +50,7 @@ def _check_type(data: Any, expected_type: type) -> None:
 
 
 def hash_bytes_sha_1(data: bytes) -> tuple[str, str]:
-    """SHA-1 hash of raw bytes (not implemented in Backend yet).
+    """SHA-1 hash of raw bytes (not implemented in Backend yet, therefore excluded in hash_text).
 
     Hash is computed directly from the raw bytes without any normalization.
 
@@ -68,8 +68,6 @@ def hash_bytes_sha_1(data: bytes) -> tuple[str, str]:
 
 def hash_bytes_sha_256(data: bytes) -> tuple[str, str]:
     """SHA-256 hash of raw bytes (please use when possible).
-
-    SHA-256 hash of raw bytes (please use when possible).
 
     Hash is computed directly from the raw bytes without any normalization.
 
@@ -132,6 +130,8 @@ def hash_text(text: str) -> tuple[str, str]:
 
 def hash_bytes(data: bytes) -> list[tuple[str, str]]:
     """Computes hash values for the given byte data using multiple hashing algorithms.
+
+    (Currently this is not supported by the backend, so only sha 256 is used currently)
 
     This function takes a byte sequence as input and calculates its hash values
     using two different hashing algorithms: SHA-1 (currently disabled, backend
