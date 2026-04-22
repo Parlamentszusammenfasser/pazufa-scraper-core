@@ -39,7 +39,7 @@ GLOBAL_TAGS_FILES: list[Path] = [MAPPINGS_DIR.joinpath("global_tags.yaml")]
 SACHGEBIETE_FILES: list[Path] = [MAPPINGS_DIR.joinpath("sachgebiete.yaml")]
 """Constant list of the paths to the sachgebiet files."""
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 _EXACT_MATCH_THRESHOLD: float = 100.0
 _FUZZY_MATCH_THRESHOLD: float = 90.0
@@ -84,6 +84,25 @@ def _canonicalise_ids(
     strict: bool = False,
     cutoff: float = _FUZZY_MATCH_THRESHOLD,
 ) -> list[SchlagwortIDResolution]:
+    """Fuzzy-match raw IDs against canonical IDs and return resolutions.
+
+    Each raw ID is matched to its closest canonical ID using token-sort-ratio
+    scoring. Near-tie matches are logged as warnings.
+
+    Args:
+        raw_ids: IDs to resolve.
+        canonical_ids: Accepted IDs to match against.
+        strict: If True, drop raw IDs that fall below the cutoff.
+            If False, keep them unchanged.
+        cutoff: Minimum fuzzy-match score; scores below are treated as 0.
+
+    Returns:
+        A list of SchlagwortIDResolution with the original ID, resolved ID,
+        and match score.
+
+    Raises:
+        ValueError: If raw_ids or canonical_ids is empty.
+    """
 
     # Catching possible errors that a Matrix with an empty row or column would create.
     if not raw_ids or not canonical_ids:
@@ -126,7 +145,7 @@ def _canonicalise_ids(
                     and second_best_score > 0
                 ):
                     second_best_idx = int(np.where(row == second_best_score)[0][0])
-                    logger.warning(
+                    LOGGER.warning(
                         "Near-tie for %r: %r (%.2f) vs %r (%.2f),"
                         " delta=%.2f <= epsilon=%.2f",
                         raw_id,
@@ -146,8 +165,8 @@ def _canonicalise_ids(
             )
 
     if not result:
-        logger.warning(
-            f"Cannonicalising of ids gave out 0 results. With strict = {strict}"
+        LOGGER.warning(
+            f"Canonicalization of IDs returned 0 results.. With strict = {strict}"
         )
 
     return result
@@ -183,7 +202,7 @@ def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
         for tag in local_tag_objects:
             resolved_id = id_map[tag.id]
             if resolved_id != tag.id:
-                logger.debug("Canonical local tag %r -> %r", tag.id, resolved_id)
+                LOGGER.debug("Canonical local tag %r -> %r", tag.id, resolved_id)
             tag_list[resolved_id] = Tag.model_construct(
                 id=resolved_id,
                 description=tag.description,
@@ -238,7 +257,7 @@ def _build_json(items: Sequence[BaseModel]) -> str:
         ValueError: If any item cannot be serialized.
     """
     if not items:
-        logger.debug("_build_json called with empty list")
+        LOGGER.debug("_build_json called with empty list")
     try:
         return json.dumps(
             [item.model_dump() for item in items],
@@ -262,6 +281,7 @@ def _make_validated_list(valid: set, error_msg: str) -> Any:
     """Build an Annotated list type that rejects values not in *valid*."""
 
     def validate(v: list) -> list:
+        """Raise ValueError if any element in *v* is not in the valid set."""
         if invalid := set(v) - valid:
             raise ValueError(f"{error_msg}: {invalid}")
         return v
@@ -357,7 +377,7 @@ class SchlagwortResolver:
             True if the ID matched a known tag above the fuzzy cutoff, False otherwise.
         """
         check_id = _canonicalise_ids([tag_id], self._tag_ids_list)[0]
-        logger.debug("Fuzzy check returned: %s", check_id)
+        LOGGER.debug("Fuzzy check returned: %s", check_id)
         # explicitly typed for mypy
         return bool(check_id.matched)
 
