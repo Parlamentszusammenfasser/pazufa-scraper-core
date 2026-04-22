@@ -50,7 +50,9 @@ def _check_type(data: Any, expected_type: type) -> None:
 
 
 def hash_bytes_sha_1(data: bytes) -> tuple[str, str]:
-    """SHA-1 hash of raw bytes (not implemented in Backend yet, therefore excluded in hash_text).
+    """SHA-1 hash of raw bytes.
+
+    Not implemented in Backend yet,therefore excluded in hash_text.
 
     Hash is computed directly from the raw bytes without any normalization.
 

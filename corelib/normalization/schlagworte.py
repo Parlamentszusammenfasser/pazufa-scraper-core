@@ -103,7 +103,6 @@ def _canonicalise_ids(
     Raises:
         ValueError: If raw_ids or canonical_ids is empty.
     """
-
     # Catching possible errors that a Matrix with an empty row or column would create.
     if not raw_ids or not canonical_ids:
         raise ValueError(

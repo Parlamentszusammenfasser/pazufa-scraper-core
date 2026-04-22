@@ -1,4 +1,5 @@
 """Models for the validation in the tags and sachgebiete normalization chain."""
+
 import re
 from pathlib import Path
 from typing import Optional, Self, Sequence
@@ -14,8 +15,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-
-
 
 # =====================================================================
 #  Models for the items
