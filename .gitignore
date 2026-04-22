@@ -209,5 +209,3 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Temporary files
-/collector_core/normalization/temporary/
