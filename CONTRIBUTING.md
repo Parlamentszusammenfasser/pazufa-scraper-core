@@ -45,28 +45,9 @@ poetry run pytest -v
 
 Documentation for this repository is split between the repo itself and the project wiki. The repo contains documentation that is tightly coupled to the code and must remain correct for any given commit: README.md (project overview and orientation), CONTRIBUTING.md (this file), SETUP.md (installation and development environment), and CONFIGURATION.md (configuration keys, environment variables, and config file layout). Changes to these files should accompany the code changes they describe, in the same pull request. All other documentation (f.e. project roadmap, design rationale, glossaries) lives in the project wiki. When wiki content describes current code behavior, please include a note indicating which version or commit it was last verified against.
 
-#### Publishing and LICENSE
-
-Each library is published independently to PyPI and has two audiences: external users and repo contributors. Anything that forms part of a library's public contract with external users — `README.md`, `LICENSE`, `CONFIGURATION.md`, `CHANGELOG.md` — lives inside that library's directory so it ships with the packaged distribution. Root-level docs serve the repo; per-library docs serve library users. The two must not duplicate each other; link instead.
-
-Each library's `LICENSE` is a verbatim copy of `/LICENSE` (GPL v3), not a symlink. CI enforces byte-identical content across all four LICENSE files.
-
-Releases follow semantic versioning; changes are recorded in the affected library's `CHANGELOG.md` in the same PR. While a library is pre-1.0, breaking changes are permitted in minor bumps but must still be announced.
-
-#### Setup folders
-
-Each library has a `setup/` folder with `README.md` as its entry point. Additional files cover optional features — e.g. `scrapy-based/setup/ocr.md`. Keep feature setup inline in the folder's `README.md` until it exceeds roughly a screen; then promote it to its own file and link it from the `README.md`. Repo-level `/SETUP.md` stays a flat file at the root.
-
-#### Configuration boundaries
-
-Each library's `CONFIGURATION.md` is the source of truth for that library's own keys. When one library consumes keys defined by another, it links to the upstream schema rather than restating it. Root-level `/CONFIGURATION.md` covers only repo-wide operational concerns (Dynaconf layering, precedence, `.env` conventions) — never library-specific keys.
-
-#### Rules
+### Rules
 
 - Any code change affecting setup, configuration, or public API of a library must update the corresponding docs in the same PR.
-- Library `CONFIGURATION.md` files link to upstream schemas rather than restating shared keys.
-- Public API changes — including configuration schema and documented extension points — require a `CHANGELOG.md` entry and a semver version bump.
-- When any `LICENSE` changes, update all four in the same PR.
 
 ### Docstrings
 
@@ -98,10 +79,11 @@ poetry run pytest tests/test_specific.py::test_function
 
 ## Language
 
-- **Code, comments, commits, PR descriptions:** English
+- **Code, comments, commits, PR descriptions:** English(us)
 - **LLM prompts, structured output fields, parliamentary examples:** German where the domain requires it
 - German domain terms (Vorgang, Station, Sitzung, Landtag, Ausschuss, etc.) are fine everywhere
 - **Wiki:** German
+- An glossary for this project can be found in the [relevant Wiki page](https://wiki.pazufa.de/books/scraper-core/page/scraper-core-glossar).
 
 ## Git Workflow
 
@@ -124,13 +106,7 @@ After 0.1, the first two version digits (`x.y`) will track the Core-lib version,
 
 ## What to Work On
 
-This repository provides shared Python infrastructure for PaZuFa scrapers:
-
-- OpenAPI-based validation models and API client code
-- Reusable LLM enrichment prompts, models, and connector logic
-- Shared scraper helpers and domain abstractions
-
-Before starting larger work, check existing issues or open one first to avoid duplicate work and to align on scope.
+For what to work on, please look at the issues in this repo. A longer term view can be found in the [Roadmap](https://wiki.pazufa.de/books/scraper-core/page/roadmap) for this project. 
 
 ## OpenAPI
 
