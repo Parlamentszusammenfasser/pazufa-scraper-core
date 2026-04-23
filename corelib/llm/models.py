@@ -3,11 +3,17 @@
 Each model is designed to be used standalone with ``LLMConnector.extract()``.
 """
 
-from typing import Literal
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
-from .sachgebiete_taxonomy import SACHGEBIETE_SET
+if TYPE_CHECKING:
+    from corelib.normalization.schlagworte import SchlagwortResolver
+
+LOGGER = logging.getLogger(__name__)
 
 
 class KurztitelResult(BaseModel):
@@ -48,16 +54,33 @@ class SchlagworteResult(BaseModel):
 
     @field_validator("sachgebiete")
     @classmethod
-    def validate_sachgebiete(cls, v: list[str]) -> list[str]:
-        """Deduplicate and reject invalid Sachgebiete so Instructor triggers a retry."""
+    def validate_sachgebiete(cls, v: list[str], info: ValidationInfo) -> list[str]:
+        """Deduplicate and canonicalise Sachgebiete via SchlagwortResolver.
+
+        When a ``SchlagwortResolver`` is provided via Pydantic's
+        ``validation_context`` (key ``"resolver"``), each raw Sachgebiet ID
+        is fuzzy-matched against the canonical vocabulary. Unmatched entries
+        are dropped (strict mode) and a warning is logged.
+
+        Without a resolver in the context the field is only deduplicated.
+        """
         v = list(dict.fromkeys(v))
-        invalid = [sg for sg in v if sg not in SACHGEBIETE_SET]
-        if invalid:
-            raise ValueError(
-                f"Invalid Sachgebiete (not in taxonomy): {invalid}. "
-                "Use only terms from the provided list."
+        if not v:
+            return v
+
+        ctx = info.context
+        resolver: SchlagwortResolver | None = ctx.get("resolver") if ctx else None
+        if resolver is None:
+            return v
+
+        canonicalised = resolver.canonicalise_sachgebiete(v)
+        dropped = set(v) - set(canonicalised)
+        if dropped:
+            LOGGER.warning(
+                "Dropped unmatched Sachgebiete during validation: %s",
+                dropped,
             )
-        return v
+        return list(dict.fromkeys(canonicalised))
 
 
 class MeinungResult(BaseModel):

@@ -1,5 +1,7 @@
 """Tests for enrichment prompt templates."""
 
+import json
+
 from corelib.llm.prompts import (
     EXPERTEN_PROMPT,
     KURZTITEL_PROMPT,
@@ -10,7 +12,7 @@ from corelib.llm.prompts import (
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
 )
-from corelib.llm.sachgebiete_taxonomy import SACHGEBIETE_NAMES
+from corelib.normalization.schlagworte import SchlagwortResolver
 
 
 class TestPromptFormatting:
@@ -41,7 +43,7 @@ class TestPromptFormatting:
 
     def test_schlagworte_prompt(self) -> None:
         result = SCHLAGWORTE_PROMPT.format(
-            sachgebiete_list="- Bildung\n- Schulen",
+            sachgebiete_list='[{"id": "Bildung", "description": "..."}]',
             vorgang_titel="Schulgesetz",
             vorgang_vnr="7/1234",
             dok_typ="Gesetzentwurf",
@@ -95,19 +97,37 @@ class TestPromptFormatting:
 
 
 class TestFormatSachgebieteListe:
-    def test_returns_bulleted_list(self) -> None:
-        result = format_sachgebiete_list()
-        lines = result.strip().split("\n")
-        assert len(lines) == len(SACHGEBIETE_NAMES)
-        assert all(line.startswith("- ") for line in lines)
+    def test_returns_valid_json(self) -> None:
+        resolver = SchlagwortResolver()
+        result = format_sachgebiete_list(resolver)
+        parsed = json.loads(result)
+        assert isinstance(parsed, list)
+        assert len(parsed) > 0
+
+    def test_entries_have_id_and_description(self) -> None:
+        resolver = SchlagwortResolver()
+        result = format_sachgebiete_list(resolver)
+        parsed = json.loads(result)
+        for entry in parsed:
+            assert "id" in entry
+            assert "description" in entry
 
     def test_contains_known_entries(self) -> None:
-        result = format_sachgebiete_list()
-        assert "- Bildung" in result
-        assert "- Datenschutz" in result
-        assert "- Glücksspiel" in result
+        resolver = SchlagwortResolver()
+        result = format_sachgebiete_list(resolver)
+        assert "Bildung" in result
+        assert "Datenschutz" in result
+        assert "Glücksspiel" in result
+
+    def test_excludes_sachgebiet_numbers(self) -> None:
+        resolver = SchlagwortResolver()
+        result = format_sachgebiete_list(resolver)
+        parsed = json.loads(result)
+        for entry in parsed:
+            assert "number" not in entry
 
     def test_excludes_special_entries(self) -> None:
-        result = format_sachgebiete_list()
+        resolver = SchlagwortResolver()
+        result = format_sachgebiete_list(resolver)
         assert "Unbekannt" not in result
         assert "ohne@-Systematik" not in result
