@@ -4,7 +4,12 @@ Each constant is a str.format() template. Use the documented format variables.
 Ported from the BB scraper and generalized for all Landtage.
 """
 
-from .sachgebiete_taxonomy import SACHGEBIETE_NAMES
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from corelib.normalization.schlagworte import SchlagwortResolver
 
 KURZTITEL_PROMPT = """\
 Erstelle einen kurzen, verständlichen Titel (5-10 Wörter) für den folgenden \
@@ -66,8 +71,9 @@ Du bist ein parlamentarischer Analyst. Klassifiziere dieses Dokument \
 thematisch bezüglich des genannten Vorgangs.
 
 AUFGABE 1 — SACHGEBIETE:
-Wähle aus der folgenden Liste alle Sachgebiete, die auf dieses Dokument \
-zutreffen. Verwende die Bezeichnungen EXAKT wie angegeben (mit Großschreibung).
+Wähle aus der folgenden JSON-Liste alle Sachgebiete, die auf dieses Dokument \
+zutreffen. Verwende die "id"-Werte EXAKT wie angegeben (mit Großschreibung). \
+Die "description"-Felder dienen nur zur Orientierung.
 
 {sachgebiete_list}
 
@@ -269,6 +275,16 @@ TEXT:
 ``vorgang_vnr_part`` should be either ``" (Drucksache X/Y)"`` or ``""``."""
 
 
-def format_sachgebiete_list() -> str:
-    """Format the taxonomy as a bulleted list for prompt formatting."""
-    return "\n".join(f"- {name}" for name in SACHGEBIETE_NAMES)
+def format_sachgebiete_list(resolver: SchlagwortResolver) -> str:
+    """Format the Sachgebiete taxonomy as JSON with descriptions for prompt injection.
+
+    Uses the resolver's Sachgebiete vocabulary (id + description, without
+    Sachgebiet numbers) so the LLM gets richer classification context.
+
+    Args:
+        resolver: A SchlagwortResolver instance that provides the vocabulary.
+
+    Returns:
+        A JSON string containing the Sachgebiet id and description fields.
+    """
+    return resolver.get_sachgebiete_no_numbers_json()

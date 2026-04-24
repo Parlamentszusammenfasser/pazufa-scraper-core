@@ -1,4 +1,4 @@
-"""Shared LLM enrichment models, taxonomy, prompt templates, and connector."""
+"""Shared LLM enrichment models, prompt templates, and connector."""
 
 from .llm_connector import (
     LLMAuthenticationError,
@@ -34,7 +34,6 @@ from .prompts import (
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
 )
-from .sachgebiete_taxonomy import SACHGEBIETE, SACHGEBIETE_NAMES, SACHGEBIETE_SET
 
 __all__ = [
     # LLM Connector
@@ -58,10 +57,6 @@ __all__ = [
     "VerfassungsaenderndResult",
     "LineRange",
     "SectionExtractionResult",
-    # Taxonomy
-    "SACHGEBIETE",
-    "SACHGEBIETE_NAMES",
-    "SACHGEBIETE_SET",
     # Prompts
     "EXPERTEN_PROMPT",
     "EXPERTEN_PROMPT_NO_LOBBYREGISTER",

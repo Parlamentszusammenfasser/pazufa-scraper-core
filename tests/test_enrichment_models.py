@@ -46,47 +46,87 @@ class TestZusammenfassungResult:
 
 
 class TestSchlagworteResult:
-    def test_valid_sachgebiete(self) -> None:
-        r = SchlagworteResult(
-            sachgebiete=["Bildung", "Schulen"],
-            schlagworte=["lehrermangel"],
+    """Tests for SchlagworteResult with SchlagwortResolver-based validation."""
+
+    def _ctx(self) -> dict[str, object]:
+        """Build a validation context with a SchlagwortResolver."""
+        from corelib.normalization.schlagworte import SchlagwortResolver
+
+        return {"resolver": SchlagwortResolver()}
+
+    def test_valid_sachgebiete_with_resolver(self) -> None:
+        r = SchlagworteResult.model_validate(
+            {"sachgebiete": ["Bildung", "Schulen"], "schlagworte": ["lehrermangel"]},
+            context=self._ctx(),
         )
         assert r.sachgebiete == ["Bildung", "Schulen"]
         assert r.schlagworte == ["lehrermangel"]
 
-    def test_invalid_sachgebiete_raises(self) -> None:
-        with pytest.raises(ValidationError, match="Invalid Sachgebiete"):
-            SchlagworteResult(
-                sachgebiete=["Bildung", "Erfundenes Sachgebiet"],
-                schlagworte=["test"],
-            )
+    def test_invalid_sachgebiete_dropped_with_resolver(self) -> None:
+        """Invalid entries are silently dropped (strict fuzzy matching)."""
+        r = SchlagworteResult.model_validate(
+            {
+                "sachgebiete": ["Bildung", "Komplett Erfundenes Ding"],
+                "schlagworte": ["test"],
+            },
+            context=self._ctx(),
+        )
+        assert r.sachgebiete == ["Bildung"]
+
+    def test_fuzzy_match_corrects_typo(self) -> None:
+        """A close typo like 'Bildun' should be resolved to 'Bildung'."""
+        r = SchlagworteResult.model_validate(
+            {"sachgebiete": ["Bildun"], "schlagworte": ["test"]},
+            context=self._ctx(),
+        )
+        assert "Bildung" in r.sachgebiete
 
     def test_empty_sachgebiete_valid(self) -> None:
-        r = SchlagworteResult(sachgebiete=[], schlagworte=[])
+        r = SchlagworteResult.model_validate(
+            {"sachgebiete": [], "schlagworte": []},
+            context=self._ctx(),
+        )
         assert r.sachgebiete == []
 
     def test_all_valid_sachgebiete_pass(self) -> None:
         """A few known taxonomy entries should validate fine."""
-        r = SchlagworteResult(
-            sachgebiete=[
-                "Staat und Politik",
-                "Energie",
-                "Datenschutz",
-                "Glücksspiel",
-            ],
-            schlagworte=["test"],
+        r = SchlagworteResult.model_validate(
+            {
+                "sachgebiete": [
+                    "Staat und Politik",
+                    "Energie",
+                    "Datenschutz",
+                    "Glücksspiel",
+                ],
+                "schlagworte": ["test"],
+            },
+            context=self._ctx(),
         )
         assert len(r.sachgebiete) == 4
 
     def test_duplicate_sachgebiete_deduped(self) -> None:
-        r = SchlagworteResult(
-            sachgebiete=["Bildung", "Schulen", "Bildung"],
-            schlagworte=["test"],
+        r = SchlagworteResult.model_validate(
+            {
+                "sachgebiete": ["Bildung", "Schulen", "Bildung"],
+                "schlagworte": ["test"],
+            },
+            context=self._ctx(),
         )
         assert r.sachgebiete == ["Bildung", "Schulen"]
 
+    def test_without_resolver_only_deduplicates(self) -> None:
+        """Without a resolver in context, validation only deduplicates."""
+        r = SchlagworteResult(
+            sachgebiete=["Bildung", "Anything", "Bildung"],
+            schlagworte=["test"],
+        )
+        assert r.sachgebiete == ["Bildung", "Anything"]
+
     def test_serialization(self) -> None:
-        r = SchlagworteResult(sachgebiete=["Bildung"], schlagworte=["test"])
+        r = SchlagworteResult.model_validate(
+            {"sachgebiete": ["Bildung"], "schlagworte": ["test"]},
+            context=self._ctx(),
+        )
         d = r.model_dump()
         assert d == {"sachgebiete": ["Bildung"], "schlagworte": ["test"]}
 
