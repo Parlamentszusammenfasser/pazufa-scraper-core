@@ -43,11 +43,7 @@ poetry run pytest -v
 
 ### Repo/Wiki Split
 
-Documentation for this repository is split between the repo itself and the project wiki. The repo contains documentation that is tightly coupled to the code and must remain correct for any given commit: README.md (project overview and orientation), CONTRIBUTING.md (this file), SETUP.md (installation and development environment), and CONFIGURATION.md (configuration keys, environment variables, and config file layout). Changes to these files should accompany the code changes they describe, in the same pull request. All other documentation (f.e. project roadmap, design rationale, glossaries) lives in the project wiki. When wiki content describes current code behavior, please include a note indicating which version or commit it was last verified against.
-
-### Rules
-
-- Any code change affecting setup, configuration, or public API of a library must update the corresponding docs in the same PR.
+Documentation for this repository is split between the repo itself and the project wiki. The repo contains documentation that is tightly coupled to the code and must remain correct for any given commit: README.md (project overview and orientation), CONTRIBUTING.md (this file), SETUP.md (installation and development environment), and CHANGELOG.md (notable changes per release). Changes to these files should accompany the code changes they describe, in the same pull request. All other documentation (e.g., project roadmap, design rationale, glossaries) lives in the project wiki. When wiki content describes current code behavior, please include a note indicating which version or commit it was last verified against.
 
 ### Docstrings
 
@@ -83,7 +79,7 @@ poetry run pytest tests/test_specific.py::test_function
 - **LLM prompts, structured output fields, parliamentary examples:** German where the domain requires it
 - German domain terms (Vorgang, Station, Sitzung, Landtag, Ausschuss, etc.) are fine everywhere
 - **Wiki:** German
-- An glossary for this project can be found in the [relevant Wiki page](https://wiki.pazufa.de/books/scraper-core/page/scraper-core-glossar).
+- A glossary for this project can be found in the [relevant Wiki page](https://wiki.pazufa.de/books/scraper-core/page/scraper-core-glossar).
 
 ## Git Workflow
 

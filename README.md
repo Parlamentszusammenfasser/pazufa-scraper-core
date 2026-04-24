@@ -24,7 +24,7 @@ The library consists of three parts:
 
 1. **CoreLib:** shared classes and utilities used by all scrapers regardless of implementation approach. This includes [Pydantic](https://docs.pydantic.dev/latest/) validation models, API client helpers, common data transformation functions, standardised phrases and tag mappings (e.g. normalising committee names, document types, and Schlagworte across parliaments), and reusable components for tasks like LLM enrichment.
 2. **[Scrapy](https://www.scrapy.org/)-based:** Opinionated implementation of Corelib in Scrapy based classes.
-3. **Collector-based:** Opinionated implementation of Corelib in our project own scaffolding for scrapers. 
+3. **Collector-based:** Our project's scaffolding for scrapers, implemented in an opinionated manner using Corelib. 
 ## Requirements
 
 - Python 3.12+
