@@ -28,16 +28,24 @@ poetry run pytest -v
 
 ## Tooling
 
-| Tool | Purpose | Run |
-|------|---------|---- |
-| `ruff check` | Linting | `poetry run ruff check .` |
-| `ruff format` | Formatting | `poetry run ruff format .` |
-| `mypy` | Static type checking | `poetry run mypy .` |
-| `pytest` | Tests | `poetry run pytest -v` |
+| Tool          | Purpose              | Run                        |
+|---------------|----------------------|----------------------------|
+| `ruff check`  | Linting              | `poetry run ruff check .`  |
+| `ruff format` | Formatting           | `poetry run ruff format .` |
+| `mypy`        | Static type checking | `poetry run mypy .`        |
+| `pytest`      | Tests                | `poetry run pytest -v`     |
 
 **mypy** is configured in `pyproject.toml` with strict settings (`disallow_untyped_defs`, `warn_return_any`). All new code must pass type checking. Generated files (`api_model.py`, `api_client/`) are excluded.
 
-## Docstrings
+
+
+## Documentation
+
+### Repo/Wiki Split
+
+Documentation for this repository is split between the repo itself and the project wiki. The repo contains documentation that is tightly coupled to the code and must remain correct for any given commit: README.md (project overview and orientation), CONTRIBUTING.md (this file), SETUP.md (installation and development environment), and CHANGELOG.md (notable changes per release). Changes to these files should accompany the code changes they describe, in the same pull request. All other documentation (e.g., project roadmap, design rationale, glossaries) lives in the project wiki. When wiki content describes current code behavior, please include a note indicating which version or commit it was last verified against.
+
+### Docstrings
 
 Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `corelib/` require a docstring. Example:
 
@@ -67,10 +75,11 @@ poetry run pytest tests/test_specific.py::test_function
 
 ## Language
 
-- **Code, comments, commits, PR descriptions:** English
+- **Code, comments, commits, PR descriptions:** English, American English is preferred but not enforced.
 - **LLM prompts, structured output fields, parliamentary examples:** German where the domain requires it
 - German domain terms (Vorgang, Station, Sitzung, Landtag, Ausschuss, etc.) are fine everywhere
 - **Wiki:** German
+- A glossary for this project can be found in the [relevant Wiki page](https://wiki.pazufa.de/books/scraper-core/page/scraper-core-glossar).
 
 ## Git Workflow
 
@@ -83,7 +92,7 @@ Branch naming: `feat/short-description`, `fix/short-description`, `chore/short-d
 
 Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 
-poetr### Pull-Requests
+### Pull-Requests
 For PRs targeting `develop`, the author merges after approval.
 
 
@@ -93,13 +102,7 @@ After 0.1, the first two version digits (`x.y`) will track the Core-lib version,
 
 ## What to Work On
 
-This repository provides shared Python infrastructure for PaZuFa scrapers:
-
-- OpenAPI-based validation models and API client code
-- Reusable LLM enrichment prompts, models, and connector logic
-- Shared scraper helpers and domain abstractions
-
-Before starting larger work, check existing issues or open one first to avoid duplicate work and to align on scope.
+For what to work on, please look at the issues in this repo. A longer term view can be found in the [Roadmap](https://wiki.pazufa.de/books/scraper-core/page/roadmap) for this project. 
 
 ## OpenAPI
 
