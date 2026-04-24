@@ -1,0 +1,22 @@
+"""URL normalization for parliamentary documents."""
+
+from urllib.parse import urlparse
+
+from w3lib.url import canonicalize_url
+
+
+def normalize_url(url: str) -> str:
+    """Normalize a URL to its canonical form.
+
+    Canonicalises the URL using :func:`w3lib.url.canonicalize_url` (lowercased
+    scheme and host, sorted query parameters, percent-encoding normalized).
+
+    Raises :class:`ValueError` if *url* is not an http(s) URL.
+    """
+    parsed = urlparse(str(url))
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Invalid URL scheme '{parsed.scheme}': only http and https are allowed."
+        )
+
+    return canonicalize_url(url)

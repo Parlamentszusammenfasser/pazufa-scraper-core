@@ -1,0 +1,30 @@
+tags:
+  - id: Digitalisierung
+    description: E-Government, digitale Infrastruktur, IT-Sicherheit und digitale Verwaltungsdienstleistungen
+
+  - id: Wohnungsbau
+    description: Sozialer Wohnungsbau, Mietpreisbremse, Wohnraumförderung und Baulandmobilisierung
+
+  - id: Fachkräftemangel
+    description: Arbeitskräftegewinnung, Qualifizierung, Zuwanderung von Fachkräften und Berufsanerkennung
+
+  - id: Energiewende
+    description: Ausbau erneuerbarer Energien, Netzstabilität, Speichertechnologien und Versorgungssicherheit
+
+  - id: Innenstadtentwicklung
+    description: Belebung von Innenstädten, Leerstandsmanagement, Einzelhandel und urbane Mobilität
+
+  - id: Bürokratieabbau
+    description: Verwaltungsvereinfachung, Entbürokratisierung, Normenkontrolle und Digitalisierung von Verwaltungsprozessen
+
+  - id: Pflegenotstand
+    description: Pflegepersonalmangel, Pflegefinanzierung, Entlastung pflegender Angehöriger und Pflegeheimqualität
+
+  - id: Bildungsgerechtigkeit
+    description: Chancengleichheit im Bildungssystem, Förderung benachteiligter Kinder und Abbau sozialer Ungleichheit
+
+  - id: Mobilitätswende
+    description: ÖPNV-Ausbau, Radverkehrsförderung, multimodale Mobilität und Reduktion des motorisierten Individualverkehrs
+
+  - id: Extremismusprävention
+    description: Prävention von Rechts- und Linksextremismus, Radikalisierungsbekämpfung und politische Bildung

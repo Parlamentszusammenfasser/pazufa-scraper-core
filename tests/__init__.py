@@ -1,3 +1,3 @@
 """
-Tests for collector_core
+Tests for corelib
 """

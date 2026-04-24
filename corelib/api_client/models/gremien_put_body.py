@@ -9,23 +9,23 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.autor import Autor
-    from ..models.autoren_put_body_replacing_item import AutorenPutBodyReplacingItem
+    from ..models.gremien_put_body_replacing_item import GremienPutBodyReplacingItem
+    from ..models.gremium import Gremium
 
 
-T = TypeVar("T", bound="AutorenPutBody")
+T = TypeVar("T", bound="GremienPutBody")
 
 
 @_attrs_define
-class AutorenPutBody:
+class GremienPutBody:
     """
     Attributes:
-        objects (list[Autor]):
-        replacing (list[AutorenPutBodyReplacingItem] | Unset):
+        objects (list[Gremium]):
+        replacing (list[GremienPutBodyReplacingItem] | Unset):
     """
 
-    objects: list[Autor]
-    replacing: list[AutorenPutBodyReplacingItem] | Unset = UNSET
+    objects: list[Gremium]
+    replacing: list[GremienPutBodyReplacingItem] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -55,33 +55,35 @@ class AutorenPutBody:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.autor import Autor
-        from ..models.autoren_put_body_replacing_item import AutorenPutBodyReplacingItem
+        from ..models.gremien_put_body_replacing_item import GremienPutBodyReplacingItem
+        from ..models.gremium import Gremium
 
         d = dict(src_dict)
         objects = []
         _objects = d.pop("objects")
         for objects_item_data in _objects:
-            objects_item = Autor.from_dict(objects_item_data)
+            objects_item = Gremium.from_dict(objects_item_data)
 
             objects.append(objects_item)
 
         _replacing = d.pop("replacing", UNSET)
-        replacing: list[AutorenPutBodyReplacingItem] | Unset = UNSET
+        replacing: list[GremienPutBodyReplacingItem] | Unset = UNSET
         if _replacing is not UNSET:
             replacing = []
             for replacing_item_data in _replacing:
-                replacing_item = AutorenPutBodyReplacingItem.from_dict(replacing_item_data)
+                replacing_item = GremienPutBodyReplacingItem.from_dict(
+                    replacing_item_data
+                )
 
                 replacing.append(replacing_item)
 
-        autoren_put_body = cls(
+        gremien_put_body = cls(
             objects=objects,
             replacing=replacing,
         )
 
-        autoren_put_body.additional_properties = d
-        return autoren_put_body
+        gremien_put_body.additional_properties = d
+        return gremien_put_body
 
     @property
     def additional_keys(self) -> list[str]:
