@@ -75,7 +75,7 @@ poetry run pytest tests/test_specific.py::test_function
 
 ## Language
 
-- **Code, comments, commits, PR descriptions:** English(us)
+- **Code, comments, commits, PR descriptions:** English, American English is preferred but not enforced.
 - **LLM prompts, structured output fields, parliamentary examples:** German where the domain requires it
 - German domain terms (Vorgang, Station, Sitzung, Landtag, Ausschuss, etc.) are fine everywhere
 - **Wiki:** German
