@@ -45,8 +45,8 @@ def main() -> None:
             shutil.rmtree(DEST)
         shutil.copytree(src_pkg, DEST)
 
-    run(["poetry", "run", "isort", str(DEST)])
-    run(["poetry", "run", "black", str(DEST)])
+    run(["poetry", "run", "ruff", "check", "--select", "I", "--fix", str(DEST)])
+    run(["poetry", "run", "ruff", "format", str(DEST)])
 
 
 if __name__ == "__main__":
