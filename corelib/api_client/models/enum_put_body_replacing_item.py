@@ -13,26 +13,26 @@ T = TypeVar("T", bound="EnumPutBodyReplacingItem")
 class EnumPutBodyReplacingItem:
     """
     Attributes:
-        values (list[str]):
         replaced_by (int): This value is replaced by the object with index {} in the 'objects' list above. 0-Based
             indexing.
+        values (list[str]):
     """
 
-    values: list[str]
     replaced_by: int
+    values: list[str]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        values = self.values
-
         replaced_by = self.replaced_by
+
+        values = self.values
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "values": values,
                 "replaced_by": replaced_by,
+                "values": values,
             }
         )
 
@@ -41,13 +41,13 @@ class EnumPutBodyReplacingItem:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        values = cast(list[str], d.pop("values"))
-
         replaced_by = d.pop("replaced_by")
 
+        values = cast(list[str], d.pop("values"))
+
         enum_put_body_replacing_item = cls(
-            values=values,
             replaced_by=replaced_by,
+            values=values,
         )
 
         enum_put_body_replacing_item.additional_properties = d

@@ -25,7 +25,6 @@ from .stationstyp import Stationstyp
 from .top import Top
 from .touched_by_item import TouchedByItem
 from .vg_ident import VgIdent
-from .vg_ident_typ import VgIdentTyp
 from .vorgang import Vorgang
 from .vorgangstyp import Vorgangstyp
 
@@ -55,7 +54,6 @@ __all__ = (
     "Top",
     "TouchedByItem",
     "VgIdent",
-    "VgIdentTyp",
     "Vorgang",
     "Vorgangstyp",
 )

@@ -18,31 +18,31 @@ class ApiKeyStatus:
     """Status information about the API key used in the current request
 
     Attributes:
-        scope (ApiKeyStatusScope):
         expires_at (datetime.datetime): When this key will expire. If is_being_rotated is true, this is the date the
             rotation is complete.
         is_being_rotated (bool): Whether this key is currently in a transition process
+        scope (ApiKeyStatusScope):
     """
 
-    scope: ApiKeyStatusScope
     expires_at: datetime.datetime
     is_being_rotated: bool
+    scope: ApiKeyStatusScope
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        scope = self.scope.value
-
         expires_at = self.expires_at.isoformat()
 
         is_being_rotated = self.is_being_rotated
+
+        scope = self.scope.value
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "scope": scope,
                 "expires_at": expires_at,
                 "is_being_rotated": is_being_rotated,
+                "scope": scope,
             }
         )
 
@@ -51,16 +51,16 @@ class ApiKeyStatus:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        scope = ApiKeyStatusScope(d.pop("scope"))
-
         expires_at = isoparse(d.pop("expires_at"))
 
         is_being_rotated = d.pop("is_being_rotated")
 
+        scope = ApiKeyStatusScope(d.pop("scope"))
+
         api_key_status = cls(
-            scope=scope,
             expires_at=expires_at,
             is_being_rotated=is_being_rotated,
+            scope=scope,
         )
 
         api_key_status.additional_properties = d

@@ -19,9 +19,7 @@ def _get_kwargs() -> dict[str, Any]:
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | RotationResponse | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | RotationResponse | None:
     if response.status_code == 201:
         response_201 = RotationResponse.from_dict(response.json())
 

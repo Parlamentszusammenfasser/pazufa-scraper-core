@@ -6,8 +6,6 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.vg_ident_typ import VgIdentTyp
-
 T = TypeVar("T", bound="VgIdent")
 
 
@@ -21,17 +19,19 @@ class VgIdent:
 
         Attributes:
             id (str):  Example: 123e4567-e.
-            typ (VgIdentTyp): Typ von Identifikatoren für einen gesamten Vorgang
+            typ (str): Typ von Identifikatoren für einen gesamten Vorgang. Offen für was auch immer ein Parlament benutzt um
+                einen Vorgang zu identifizieren. Aktuell in der Datenbank: initdrucks, vorgnr, api-id, sonstig bitte keine neue
+                Abkürzung für denselben Typ erfinden Example: initdrucks.
     """
 
     id: str
-    typ: VgIdentTyp
+    typ: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         id = self.id
 
-        typ = self.typ.value
+        typ = self.typ
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -49,7 +49,7 @@ class VgIdent:
         d = dict(src_dict)
         id = d.pop("id")
 
-        typ = VgIdentTyp(d.pop("typ"))
+        typ = d.pop("typ")
 
         vg_ident = cls(
             id=id,

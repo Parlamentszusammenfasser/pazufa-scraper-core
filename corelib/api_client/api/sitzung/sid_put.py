@@ -33,9 +33,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | None:
     if response.status_code == 201:
         return None
 
@@ -51,9 +49,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -75,20 +71,20 @@ def sync_detailed(
         sid (UUID):
         body (Sitzung): Sitzung oder Anhörung. Eine Anhörung wird es, wenn Experten geladen
             werden. Abstrahiert und kann daher sowohl Plenarsitzung als auch Ausschusssitzung sein.
-            Example: {'api_id': 'b1a2c3d4-e5f6-7890-fedc-1234567890ab', 'titel': '143. Sitzung des
-            Deutschen Bundestages', 'termin': '2024-05-20T09:00:00+02:00', 'gremium': {'parlament':
-            'BT', 'wahlperiode': 20, 'name': 'plenum'}, 'nummer': 143, 'public': True, 'link':
-            'https://www.bundestag.de/sitzung/20240520', 'tops': [{'nummer': 1, 'titel': 'Eröffnung
-            der Sitzung'}, {'nummer': 3, 'titel': 'Erste Beratung des von den Fraktionen SPD, BÜNDNIS
-            90/DIE GRÜNEN und FDP eingebrachten Entwurfs eines Gesetzes zur Änderung des
-            Bundeswahlgesetzes', 'vorgang_id': ['123e4567-e89b-12d3-a456-426614174000'], 'dokumente':
-            []}], 'dokumente': [{'api_id': 'c1d2e3f4-a5b6-7890-cdef-1234567890gh', 'typ': 'tops',
-            'titel': 'Tagesordnung der 143. Sitzung des Deutschen Bundestages', 'volltext': 'TOP 1:
-            Eröffnung der Sitzung\nTOP 2: Fragestunde\nTOP 3: Erste Beratung des Gesetzentwurfs zur
-            Änderung des Bundeswahlgesetzes\n...', 'hash': 'a1b2c3d4e5f6g7h8i9j0', 'zp_modifiziert':
-            '2024-05-15T14:30:00+02:00', 'zp_referenz': '2024-05-20T09:00:00+02:00', 'link':
-            'https://www.bundestag.de/tagesordnung/20240520', 'autoren': [{'organisation': 'Deutscher
-            Bundestag'}]}]}.
+            Example: {'api_id': 'b1a2c3d4-e5f6-7890-fedc-1234567890ab', 'dokumente': [{'api_id':
+            'c1d2e3f4-a5b6-7890-cdef-1234567890gh', 'autoren': [{'organisation': 'Deutscher
+            Bundestag'}], 'hash': 'a1b2c3d4e5f6g7h8i9j0', 'link':
+            'https://www.bundestag.de/tagesordnung/20240520', 'titel': 'Tagesordnung der 143. Sitzung
+            des Deutschen Bundestages', 'typ': 'tops', 'volltext': 'TOP 1: Eröffnung der Sitzung\nTOP
+            2: Fragestunde\nTOP 3: Erste Beratung des Gesetzentwurfs zur Änderung des
+            Bundeswahlgesetzes\n...', 'zp_modifiziert': '2024-05-15T14:30:00+02:00', 'zp_referenz':
+            '2024-05-20T09:00:00+02:00'}], 'gremium': {'name': 'plenum', 'parlament': 'BT',
+            'wahlperiode': 20}, 'link': 'https://www.bundestag.de/sitzung/20240520', 'nummer': 143,
+            'public': True, 'termin': '2024-05-20T09:00:00+02:00', 'titel': '143. Sitzung des
+            Deutschen Bundestages', 'tops': [{'nummer': 1, 'titel': 'Eröffnung der Sitzung'},
+            {'dokumente': [], 'nummer': 3, 'titel': 'Erste Beratung des von den Fraktionen SPD,
+            BÜNDNIS 90/DIE GRÜNEN und FDP eingebrachten Entwurfs eines Gesetzes zur Änderung des
+            Bundeswahlgesetzes', 'vorgang_id': ['123e4567-e89b-12d3-a456-426614174000']}]}.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -123,20 +119,20 @@ async def asyncio_detailed(
         sid (UUID):
         body (Sitzung): Sitzung oder Anhörung. Eine Anhörung wird es, wenn Experten geladen
             werden. Abstrahiert und kann daher sowohl Plenarsitzung als auch Ausschusssitzung sein.
-            Example: {'api_id': 'b1a2c3d4-e5f6-7890-fedc-1234567890ab', 'titel': '143. Sitzung des
-            Deutschen Bundestages', 'termin': '2024-05-20T09:00:00+02:00', 'gremium': {'parlament':
-            'BT', 'wahlperiode': 20, 'name': 'plenum'}, 'nummer': 143, 'public': True, 'link':
-            'https://www.bundestag.de/sitzung/20240520', 'tops': [{'nummer': 1, 'titel': 'Eröffnung
-            der Sitzung'}, {'nummer': 3, 'titel': 'Erste Beratung des von den Fraktionen SPD, BÜNDNIS
-            90/DIE GRÜNEN und FDP eingebrachten Entwurfs eines Gesetzes zur Änderung des
-            Bundeswahlgesetzes', 'vorgang_id': ['123e4567-e89b-12d3-a456-426614174000'], 'dokumente':
-            []}], 'dokumente': [{'api_id': 'c1d2e3f4-a5b6-7890-cdef-1234567890gh', 'typ': 'tops',
-            'titel': 'Tagesordnung der 143. Sitzung des Deutschen Bundestages', 'volltext': 'TOP 1:
-            Eröffnung der Sitzung\nTOP 2: Fragestunde\nTOP 3: Erste Beratung des Gesetzentwurfs zur
-            Änderung des Bundeswahlgesetzes\n...', 'hash': 'a1b2c3d4e5f6g7h8i9j0', 'zp_modifiziert':
-            '2024-05-15T14:30:00+02:00', 'zp_referenz': '2024-05-20T09:00:00+02:00', 'link':
-            'https://www.bundestag.de/tagesordnung/20240520', 'autoren': [{'organisation': 'Deutscher
-            Bundestag'}]}]}.
+            Example: {'api_id': 'b1a2c3d4-e5f6-7890-fedc-1234567890ab', 'dokumente': [{'api_id':
+            'c1d2e3f4-a5b6-7890-cdef-1234567890gh', 'autoren': [{'organisation': 'Deutscher
+            Bundestag'}], 'hash': 'a1b2c3d4e5f6g7h8i9j0', 'link':
+            'https://www.bundestag.de/tagesordnung/20240520', 'titel': 'Tagesordnung der 143. Sitzung
+            des Deutschen Bundestages', 'typ': 'tops', 'volltext': 'TOP 1: Eröffnung der Sitzung\nTOP
+            2: Fragestunde\nTOP 3: Erste Beratung des Gesetzentwurfs zur Änderung des
+            Bundeswahlgesetzes\n...', 'zp_modifiziert': '2024-05-15T14:30:00+02:00', 'zp_referenz':
+            '2024-05-20T09:00:00+02:00'}], 'gremium': {'name': 'plenum', 'parlament': 'BT',
+            'wahlperiode': 20}, 'link': 'https://www.bundestag.de/sitzung/20240520', 'nummer': 143,
+            'public': True, 'termin': '2024-05-20T09:00:00+02:00', 'titel': '143. Sitzung des
+            Deutschen Bundestages', 'tops': [{'nummer': 1, 'titel': 'Eröffnung der Sitzung'},
+            {'dokumente': [], 'nummer': 3, 'titel': 'Erste Beratung des von den Fraktionen SPD,
+            BÜNDNIS 90/DIE GRÜNEN und FDP eingebrachten Entwurfs eines Gesetzes zur Änderung des
+            Bundeswahlgesetzes', 'vorgang_id': ['123e4567-e89b-12d3-a456-426614174000']}]}.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

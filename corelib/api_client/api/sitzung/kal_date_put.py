@@ -2,7 +2,6 @@ import datetime
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote
-from uuid import UUID
 
 import httpx
 
@@ -18,7 +17,7 @@ def _get_kwargs(
     datum: datetime.date,
     *,
     body: list[Sitzung],
-    x_scraper_id: UUID,
+    x_scraper_id: str,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     headers["X-Scraper-Id"] = x_scraper_id
@@ -42,9 +41,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | None:
     if response.status_code == 201:
         return None
 
@@ -57,9 +54,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -74,7 +69,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: list[Sitzung],
-    x_scraper_id: UUID,
+    x_scraper_id: str,
 ) -> Response[Any]:
     """Collector interface for adding or updating sessions for a specific date and parliament. Completely
     replaces all sessions for the given date, with restrictions based on how far in the past the date
@@ -84,7 +79,7 @@ def sync_detailed(
         parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
             Deutschland
         datum (datetime.date):
-        x_scraper_id (UUID):
+        x_scraper_id (str):
         body (list[Sitzung]):
 
     Raises:
@@ -115,7 +110,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: list[Sitzung],
-    x_scraper_id: UUID,
+    x_scraper_id: str,
 ) -> Response[Any]:
     """Collector interface for adding or updating sessions for a specific date and parliament. Completely
     replaces all sessions for the given date, with restrictions based on how far in the past the date
@@ -125,7 +120,7 @@ async def asyncio_detailed(
         parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
             Deutschland
         datum (datetime.date):
-        x_scraper_id (UUID):
+        x_scraper_id (str):
         body (list[Sitzung]):
 
     Raises:
