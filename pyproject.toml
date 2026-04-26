@@ -1,7 +1,7 @@
 [project]
 name = "pazufa-corelib"  # PyPI name only — import name remains `corelib`
 license = "GPL-3.0-only"
-version = "0.1.0"
+version = "0.1.01"
 description = "Core library for collecting parliamentary data"
 authors = [{name = "PaZuFa team"}]
 maintainers = [{name = "PaZuFa team", email = "pub@pazufa.de"}]
