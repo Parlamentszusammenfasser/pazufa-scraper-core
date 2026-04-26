@@ -60,41 +60,33 @@ class TestExtractInputValidation:
     def test_empty_prompt_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(ValueError, match="prompt must not be empty"):
-            asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt="   ", response_model=Keywords)
-            )
+            asyncio.run(connector.extract(prompt="   ", response_model=Keywords))
 
     def test_non_string_prompt_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(ValueError, match="prompt must be a string"):
-            asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt=42, response_model=Keywords)  # type: ignore[arg-type]
-            )
+            asyncio.run(connector.extract(prompt=42, response_model=Keywords))  # type: ignore[arg-type]
 
     def test_non_basemodel_response_model_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(
             ValueError, match="response_model must be a Pydantic BaseModel"
         ):
-            asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt="test", response_model=dict)  # type: ignore[arg-type,type-var]
-            )
+            asyncio.run(connector.extract(prompt="test", response_model=dict))  # type: ignore[arg-type,type-var]
 
     def test_string_response_model_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(
             ValueError, match="response_model must be a Pydantic BaseModel"
         ):
-            asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt="test", response_model="Keywords")  # type: ignore[arg-type]
-            )
+            asyncio.run(connector.extract(prompt="test", response_model="Keywords"))  # type: ignore[arg-type]
 
     def test_negative_validation_retries_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(
             ValueError, match="validation_retries must be a non-negative integer"
         ):
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 connector.extract(
                     prompt="test", response_model=Keywords, validation_retries=-1
                 )
@@ -105,7 +97,7 @@ class TestExtractInputValidation:
         with pytest.raises(
             ValueError, match="validation_retries must be a non-negative integer"
         ):
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 connector.extract(
                     prompt="test",
                     response_model=Keywords,
@@ -116,7 +108,7 @@ class TestExtractInputValidation:
     def test_non_string_system_prompt_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(ValueError, match="system_prompt must be a string or None"):
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 connector.extract(
                     prompt="test",
                     response_model=Keywords,

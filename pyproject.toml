@@ -12,7 +12,7 @@ keywords = [
     "scraper",
     "germany",
 ]
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.12,<3.15"
 dynamic = ["dependencies"]
 classifiers = [
     "Development Status :: 3 - Alpha", # based on pazufa-API instability
@@ -39,7 +39,7 @@ Changelog     = "https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main
 packages = [{include = "corelib"}]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.14"
+python = ">=3.12,<3.15"
 litellm = "^1.81.13"
 instructor = {extras = ["litellm"], version = "^1.14.0"}
 w3lib = "^2.4.1"
