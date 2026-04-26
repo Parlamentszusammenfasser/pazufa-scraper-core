@@ -78,7 +78,7 @@ steps:
       TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
       TWINE_USERNAME: __token__
       TESTPYPI_TOKEN:
-        from_secret: testpypi_token
+        from_secret: TESTPYPI_TOKEN
     commands:
       - pip install --quiet twine
       - TWINE_PASSWORD=$TESTPYPI_TOKEN twine upload dist/*
@@ -91,7 +91,7 @@ steps:
     environment:
       TWINE_USERNAME: __token__
       PYPI_TOKEN:
-        from_secret: pypi_token
+        from_secret: PYPI_TOKEN
     commands:
       - pip install --quiet twine
       - TWINE_PASSWORD=$PYPI_TOKEN twine upload dist/*
