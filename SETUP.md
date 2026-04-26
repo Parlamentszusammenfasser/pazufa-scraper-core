@@ -15,8 +15,6 @@ For more detail, look at the setup files in the sub repos (not implemented yet).
 
 ### Stable
 
-> No stable release yet!
-
 Once published, install using Poetry (advised) or pip.
 
 It is strongly advised to pin the version below the next minor (`x.Y`) release, as minor bumps indicate major reworks that will most likely be breaking.
