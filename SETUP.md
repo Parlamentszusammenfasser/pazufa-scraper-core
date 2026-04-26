@@ -62,7 +62,9 @@ pip install "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
 
 ## CI Workflow
 
-The project uses [Woodpecker CI](https://woodpecker-ci.org/) and runs on every push and pull request. The pipeline consists of four steps, with the last three running in parallel after setup:
+The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline is defined in `.woodpecker.yml` and runs on every push, pull request, and tag.
+
+**On push / pull request** — CI steps run in parallel after setup:
 
 | Step                    | What it does                                                        |
 |-------------------------|---------------------------------------------------------------------|
@@ -73,6 +75,15 @@ The project uses [Woodpecker CI](https://woodpecker-ci.org/) and runs on every p
 | `test`                  | Runs the test suite via `pytest`                                    |
 
 If `audit` fails, follow the [vulnerability response guide](https://wiki.pazufa.de/books/scraper-core/page/vulnerability-response).
+
+**On tag push** — release steps run after all CI steps pass:
+
+| Step                | What it does                                             |
+|---------------------|----------------------------------------------------------|
+| `build`             | `poetry build` — produces wheel and sdist                |
+| `check-dist`        | `twine check` — validates metadata                       |
+| `publish-testpypi`  | Uploads to TestPyPI (tags matching `vX.Y.Z-rcN`)         |
+| `publish-pypi`      | Uploads to PyPI (clean `vX.Y.Z` tags from `main` only)   |
 
 All steps use `python:3.12-slim`. The virtualenv is created inside the project (`.venv/`) so later steps can use it directly without reinstalling.
 
