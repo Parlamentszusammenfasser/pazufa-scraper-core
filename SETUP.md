@@ -78,7 +78,8 @@ All steps use `python:3.12-slim`. The virtualenv is created inside the project (
 
 ## Usage
 
-For usage documentation see the [wiki](https://wiki.pazufa.de/books/scraper-core).
+- For usage documentation see the [wiki](https://wiki.pazufa.de/books/scraper-core).
+- For publishing of new Version see [Release Prozess](https://wiki.pazufa.de/link/109#bkmrk-page-title).
 
 ## Known Issues
 
