@@ -1,16 +1,22 @@
 [project]
-name = "scraper-core"
-license = "GPL-3.0"
+name = "pazufa-corelib"  # PyPI name only — import name remains `corelib`
+license = "GPL-3.0-only"
 version = "0.1.0"
 description = "Core library for collecting parliamentary data"
-authors = [{name = "Parlamentszusammenfasser"}]
+authors = [{name = "PaZuFa team"}]
+maintainers = [{name = "PaZuFa team", email = "pub@pazufa.de"}]
 readme = "README.md"
-requires-python = ">=3.12,<4.0"
+keywords = [
+    "parliament",
+    "open-data",
+    "scraper",
+    "germany",
+]
+requires-python = ">=3.12,<3.14"
 dynamic = ["dependencies"]
 classifiers = [
     "Development Status :: 3 - Alpha", # based on pazufa-API instability
     "Operating System :: OS Independent",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Natural Language :: German",
@@ -22,6 +28,13 @@ classifiers = [
     "Topic :: Text Processing"
 ]
 
+[project.urls]
+Homepage      = "https://pazufa.de"
+Repository    = "https://codeberg.org/PaZuFa/pazufa-scraper-core"
+Documentation = "https://wiki.pazufa.de/books/scraper-core"
+Issues        = "https://codeberg.org/PaZuFa/pazufa-scraper-core/issues"
+Changelog     = "https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/CHANGELOG.md"
+
 [tool.poetry]
 packages = [{include = "corelib"}]
 
@@ -31,7 +44,8 @@ litellm = "^1.81.13"
 instructor = {extras = ["litellm"], version = "^1.14.0"}
 w3lib = "^2.4.1"
 rapidfuzz = "^3.14.5"
-pydantic = ">=2.13"
+pydantic = "^2.13"
+pyyaml = "^6.0"
 numpy = "^2.4.4"
 
 [tool.poetry.group.dev.dependencies]
