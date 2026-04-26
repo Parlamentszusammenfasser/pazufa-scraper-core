@@ -57,6 +57,31 @@ poetry add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
 ```bash
 pip install "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
 ```
+## Importing corelib
+
+The package installs under the name `pazufa-corelib` but is imported as `corelib`.
+
+**API client** — authenticated HTTP client for the LTZF API:
+
+```python
+from corelib.api_client import AuthenticatedClient, Client
+```
+
+**Normalization** — text, date, URL, and hash helpers:
+
+```python
+from corelib.normalization import normalize_datum, normalize_volltext, normalize_url
+from corelib.normalization import hash_text, hash_bytes
+```
+
+**LLM enrichment** — connector, Pydantic result models, and prompt templates:
+
+```python
+from corelib.llm import LLMConnector
+from corelib.llm import ZusammenfassungResult, SchlagworteResult
+from corelib.llm import ZUSAMMENFASSUNG_PROMPT, SCHLAGWORTE_PROMPT
+```
+
 
 ## CI Workflow
 
