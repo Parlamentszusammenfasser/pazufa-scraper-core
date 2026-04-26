@@ -37,6 +37,12 @@ steps:
       - .venv/bin/ruff check .
       - .venv/bin/mypy .
 
+  - name: audit
+    image: python:3.12-slim
+    depends_on: [setup]
+    commands:
+      - .venv/bin/pip-audit --ignore-vuln GHSA-xqmj-j6mv-4862 --ignore-vuln CVE-2026-3219
+
   - name: test
     image: python:3.12-slim
     depends_on: [setup]

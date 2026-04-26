@@ -69,7 +69,10 @@ The project uses [Woodpecker CI](https://woodpecker-ci.org/) and runs on every p
 | `setup`                 | Installs Poetry and all dependencies (including dev) into a `.venv` |
 | `check-lock`            | Verifies the `poetry.lock` file is consistent with `pyproject.toml` |
 | `format-and-type-check` | Runs `ruff format --check`, `ruff check`, and `mypy`                |
+| `audit`                 | Scans dependencies for known vulnerabilities via `pip-audit`        |
 | `test`                  | Runs the test suite via `pytest`                                    |
+
+If `audit` fails, follow the [vulnerability response guide](https://wiki.pazufa.de/books/scraper-core/page/vulnerability-response).
 
 All steps use `python:3.12-slim`. The virtualenv is created inside the project (`.venv/`) so later steps can use it directly without reinstalling.
 
