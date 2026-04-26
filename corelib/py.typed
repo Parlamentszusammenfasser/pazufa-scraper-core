@@ -1,0 +1,4 @@
+# PEP 561 marker file — do not edit or delete.
+# Its presence tells type checkers (mypy, pyright, etc.) that this package
+# ships inline type annotations and should be checked accordingly.
+# See: https://peps.python.org/pep-0561/
