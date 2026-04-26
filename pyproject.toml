@@ -7,6 +7,20 @@ authors = [{name = "Parlamentszusammenfasser"}]
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
 dynamic = ["dependencies"]
+classifiers = [
+    "Development Status :: 3 - Alpha", # based on pazufa-API instability
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: German",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Text Processing"
+]
 
 [tool.poetry]
 packages = [{include = "corelib"}]
