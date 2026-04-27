@@ -15,7 +15,7 @@ For more detail, look at the setup files in the sub repos (not implemented yet).
 
 ### Stable
 
-Once published, install using Poetry (advised) or pip.
+Once published, install using Poetry (advised), uv, or pip.
 
 It is strongly advised to pin the version below the next minor (`x.Y`) release, as minor bumps indicate major reworks that will most likely be breaking.
 
@@ -24,13 +24,19 @@ The examples below prescribe a version `0.1` and above, but under `0.2`.
 **Poetry:**
 
 ```bash
-poetry add "scraper-core~=0.1"
+poetry add "pazufa-corelib~=0.1"
+```
+
+**uv:**
+
+```bash
+uv add "pazufa-corelib~=0.1"
 ```
 
 **pip:**
 
 ```bash
-pip install "scraper-core~=0.1"
+pip install "pazufa-corelib~=0.1"
 ```
 
 
@@ -50,6 +56,12 @@ Or install the latest development branch directly into another project:
 
 ```bash
 poetry add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
+```
+
+**uv:**
+
+```bash
+uv add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
 ```
 
 **pip:**
