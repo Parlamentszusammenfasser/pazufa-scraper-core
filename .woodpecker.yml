@@ -1,6 +1,5 @@
 when:
   - event: [push, pull_request, tag]
-    evaluate: 'not (CI_COMMIT_MESSAGE contains "[skip ci]" or CI_COMMIT_MESSAGE contains "[ci skip]")'
 
 # Route this workflow to the generic PaZuFa agents.
 labels:
