@@ -93,7 +93,7 @@ exclude = ["corelib/api_client/**", "corelib/api_model.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --cov=corelib --cov-report=term-missing --cov-report=xml:coverage.xml"
+addopts = "-q --cov=corelib --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=85"
 
 [tool.coverage.run]
 omit = [

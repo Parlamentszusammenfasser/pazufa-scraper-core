@@ -1,5 +1,5 @@
 when:
-  - event: [push]
+  - event: [push, pull_request, tag]
     evaluate: 'not (CI_COMMIT_MESSAGE contains "[skip ci]" or CI_COMMIT_MESSAGE contains "[ci skip]")'
 
 # Route this workflow to the generic PaZuFa agents.
@@ -63,55 +63,45 @@ steps:
       - echo "Tag version:$TAG_VERSION  pyproject.toml version:$TOML_VERSION"
       - test "$TAG_VERSION" = "$TOML_VERSION" || { echo "ERROR: tag '$TAG_VERSION' does not match pyproject.toml version '$TOML_VERSION'" >&2; exit 1; }
 
-  - name: check-not-on-pypi
+  - name: check-not-published
     image: python:3.12-slim
     depends_on: [check-version]
     when:
-      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+[.][0-9]+[.][0-9]+$"'
+      - event: tag
     commands:
       - VERSION="${CI_COMMIT_TAG#v}"
       - |
+        if echo "$CI_COMMIT_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$'; then
+          INDEX_URL="https://test.pypi.org/pypi/pazufa-corelib/$VERSION/json"
+          INDEX_NAME="TestPyPI"
+        elif echo "$CI_COMMIT_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+          INDEX_URL="https://pypi.org/pypi/pazufa-corelib/$VERSION/json"
+          INDEX_NAME="PyPI"
+        else
+          echo "ERROR: tag '$CI_COMMIT_TAG' does not match a recognized release pattern (vX.Y.Z or vX.Y.Z-rcN)" >&2
+          exit 1
+        fi
+        export INDEX_URL INDEX_NAME VERSION
         python -c "
-        import urllib.request, urllib.error, sys
-        url = f'https://pypi.org/pypi/pazufa-corelib/$VERSION/json'
+        import urllib.request, urllib.error, sys, os
+        url = os.environ['INDEX_URL']
+        name = os.environ['INDEX_NAME']
+        version = os.environ['VERSION']
         try:
             urllib.request.urlopen(url)
-            print(f'ERROR: v$VERSION already exists on PyPI — bump the version in pyproject.toml or delete the tag', file=sys.stderr)
+            print(f'ERROR: v{version} already exists on {name} — bump the version in pyproject.toml or delete the tag', file=sys.stderr)
             sys.exit(1)
         except urllib.error.HTTPError as e:
             if e.code == 404:
-                print(f'OK: v$VERSION not yet on PyPI')
+                print(f'OK: v{version} not yet on {name}')
             else:
-                print(f'ERROR: unexpected HTTP {e.code} from PyPI', file=sys.stderr)
-                raise
-        "
-
-  - name: check-not-on-testpypi
-    image: python:3.12-slim
-    depends_on: [check-version]
-    when:
-      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+.*-rc.*"'
-    commands:
-      - VERSION="${CI_COMMIT_TAG#v}"
-      - |
-        python -c "
-        import urllib.request, urllib.error, sys
-        url = f'https://test.pypi.org/pypi/pazufa-corelib/$VERSION/json'
-        try:
-            urllib.request.urlopen(url)
-            print(f'ERROR: v$VERSION already exists on TestPyPI — bump the version in pyproject.toml or delete the tag', file=sys.stderr)
-            sys.exit(1)
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
-                print(f'OK: v$VERSION not yet on TestPyPI')
-            else:
-                print(f'ERROR: unexpected HTTP {e.code} from TestPyPI', file=sys.stderr)
+                print(f'ERROR: unexpected HTTP {e.code} from {name}', file=sys.stderr)
                 raise
         "
 
   - name: build
     image: python:3.12-slim
-    depends_on: [check-not-on-pypi, check-not-on-testpypi, check-version, check-lock, format-and-type-check, audit, test]
+    depends_on: [check-not-published]
     when:
       - event: tag
     commands:
@@ -131,7 +121,7 @@ steps:
     image: python:3.12-slim
     depends_on: [check-dist]
     when:
-      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+.*-rc.*"'
+      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+\\.[0-9]+\\.[0-9]+-rc[0-9]+$"'
     environment:
       TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
       TWINE_USERNAME: __token__
@@ -145,7 +135,7 @@ steps:
     image: python:3.12-slim
     depends_on: [check-dist]
     when:
-      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+[.][0-9]+[.][0-9]+$" && CI_COMMIT_BRANCH == "main"'
+      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+\\.[0-9]+\\.[0-9]+$"'
     environment:
       TWINE_USERNAME: __token__
       PYPI_TOKEN:
