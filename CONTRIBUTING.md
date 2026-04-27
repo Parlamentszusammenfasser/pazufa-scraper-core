@@ -94,6 +94,17 @@ Branch naming: `feat/short-description`, `fix/short-description`, `chore/short-d
 
 Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 
+### Skipping CI commits
+When doing multiple small commits in a row you sometimes do not want to run the ci every time.
+
+> For a PR the ci needs to be passed.
+
+To skip CI for a commit (e.g. documentation-only changes), include `[skip ci]` or `[ci skip]` anywhere in the commit message:
+
+```bash
+git commit -m "docs: fix typo in README [skip ci]"
+```
+
 ### Pull-Requests
 For PRs targeting `develop`, the author merges after approval.
 
