@@ -1,5 +1,6 @@
 when:
-  - event: [push, pull_request, tag]
+  - event: [push]
+    evaluate: 'not (CI_COMMIT_MESSAGE contains "[skip ci]" or CI_COMMIT_MESSAGE contains "[ci skip]")'
 
 # Route this workflow to the generic PaZuFa agents.
 labels:
@@ -51,9 +52,66 @@ steps:
 
   # --- Release steps — only run on tag push ---
 
-  - name: build
+  - name: check-version
     image: python:3.12-slim
     depends_on: [check-lock, format-and-type-check, audit, test]
+    when:
+      - event: tag
+    commands:
+      - TAG_VERSION="${CI_COMMIT_TAG#v}"
+      - TOML_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+      - echo "Tag version:$TAG_VERSION  pyproject.toml version:$TOML_VERSION"
+      - test "$TAG_VERSION" = "$TOML_VERSION" || { echo "ERROR: tag '$TAG_VERSION' does not match pyproject.toml version '$TOML_VERSION'" >&2; exit 1; }
+
+  - name: check-not-on-pypi
+    image: python:3.12-slim
+    depends_on: [check-version]
+    when:
+      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+[.][0-9]+[.][0-9]+$"'
+    commands:
+      - VERSION="${CI_COMMIT_TAG#v}"
+      - |
+        python -c "
+        import urllib.request, urllib.error, sys
+        url = f'https://pypi.org/pypi/pazufa-corelib/$VERSION/json'
+        try:
+            urllib.request.urlopen(url)
+            print(f'ERROR: v$VERSION already exists on PyPI — bump the version in pyproject.toml or delete the tag', file=sys.stderr)
+            sys.exit(1)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                print(f'OK: v$VERSION not yet on PyPI')
+            else:
+                print(f'ERROR: unexpected HTTP {e.code} from PyPI', file=sys.stderr)
+                raise
+        "
+
+  - name: check-not-on-testpypi
+    image: python:3.12-slim
+    depends_on: [check-version]
+    when:
+      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+.*-rc.*"'
+    commands:
+      - VERSION="${CI_COMMIT_TAG#v}"
+      - |
+        python -c "
+        import urllib.request, urllib.error, sys
+        url = f'https://test.pypi.org/pypi/pazufa-corelib/$VERSION/json'
+        try:
+            urllib.request.urlopen(url)
+            print(f'ERROR: v$VERSION already exists on TestPyPI — bump the version in pyproject.toml or delete the tag', file=sys.stderr)
+            sys.exit(1)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                print(f'OK: v$VERSION not yet on TestPyPI')
+            else:
+                print(f'ERROR: unexpected HTTP {e.code} from TestPyPI', file=sys.stderr)
+                raise
+        "
+
+  - name: build
+    image: python:3.12-slim
+    depends_on: [check-not-on-pypi, check-not-on-testpypi, check-version, check-lock, format-and-type-check, audit, test]
     when:
       - event: tag
     commands:
@@ -67,7 +125,7 @@ steps:
       - event: tag
     commands:
       - pip install --quiet twine
-      - twine check dist/*
+      - twine check dist/* --strict
 
   - name: publish-testpypi
     image: python:3.12-slim
