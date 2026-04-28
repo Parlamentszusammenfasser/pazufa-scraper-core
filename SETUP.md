@@ -117,8 +117,8 @@ If `audit` fails, follow the [vulnerability response guide](https://wiki.pazufa.
 |---------------------|----------------------------------------------------------|
 | `build`             | `poetry build` — produces wheel and sdist                |
 | `check-dist`        | `twine check` — validates metadata                       |
-| `publish-testpypi`  | Uploads to TestPyPI (tags matching `vX.Y.Z-rcN`)         |
-| `publish-pypi`      | Uploads to PyPI (clean `vX.Y.Z` tags from `main` only)   |
+| `publish-testpypi`  | Uploads to TestPyPI (tags matching `vX.Y.ZrcN`)          |
+| `publish-pypi`      | Uploads to PyPI (clean `vX.Y.Z` tags, maintainers only)  |
 
 All steps use `python:3.12-slim`. The virtualenv is created inside the project (`.venv/`) so later steps can use it directly without reinstalling.
 
