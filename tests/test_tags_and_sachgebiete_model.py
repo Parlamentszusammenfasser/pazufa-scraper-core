@@ -1,11 +1,11 @@
-"""Tests for corelib.schlagworte_model."""
+"""Tests for pazufa_corelib.schlagworte_model."""
 
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from corelib.schlagworte_model import (
+from pazufa_corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
     SchlagwortIDResolution,

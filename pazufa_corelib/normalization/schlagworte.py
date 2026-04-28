@@ -23,7 +23,7 @@ from pydantic import AfterValidator, BaseModel
 from rapidfuzz import fuzz
 from rapidfuzz.process import cdist
 
-from corelib.schlagworte_model import (
+from pazufa_corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
     SchlagwortIDResolution,

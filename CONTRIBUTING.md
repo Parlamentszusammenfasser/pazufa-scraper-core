@@ -49,7 +49,7 @@ Documentation for this repository is split between the repo itself and the proje
 
 ### Docstrings
 
-Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `corelib/` require a docstring. Example:
+Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `pazufa_corelib/` require a docstring. Example:
 
 ```python
 def my_function(arg: str) -> int:
@@ -118,8 +118,8 @@ for a later API revision, usually with a larger time lag.
 
 Some files are generated and should usually not be edited by hand:
 
-- [corelib/api_model.py](corelib/api_model.py) from `datamodel-codegen`
-- [corelib/api_client/](corelib/api_client/) from `openapi-python-client`
+- [pazufa_corelib/api_model.py](pazufa_corelib/api_model.py) from `datamodel-codegen`
+- [pazufa_corelib/api_client/](pazufa_corelib/api_client/) from `openapi-python-client`
 
 If you change API-related behavior, prefer updating the OpenAPI source or generator configuration and then regenerate:
 

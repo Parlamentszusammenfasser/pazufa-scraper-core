@@ -4,7 +4,7 @@ import hashlib
 
 import pytest
 
-from corelib.normalization.hash import (
+from pazufa_corelib.normalization.hash import (
     HASH_ALGORITHM_SHA_1,
     HASH_ALGORITHM_SHA_256,
     HASH_CONNECTOR,
@@ -16,7 +16,7 @@ from corelib.normalization.hash import (
     hash_text,
     hash_text_sha_256,
 )
-from corelib.normalization.text import normalize_volltext
+from pazufa_corelib.normalization.text import normalize_volltext
 
 SHA1_BYTES_VARIANT = HASH_ALGORITHM_SHA_1 + HASH_CONNECTOR + HASH_VARIANT_BYTES
 SHA256_BYTES_VARIANT = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_BYTES

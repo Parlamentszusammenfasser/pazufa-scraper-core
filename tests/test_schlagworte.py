@@ -1,4 +1,4 @@
-"""Tests for corelib.normalization.schlagworte."""
+"""Tests for pazufa_corelib.normalization.schlagworte."""
 
 import json
 import logging
@@ -8,15 +8,15 @@ from typing import Any
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-import corelib.normalization.schlagworte as schlagworte_mod
-from corelib.normalization.schlagworte import (
+import pazufa_corelib.normalization.schlagworte as schlagworte_mod
+from pazufa_corelib.normalization.schlagworte import (
     SchlagwortResolver,
     _build_json,
     _build_json_sachgebiete_no_numbers,
     _canonicalise_ids,
     _make_validated_list,
 )
-from corelib.schlagworte_model import Sachgebiet, Tag
+from pazufa_corelib.schlagworte_model import Sachgebiet, Tag
 
 # =====================================================================
 # Fixtures
@@ -491,7 +491,7 @@ class TestCanonicaliseIdsNearTieWarning:
         canonical = ["Umweltschutz A", "Umweltschutz B"]
         raw = ["Umweltschutz C"]
         with caplog.at_level(
-            logging.WARNING, logger="corelib.normalization.schlagworte"
+            logging.WARNING, logger="pazufa_corelib.normalization.schlagworte"
         ):
             _canonicalise_ids(raw, canonical)
         assert any("Near-tie" in msg for msg in caplog.messages)
@@ -503,7 +503,7 @@ class TestCanonicaliseIdsNearTieWarning:
         canonical = ["Digitalisierung", "Wohnungsbau"]
         raw = ["Digitalisierung"]
         with caplog.at_level(
-            logging.WARNING, logger="corelib.normalization.schlagworte"
+            logging.WARNING, logger="pazufa_corelib.normalization.schlagworte"
         ):
             _canonicalise_ids(raw, canonical)
         assert not any("Near-tie" in msg for msg in caplog.messages)
@@ -513,7 +513,7 @@ class TestCanonicaliseIdsNearTieWarning:
         canonical = ["Digitalisierung", "Wohnungsbau"]
         raw = ["xyzxyzxyz"]
         with caplog.at_level(
-            logging.WARNING, logger="corelib.normalization.schlagworte"
+            logging.WARNING, logger="pazufa_corelib.normalization.schlagworte"
         ):
             _canonicalise_ids(raw, canonical)
         assert not any("Near-tie" in msg for msg in caplog.messages)

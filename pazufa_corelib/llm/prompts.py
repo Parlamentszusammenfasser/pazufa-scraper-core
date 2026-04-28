@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from corelib.normalization.schlagworte import SchlagwortResolver
+    from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 
 KURZTITEL_PROMPT = """\
 Erstelle einen kurzen, verständlichen Titel (5-10 Wörter) für den folgenden \

@@ -1,5 +1,5 @@
 [project]
-name = "pazufa-corelib"  # PyPI name only — import name remains `corelib`
+name = "pazufa_corelib"
 license = "GPL-3.0-only"
 version = "0.1.1rc1"
 description = "Core library for collecting parliamentary data"
@@ -37,7 +37,7 @@ Issues        = "https://codeberg.org/PaZuFa/pazufa-scraper-core/issues"
 Changelog     = "https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/CHANGELOG.md"
 
 [tool.poetry]
-packages = [{include = "corelib"}]
+packages = [{include = "pazufa_corelib"}]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.15"
@@ -80,8 +80,8 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
 "tools/**" = ["D"]
-"corelib/api_client/**" = ["D", "E501"]
-"corelib/api_model.py" = ["D", "E501"]
+"pazufa_corelib/api_client/**" = ["D", "E501"]
+"pazufa_corelib/api_model.py" = ["D", "E501"]
 # ^^^ currently auto generated, if switched to handwritten this will be no longer excluded.
 
 [tool.ruff.lint.pydocstyle]
@@ -90,16 +90,16 @@ convention = "google"
 
 [tool.ruff.format]
 docstring-code-format = true
-exclude = ["corelib/api_client/**", "corelib/api_model.py"]
+exclude = ["pazufa_corelib/api_client/**", "pazufa_corelib/api_model.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --cov=corelib --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=85"
+addopts = "-q --cov=pazufa_corelib --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=85"
 
 [tool.coverage.run]
 omit = [
-  "corelib/api_model.py",
-  "corelib/api_client/*",
+  "pazufa_corelib/api_model.py",
+  "pazufa_corelib/api_client/*",
 ]
 
 [tool.mypy]
@@ -115,7 +115,7 @@ ignore_missing_imports = true
 disable-timestamp = true
 formatters = ["ruff", "ruff-format"]
 input-file-type = "openapi"
-output = "corelib/api_model.py"
+output = "pazufa_corelib/api_model.py"
 output-model-type = "pydantic_v2.BaseModel"
 target-python-version = "3.12"
 url = "https://codeberg.org/PaZuFa/parlamentszusammenfasser/raw/tag/v0.2.3/docs/specs/openapi.yml"

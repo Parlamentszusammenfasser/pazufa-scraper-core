@@ -8,7 +8,7 @@ Example — structured extraction:
     ```python
     import asyncio
     from pydantic import BaseModel
-    from corelib.llm import LLMConnector
+    from pazufa_corelib.llm import LLMConnector
 
 
     class Keywords(BaseModel):

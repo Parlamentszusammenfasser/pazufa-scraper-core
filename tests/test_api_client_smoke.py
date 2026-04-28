@@ -14,13 +14,13 @@ from uuid import UUID
 import httpx
 import pytest
 
-from corelib import format_if_modified_since
-from corelib.api_client.api.sitzung import kal_date_put
-from corelib.api_client.api.vorgang import vorgang_get_by_id, vorgang_put
-from corelib.api_client.client import AuthenticatedClient
-from corelib.api_client.models.parlament import Parlament
-from corelib.api_client.models.vorgang import Vorgang
-from corelib.api_client.models.vorgangstyp import Vorgangstyp
+from pazufa_corelib import format_if_modified_since
+from pazufa_corelib.api_client.api.sitzung import kal_date_put
+from pazufa_corelib.api_client.api.vorgang import vorgang_get_by_id, vorgang_put
+from pazufa_corelib.api_client.client import AuthenticatedClient
+from pazufa_corelib.api_client.models.parlament import Parlament
+from pazufa_corelib.api_client.models.vorgang import Vorgang
+from pazufa_corelib.api_client.models.vorgangstyp import Vorgangstyp
 
 SCRAPER_ID = "11111111-2222-3333-4444-555555555555"
 VORGANG_ID = UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
