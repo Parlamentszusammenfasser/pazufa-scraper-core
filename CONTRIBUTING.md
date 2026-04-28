@@ -29,12 +29,12 @@ poetry run pip-audit
 
 ## Tooling
 
-| Tool          | Purpose                    | Run                             |
-|---------------|----------------------------|---------------------------------|
-| `ruff check`  | Linting                    | `poetry run ruff check .`       |
-| `ruff format` | Formatting                 | `poetry run ruff format .`      |
-| `mypy`        | Static type checking       | `poetry run mypy .`             |
-| `pytest`      | Tests                      | `poetry run pytest -v`          |
+| Tool          | Purpose                       | Run                          |
+|---------------|-------------------------------|------------------------------|
+| `ruff check`  | Linting                       | `poetry run ruff check .`    |
+| `ruff format` | Formatting                    | `poetry run ruff format .`   |
+| `mypy`        | Static type checking          | `poetry run mypy .`          |
+| `pytest`      | Tests                         | `poetry run pytest -v`       |
 | `pip-audit`   | Dependency vulnerability scan | `poetry run pip-audit`       |
 
 **mypy** is configured in `pyproject.toml` with strict settings (`disallow_untyped_defs`, `warn_return_any`). All new code must pass type checking. Generated files (`api_model.py`, `api_client/`) are excluded.
