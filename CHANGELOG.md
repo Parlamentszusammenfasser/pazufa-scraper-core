@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed (breaking)
+
+- Renamed import name `corelib` → `pazufa_corelib` to align with the PyPI distribution name. Update imports from `from corelib...` to `from pazufa_corelib...`. PEP 503 normalization keeps `pip install pazufa-corelib` working alongside the canonical underscore form (#77).
+
 ### Changed
 
 - **OpenAPI bumped to v0.2.3** — regenerated `pazufa_corelib/api_model.py` and `pazufa_corelib/api_client/` against the new spec (#73).

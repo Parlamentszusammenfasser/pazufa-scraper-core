@@ -156,7 +156,8 @@ Then regenerate and review the diff carefully.
 ## Project Structure
 
 - `pazufa_corelib/__init__.py` - public package exports
-- `pazufa_corelib/llm_connector.py` - current LLM entrypoint; LLM-related code is expected to move into `pazufa_corelib/llm/`
+- `pazufa_corelib/llm/` - LLM connector, models, and prompts
+- `pazufa_corelib/normalization/` - text, date, URL, hash, and Schlagworte helpers
 - `pazufa_corelib/api_model.py` - generated Pydantic models
 - `pazufa_corelib/api_client/` - generated OpenAPI client
 - `tests/` - unit tests
