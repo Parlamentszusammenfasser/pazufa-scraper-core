@@ -1,5 +1,5 @@
 when:
-  - event: [push, pull_request]
+  - event: [push, pull_request, tag]
 
 # Route this workflow to the generic PaZuFa agents.
 labels:
@@ -37,8 +37,115 @@ steps:
       - .venv/bin/ruff check .
       - .venv/bin/mypy .
 
+  - name: audit
+    image: python:3.12-slim
+    depends_on: [setup]
+    commands:
+      # Ignored vulnerabilities are tracked as Codeberg issues:
+      #   GHSA-xqmj-j6mv-4862 (litellm) — see issue #74
+      #   CVE-2026-3219       (pip)     — see issue #75
+      - .venv/bin/pip-audit --ignore-vuln GHSA-xqmj-j6mv-4862 --ignore-vuln CVE-2026-3219
+
   - name: test
     image: python:3.12-slim
     depends_on: [setup]
     commands:
       - .venv/bin/pytest
+
+  # --- Release steps — only run on tag push ---
+
+  - name: check-version
+    image: python:3.12-slim
+    depends_on: [check-lock, format-and-type-check, audit, test]
+    when:
+      - event: tag
+    commands:
+      - TAG_VERSION="${CI_COMMIT_TAG#v}"
+      - TOML_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+      - echo "Tag version:$TAG_VERSION  pyproject.toml version:$TOML_VERSION"
+      - |
+        if [ "$TAG_VERSION" != "$TOML_VERSION" ]; then
+          echo "ERROR: tag '$TAG_VERSION' does not match pyproject.toml version '$TOML_VERSION'" >&2
+          exit 1
+        fi
+
+  - name: check-not-published
+    image: python:3.12-slim
+    depends_on: [check-version]
+    when:
+      - event: tag
+    commands:
+      - VERSION="${CI_COMMIT_TAG#v}"
+      - |
+        if echo "$CI_COMMIT_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+rc[0-9]+$'; then
+          INDEX_URL="https://test.pypi.org/pypi/pazufa-corelib/$VERSION/json"
+          INDEX_NAME="TestPyPI"
+        elif echo "$CI_COMMIT_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+          INDEX_URL="https://pypi.org/pypi/pazufa-corelib/$VERSION/json"
+          INDEX_NAME="PyPI"
+        else
+          echo "ERROR: tag '$CI_COMMIT_TAG' does not match a recognized release pattern (vX.Y.Z or vX.Y.ZrcN)" >&2
+          exit 1
+        fi
+        export INDEX_URL INDEX_NAME VERSION
+        python -c "
+        import urllib.request, urllib.error, sys, os
+        url = os.environ['INDEX_URL']
+        name = os.environ['INDEX_NAME']
+        version = os.environ['VERSION']
+        try:
+            urllib.request.urlopen(url)
+            print(f'ERROR: v{version} already exists on {name} — bump the version in pyproject.toml or delete the tag', file=sys.stderr)
+            sys.exit(1)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                print(f'OK: v{version} not yet on {name}')
+            else:
+                print(f'ERROR: unexpected HTTP {e.code} from {name}', file=sys.stderr)
+                raise
+        "
+
+  - name: build
+    image: python:3.12-slim
+    depends_on: [check-not-published]
+    when:
+      - event: tag
+    commands:
+      - python -m pip install --quiet poetry~=2.3.0
+      - poetry build
+
+  - name: check-dist
+    image: python:3.12-slim
+    depends_on: [build]
+    when:
+      - event: tag
+    commands:
+      - pip install --quiet twine
+      - twine check dist/* --strict
+
+  - name: publish-testpypi
+    image: python:3.12-slim
+    depends_on: [check-dist]
+    when:
+      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+[.][0-9]+[.][0-9]+rc[0-9]+$"'
+    environment:
+      TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+      TWINE_USERNAME: __token__
+      TESTPYPI_TOKEN:
+        from_secret: testpypi_token
+    commands:
+      - pip install --quiet twine
+      - TWINE_PASSWORD=$TESTPYPI_TOKEN twine upload dist/*
+
+  - name: publish-pypi
+    image: python:3.12-slim
+    depends_on: [check-dist]
+    when:
+      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+[.][0-9]+[.][0-9]+$"'
+    environment:
+      TWINE_USERNAME: __token__
+      PYPI_TOKEN:
+        from_secret: pypi_token
+    commands:
+      - pip install --quiet twine
+      - TWINE_PASSWORD=$PYPI_TOKEN twine upload dist/*
