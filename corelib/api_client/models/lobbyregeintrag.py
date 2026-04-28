@@ -18,51 +18,51 @@ class Lobbyregeintrag:
     """Eintrag im Bundestagslobbyregister zu einem bestimmten Vorgang
 
     Example:
-        {'betroffene_drucksachen': ['BT-Drs. 20/12345', 'BT-Drs. 20/12346'], 'intention': 'Stellungnahme zu Auswirkungen
-            der Gesetzesänderung auf die deutsche Wirtschaft und Vorschläge zur Anpassung in § 15 des Gesetzesentwurfs.',
-            'interne_id': 'LR-ID-12345678', 'link': 'https://www.lobbyregister.bundestag.de/eintragung/12345678',
-            'organisation': {'lobbyregister': 'https://www.lobbyregister.bundestag.de/suche/experte/12345', 'organisation':
-            'Bundesverband der Deutschen Industrie e.V.'}}
+        {'organisation': {'organisation': 'Bundesverband der Deutschen Industrie e.V.', 'lobbyregister':
+            'https://www.lobbyregister.bundestag.de/suche/experte/12345'}, 'interne_id': 'LR-ID-12345678', 'intention':
+            'Stellungnahme zu Auswirkungen der Gesetzesänderung auf die deutsche Wirtschaft und Vorschläge zur Anpassung in
+            § 15 des Gesetzesentwurfs.', 'link': 'https://www.lobbyregister.bundestag.de/eintragung/12345678',
+            'betroffene_drucksachen': ['BT-Drs. 20/12345', 'BT-Drs. 20/12346']}
 
     Attributes:
+        organisation (Autor): Eine Person oder Organisation, die eine bestimmte Funktion übernommen hat. Z.B: Autor
+            einer Stellungnahme, Experte bei einer Anhörung, Initiator eines Vorgangs. Example: {'person': 'Prof. Dr.
+            Susanne Meyer', 'organisation': 'Universität Heidelberg', 'fachgebiet': 'Verfassungsrecht', 'lobbyregister':
+            'https://www.lobbyregister.bundestag.de/suche/experte/12345'}.
+        interne_id (str): Interne ID des Lobbyregisters, notwendig für die bildung von Links
+        intention (str): Lobbyregistereintrag zu dem  Was und Warum man auf den Vorgang Einfluss nehmen will
+        link (str): Direktlink zum Lobbyregistereintrag
         betroffene_drucksachen (list[str]): Stringarray mit betroffenen Drucksachennummern. Wird in der Datenbank
             _nicht_ integriert und nur flach aufgelegt
-        intention (str): Lobbyregistereintrag zu dem  Was und Warum man auf den Vorgang Einfluss nehmen will
-        interne_id (str): Interne ID des Lobbyregisters, notwendig für die bildung von Links
-        link (str): Direktlink zum Lobbyregistereintrag
-        organisation (Autor): Eine Person oder Organisation, die eine bestimmte Funktion übernommen hat. Z.B: Autor
-            einer Stellungnahme, Experte bei einer Anhörung, Initiator eines Vorgangs. Example: {'fachgebiet':
-            'Verfassungsrecht', 'lobbyregister': 'https://www.lobbyregister.bundestag.de/suche/experte/12345',
-            'organisation': 'Universität Heidelberg', 'person': 'Prof. Dr. Susanne Meyer'}.
     """
 
-    betroffene_drucksachen: list[str]
-    intention: str
-    interne_id: str
-    link: str
     organisation: Autor
+    interne_id: str
+    intention: str
+    link: str
+    betroffene_drucksachen: list[str]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        betroffene_drucksachen = self.betroffene_drucksachen
-
-        intention = self.intention
+        organisation = self.organisation.to_dict()
 
         interne_id = self.interne_id
 
+        intention = self.intention
+
         link = self.link
 
-        organisation = self.organisation.to_dict()
+        betroffene_drucksachen = self.betroffene_drucksachen
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "betroffene_drucksachen": betroffene_drucksachen,
-                "intention": intention,
-                "interne_id": interne_id,
-                "link": link,
                 "organisation": organisation,
+                "interne_id": interne_id,
+                "intention": intention,
+                "link": link,
+                "betroffene_drucksachen": betroffene_drucksachen,
             }
         )
 
@@ -73,22 +73,22 @@ class Lobbyregeintrag:
         from ..models.autor import Autor
 
         d = dict(src_dict)
-        betroffene_drucksachen = cast(list[str], d.pop("betroffene_drucksachen"))
-
-        intention = d.pop("intention")
+        organisation = Autor.from_dict(d.pop("organisation"))
 
         interne_id = d.pop("interne_id")
 
+        intention = d.pop("intention")
+
         link = d.pop("link")
 
-        organisation = Autor.from_dict(d.pop("organisation"))
+        betroffene_drucksachen = cast(list[str], d.pop("betroffene_drucksachen"))
 
         lobbyregeintrag = cls(
-            betroffene_drucksachen=betroffene_drucksachen,
-            intention=intention,
-            interne_id=interne_id,
-            link=link,
             organisation=organisation,
+            interne_id=interne_id,
+            intention=intention,
+            link=link,
+            betroffene_drucksachen=betroffene_drucksachen,
         )
 
         lobbyregeintrag.additional_properties = d

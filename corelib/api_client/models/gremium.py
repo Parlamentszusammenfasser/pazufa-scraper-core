@@ -17,25 +17,25 @@ class Gremium:
     """Ein Gremium in dem Entscheidungen getroffen werden können. z.B: Ausschüsse, Plenum, Kabinett, Volk, ...
 
     Attributes:
-        name (str): Name des betreffenden Gremiums. 'plenum', 'regierung', 'volk' sind reservierte namen Example:
-            Ausschuss für Inneres und Gemüseauflauf.
         parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in Deutschland
         wahlperiode (int):
+        name (str): Name des betreffenden Gremiums. 'plenum', 'regierung', 'volk' sind reservierte namen Example:
+            Ausschuss für Inneres und Gemüseauflauf.
         link (str | Unset):
     """
 
-    name: str
     parlament: Parlament
     wahlperiode: int
+    name: str
     link: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        name = self.name
-
         parlament = self.parlament.value
 
         wahlperiode = self.wahlperiode
+
+        name = self.name
 
         link = self.link
 
@@ -43,9 +43,9 @@ class Gremium:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "name": name,
                 "parlament": parlament,
                 "wahlperiode": wahlperiode,
+                "name": name,
             }
         )
         if link is not UNSET:
@@ -56,18 +56,18 @@ class Gremium:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        name = d.pop("name")
-
         parlament = Parlament(d.pop("parlament"))
 
         wahlperiode = d.pop("wahlperiode")
 
+        name = d.pop("name")
+
         link = d.pop("link", UNSET)
 
         gremium = cls(
-            name=name,
             parlament=parlament,
             wahlperiode=wahlperiode,
+            name=name,
             link=link,
         )
 

@@ -17,29 +17,29 @@ T = TypeVar("T", bound="GremienPutBodyReplacingItem")
 class GremienPutBodyReplacingItem:
     """
     Attributes:
+        values (list[Gremium]):
         replaced_by (int): This object is replaced by the object with index {} in the 'objects' list above. 0-Based
             indexing.
-        values (list[Gremium]):
     """
 
-    replaced_by: int
     values: list[Gremium]
+    replaced_by: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        replaced_by = self.replaced_by
-
         values = []
         for values_item_data in self.values:
             values_item = values_item_data.to_dict()
             values.append(values_item)
 
+        replaced_by = self.replaced_by
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "replaced_by": replaced_by,
                 "values": values,
+                "replaced_by": replaced_by,
             }
         )
 
@@ -50,8 +50,6 @@ class GremienPutBodyReplacingItem:
         from ..models.gremium import Gremium
 
         d = dict(src_dict)
-        replaced_by = d.pop("replaced_by")
-
         values = []
         _values = d.pop("values")
         for values_item_data in _values:
@@ -59,9 +57,11 @@ class GremienPutBodyReplacingItem:
 
             values.append(values_item)
 
+        replaced_by = d.pop("replaced_by")
+
         gremien_put_body_replacing_item = cls(
-            replaced_by=replaced_by,
             values=values,
+            replaced_by=replaced_by,
         )
 
         gremien_put_body_replacing_item.additional_properties = d

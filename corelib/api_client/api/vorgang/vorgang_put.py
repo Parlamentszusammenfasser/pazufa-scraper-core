@@ -70,21 +70,22 @@ def sync_detailed(
         body (Vorgang): 'Master-Objekt' der API. Der Wrapper um Stationen, die den
             Beratungsverlauf tatsächlich beschreiben. Ein Vorgang kann dabei nicht nur ein Gesetz,
             sondern auch ein parlamentarischer Antrag sein. Example: {'api_id':
-            '123e4567-e89b-12d3-a456-426614174000', 'ids': [{'id': '20/12345', 'typ': 'initdrucks'},
-            {'id': 'WR-2024-01', 'typ': 'vorgnr'}], 'initiatoren': [{'fachgebiet': 'Innenpolitik',
-            'organisation': 'CDU/CSU-Fraktion', 'person': 'Dr. Friedrich Merz'}, {'organisation':
-            'SPD-Fraktion'}], 'kurztitel': 'Wahlrechtsreform', 'links':
+            '123e4567-e89b-12d3-a456-426614174000', 'titel': 'Gesetz zur Änderung des
+            Bundeswahlgesetzes und anderer Gesetze', 'kurztitel': 'Wahlrechtsreform', 'wahlperiode':
+            20, 'verfassungsaendernd': False, 'typ': 'gg-einspruch', 'ids': [{'id': '20/12345', 'typ':
+            'initdrucks'}, {'id': 'WR-2024-01', 'typ': 'vorgnr'}], 'links':
             ['https://www.bundestag.de/dokumente/textarchiv/2024/wahlrechtsreform',
-            'https://dip.bundestag.de/vorgang/123456'], 'lobbyregister': [{'betroffene_drucksachen':
-            ['BT-Drs. 20/12345'], 'intention': 'Stellungnahme zu Auswirkungen der Gesetzesänderung auf
-            die deutsche Wirtschaft.', 'interne_id': 'LR-ID-12345678', 'link':
-            'https://www.lobbyregister.bundestag.de/eintragung/12345678', 'organisation':
-            {'organisation': 'Bundesverband der Deutschen Industrie e.V.', 'person': 'Dr. Johannes
-            Weber'}}], 'stationen': [{'api_id': 'f1e2d3c4-b5a6-7890-abcd-1234567890cd', 'dokumente':
-            [], 'parlament': 'BT', 'titel': 'Erste Lesung im Bundestag', 'typ': 'parl-vollvlsgn',
-            'zp_modifiziert': '2024-04-15T13:45:00+02:00', 'zp_start': '2024-04-15T10:00:00+02:00'}],
-            'titel': 'Gesetz zur Änderung des Bundeswahlgesetzes und anderer Gesetze', 'typ': 'gg-
-            einspruch', 'verfassungsaendernd': False, 'wahlperiode': 20}.
+            'https://dip.bundestag.de/vorgang/123456'], 'initiatoren': [{'person': 'Dr. Friedrich
+            Merz', 'organisation': 'CDU/CSU-Fraktion', 'fachgebiet': 'Innenpolitik'}, {'organisation':
+            'SPD-Fraktion'}], 'stationen': [{'api_id': 'f1e2d3c4-b5a6-7890-abcd-1234567890cd',
+            'titel': 'Erste Lesung im Bundestag', 'zp_start': '2024-04-15T10:00:00+02:00',
+            'zp_modifiziert': '2024-04-15T13:45:00+02:00', 'parlament': 'BT', 'typ': 'parl-vollvlsgn',
+            'dokumente': []}], 'lobbyregister': [{'organisation': {'organisation': 'Bundesverband der
+            Deutschen Industrie e.V.', 'person': 'Dr. Johannes Weber'}, 'interne_id': 'LR-
+            ID-12345678', 'intention': 'Stellungnahme zu Auswirkungen der Gesetzesänderung auf die
+            deutsche Wirtschaft.', 'link':
+            'https://www.lobbyregister.bundestag.de/eintragung/12345678', 'betroffene_drucksachen':
+            ['BT-Drs. 20/12345']}]}.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -121,21 +122,22 @@ async def asyncio_detailed(
         body (Vorgang): 'Master-Objekt' der API. Der Wrapper um Stationen, die den
             Beratungsverlauf tatsächlich beschreiben. Ein Vorgang kann dabei nicht nur ein Gesetz,
             sondern auch ein parlamentarischer Antrag sein. Example: {'api_id':
-            '123e4567-e89b-12d3-a456-426614174000', 'ids': [{'id': '20/12345', 'typ': 'initdrucks'},
-            {'id': 'WR-2024-01', 'typ': 'vorgnr'}], 'initiatoren': [{'fachgebiet': 'Innenpolitik',
-            'organisation': 'CDU/CSU-Fraktion', 'person': 'Dr. Friedrich Merz'}, {'organisation':
-            'SPD-Fraktion'}], 'kurztitel': 'Wahlrechtsreform', 'links':
+            '123e4567-e89b-12d3-a456-426614174000', 'titel': 'Gesetz zur Änderung des
+            Bundeswahlgesetzes und anderer Gesetze', 'kurztitel': 'Wahlrechtsreform', 'wahlperiode':
+            20, 'verfassungsaendernd': False, 'typ': 'gg-einspruch', 'ids': [{'id': '20/12345', 'typ':
+            'initdrucks'}, {'id': 'WR-2024-01', 'typ': 'vorgnr'}], 'links':
             ['https://www.bundestag.de/dokumente/textarchiv/2024/wahlrechtsreform',
-            'https://dip.bundestag.de/vorgang/123456'], 'lobbyregister': [{'betroffene_drucksachen':
-            ['BT-Drs. 20/12345'], 'intention': 'Stellungnahme zu Auswirkungen der Gesetzesänderung auf
-            die deutsche Wirtschaft.', 'interne_id': 'LR-ID-12345678', 'link':
-            'https://www.lobbyregister.bundestag.de/eintragung/12345678', 'organisation':
-            {'organisation': 'Bundesverband der Deutschen Industrie e.V.', 'person': 'Dr. Johannes
-            Weber'}}], 'stationen': [{'api_id': 'f1e2d3c4-b5a6-7890-abcd-1234567890cd', 'dokumente':
-            [], 'parlament': 'BT', 'titel': 'Erste Lesung im Bundestag', 'typ': 'parl-vollvlsgn',
-            'zp_modifiziert': '2024-04-15T13:45:00+02:00', 'zp_start': '2024-04-15T10:00:00+02:00'}],
-            'titel': 'Gesetz zur Änderung des Bundeswahlgesetzes und anderer Gesetze', 'typ': 'gg-
-            einspruch', 'verfassungsaendernd': False, 'wahlperiode': 20}.
+            'https://dip.bundestag.de/vorgang/123456'], 'initiatoren': [{'person': 'Dr. Friedrich
+            Merz', 'organisation': 'CDU/CSU-Fraktion', 'fachgebiet': 'Innenpolitik'}, {'organisation':
+            'SPD-Fraktion'}], 'stationen': [{'api_id': 'f1e2d3c4-b5a6-7890-abcd-1234567890cd',
+            'titel': 'Erste Lesung im Bundestag', 'zp_start': '2024-04-15T10:00:00+02:00',
+            'zp_modifiziert': '2024-04-15T13:45:00+02:00', 'parlament': 'BT', 'typ': 'parl-vollvlsgn',
+            'dokumente': []}], 'lobbyregister': [{'organisation': {'organisation': 'Bundesverband der
+            Deutschen Industrie e.V.', 'person': 'Dr. Johannes Weber'}, 'interne_id': 'LR-
+            ID-12345678', 'intention': 'Stellungnahme zu Auswirkungen der Gesetzesänderung auf die
+            deutsche Wirtschaft.', 'link':
+            'https://www.lobbyregister.bundestag.de/eintragung/12345678', 'betroffene_drucksachen':
+            ['BT-Drs. 20/12345']}]}.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

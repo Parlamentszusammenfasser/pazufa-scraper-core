@@ -16,36 +16,34 @@ T = TypeVar("T", bound="TouchedByItem")
 class TouchedByItem:
     """
     Attributes:
-        key (str | Unset): Key hash of the scraper that touched the object
         scraper_id (UUID | Unset): uuid of the scraper that touched this object
+        key (str | Unset): Key hash of the scraper that touched the object
     """
 
-    key: str | Unset = UNSET
     scraper_id: UUID | Unset = UNSET
+    key: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        key = self.key
-
         scraper_id: str | Unset = UNSET
         if not isinstance(self.scraper_id, Unset):
             scraper_id = str(self.scraper_id)
 
+        key = self.key
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
-        if key is not UNSET:
-            field_dict["key"] = key
         if scraper_id is not UNSET:
             field_dict["scraper_id"] = scraper_id
+        if key is not UNSET:
+            field_dict["key"] = key
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        key = d.pop("key", UNSET)
-
         _scraper_id = d.pop("scraper_id", UNSET)
         scraper_id: UUID | Unset
         if isinstance(_scraper_id, Unset):
@@ -53,9 +51,11 @@ class TouchedByItem:
         else:
             scraper_id = UUID(_scraper_id)
 
+        key = d.pop("key", UNSET)
+
         touched_by_item = cls(
-            key=key,
             scraper_id=scraper_id,
+            key=key,
         )
 
         touched_by_item.additional_properties = d

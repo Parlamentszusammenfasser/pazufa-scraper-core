@@ -17,14 +17,14 @@ class AuthListingKeytagResponse200:
     Attributes:
         dokumente (list[str] | Unset):
         sitzungen (list[str] | Unset):
-        stationen (list[str] | Unset):
         vorgaenge (list[str] | Unset):
+        stationen (list[str] | Unset):
     """
 
     dokumente: list[str] | Unset = UNSET
     sitzungen: list[str] | Unset = UNSET
-    stationen: list[str] | Unset = UNSET
     vorgaenge: list[str] | Unset = UNSET
+    stationen: list[str] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -36,13 +36,13 @@ class AuthListingKeytagResponse200:
         if not isinstance(self.sitzungen, Unset):
             sitzungen = self.sitzungen
 
-        stationen: list[str] | Unset = UNSET
-        if not isinstance(self.stationen, Unset):
-            stationen = self.stationen
-
         vorgaenge: list[str] | Unset = UNSET
         if not isinstance(self.vorgaenge, Unset):
             vorgaenge = self.vorgaenge
+
+        stationen: list[str] | Unset = UNSET
+        if not isinstance(self.stationen, Unset):
+            stationen = self.stationen
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -51,10 +51,10 @@ class AuthListingKeytagResponse200:
             field_dict["dokumente"] = dokumente
         if sitzungen is not UNSET:
             field_dict["sitzungen"] = sitzungen
-        if stationen is not UNSET:
-            field_dict["stationen"] = stationen
         if vorgaenge is not UNSET:
             field_dict["vorgaenge"] = vorgaenge
+        if stationen is not UNSET:
+            field_dict["stationen"] = stationen
 
         return field_dict
 
@@ -65,15 +65,15 @@ class AuthListingKeytagResponse200:
 
         sitzungen = cast(list[str], d.pop("sitzungen", UNSET))
 
-        stationen = cast(list[str], d.pop("stationen", UNSET))
-
         vorgaenge = cast(list[str], d.pop("vorgaenge", UNSET))
+
+        stationen = cast(list[str], d.pop("stationen", UNSET))
 
         auth_listing_keytag_response_200 = cls(
             dokumente=dokumente,
             sitzungen=sitzungen,
-            stationen=stationen,
             vorgaenge=vorgaenge,
+            stationen=stationen,
         )
 
         auth_listing_keytag_response_200.additional_properties = d

@@ -17,31 +17,30 @@ class Autor:
     bei einer Anhörung, Initiator eines Vorgangs.
 
         Example:
-            {'fachgebiet': 'Verfassungsrecht', 'lobbyregister':
-                'https://www.lobbyregister.bundestag.de/suche/experte/12345', 'organisation': 'Universität Heidelberg',
-                'person': 'Prof. Dr. Susanne Meyer'}
+            {'person': 'Prof. Dr. Susanne Meyer', 'organisation': 'Universität Heidelberg', 'fachgebiet':
+                'Verfassungsrecht', 'lobbyregister': 'https://www.lobbyregister.bundestag.de/suche/experte/12345'}
 
         Attributes:
             organisation (str):
+            person (str | Unset):
             fachgebiet (str | Unset):
             lobbyregister (str | Unset):
-            person (str | Unset):
     """
 
     organisation: str
+    person: str | Unset = UNSET
     fachgebiet: str | Unset = UNSET
     lobbyregister: str | Unset = UNSET
-    person: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         organisation = self.organisation
 
+        person = self.person
+
         fachgebiet = self.fachgebiet
 
         lobbyregister = self.lobbyregister
-
-        person = self.person
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -50,12 +49,12 @@ class Autor:
                 "organisation": organisation,
             }
         )
+        if person is not UNSET:
+            field_dict["person"] = person
         if fachgebiet is not UNSET:
             field_dict["fachgebiet"] = fachgebiet
         if lobbyregister is not UNSET:
             field_dict["lobbyregister"] = lobbyregister
-        if person is not UNSET:
-            field_dict["person"] = person
 
         return field_dict
 
@@ -64,17 +63,17 @@ class Autor:
         d = dict(src_dict)
         organisation = d.pop("organisation")
 
+        person = d.pop("person", UNSET)
+
         fachgebiet = d.pop("fachgebiet", UNSET)
 
         lobbyregister = d.pop("lobbyregister", UNSET)
 
-        person = d.pop("person", UNSET)
-
         autor = cls(
             organisation=organisation,
+            person=person,
             fachgebiet=fachgebiet,
             lobbyregister=lobbyregister,
-            person=person,
         )
 
         autor.additional_properties = d

@@ -21,21 +21,21 @@ class Top:
     """Ein Tagesordnungspunkt. Muss Nummer und Titel enthalten, für den Rest siehe unten.
 
     Example:
-        {'dokumente': [], 'nummer': 3, 'titel': 'Erste Beratung des von den Fraktionen SPD, BÜNDNIS 90/DIE GRÜNEN und
-            FDP eingebrachten Entwurfs eines Gesetzes zur Änderung des Bundeswahlgesetzes'}
+        {'nummer': 3, 'titel': 'Erste Beratung des von den Fraktionen SPD, BÜNDNIS 90/DIE GRÜNEN und FDP eingebrachten
+            Entwurfs eines Gesetzes zur Änderung des Bundeswahlgesetzes', 'dokumente': []}
 
     Attributes:
         nummer (int): Nummer des TOPs in einer Sitzung
         titel (str):
-        dokumente (list[Dokument | str] | Unset): Die Dokumente, die in diesem TOP besprochen werden sollen
         vorgang_id (list[UUID] | Unset): Die Nummer assoziierter Vorgänge. Wird beim Upload ignoriert, aber beim
             Download mitgegeben zusammen mit den konkreten Drucksachen
+        dokumente (list[Dokument | str] | Unset): Die Dokumente, die in diesem TOP besprochen werden sollen
     """
 
     nummer: int
     titel: str
-    dokumente: list[Dokument | str] | Unset = UNSET
     vorgang_id: list[UUID] | Unset = UNSET
+    dokumente: list[Dokument | str] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,6 +44,13 @@ class Top:
         nummer = self.nummer
 
         titel = self.titel
+
+        vorgang_id: list[str] | Unset = UNSET
+        if not isinstance(self.vorgang_id, Unset):
+            vorgang_id = []
+            for vorgang_id_item_data in self.vorgang_id:
+                vorgang_id_item = str(vorgang_id_item_data)
+                vorgang_id.append(vorgang_id_item)
 
         dokumente: list[dict[str, Any] | str] | Unset = UNSET
         if not isinstance(self.dokumente, Unset):
@@ -56,13 +63,6 @@ class Top:
                     dokumente_item = dokumente_item_data
                 dokumente.append(dokumente_item)
 
-        vorgang_id: list[str] | Unset = UNSET
-        if not isinstance(self.vorgang_id, Unset):
-            vorgang_id = []
-            for vorgang_id_item_data in self.vorgang_id:
-                vorgang_id_item = str(vorgang_id_item_data)
-                vorgang_id.append(vorgang_id_item)
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -71,10 +71,10 @@ class Top:
                 "titel": titel,
             }
         )
-        if dokumente is not UNSET:
-            field_dict["dokumente"] = dokumente
         if vorgang_id is not UNSET:
             field_dict["vorgang_id"] = vorgang_id
+        if dokumente is not UNSET:
+            field_dict["dokumente"] = dokumente
 
         return field_dict
 
@@ -86,6 +86,15 @@ class Top:
         nummer = d.pop("nummer")
 
         titel = d.pop("titel")
+
+        _vorgang_id = d.pop("vorgang_id", UNSET)
+        vorgang_id: list[UUID] | Unset = UNSET
+        if _vorgang_id is not UNSET:
+            vorgang_id = []
+            for vorgang_id_item_data in _vorgang_id:
+                vorgang_id_item = UUID(vorgang_id_item_data)
+
+                vorgang_id.append(vorgang_id_item)
 
         _dokumente = d.pop("dokumente", UNSET)
         dokumente: list[Dokument | str] | Unset = UNSET
@@ -108,20 +117,11 @@ class Top:
 
                 dokumente.append(dokumente_item)
 
-        _vorgang_id = d.pop("vorgang_id", UNSET)
-        vorgang_id: list[UUID] | Unset = UNSET
-        if _vorgang_id is not UNSET:
-            vorgang_id = []
-            for vorgang_id_item_data in _vorgang_id:
-                vorgang_id_item = UUID(vorgang_id_item_data)
-
-                vorgang_id.append(vorgang_id_item)
-
         top = cls(
             nummer=nummer,
             titel=titel,
-            dokumente=dokumente,
             vorgang_id=vorgang_id,
+            dokumente=dokumente,
         )
 
         top.additional_properties = d

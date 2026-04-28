@@ -27,53 +27,61 @@ class Vorgang:
     kann dabei nicht nur ein Gesetz, sondern auch ein parlamentarischer Antrag sein.
 
         Example:
-            {'api_id': '123e4567-e89b-12d3-a456-426614174000', 'ids': [{'id': '20/12345', 'typ': 'initdrucks'}, {'id':
-                'WR-2024-01', 'typ': 'vorgnr'}], 'initiatoren': [{'fachgebiet': 'Innenpolitik', 'organisation': 'CDU/CSU-
-                Fraktion', 'person': 'Dr. Friedrich Merz'}, {'organisation': 'SPD-Fraktion'}], 'kurztitel': 'Wahlrechtsreform',
-                'links': ['https://www.bundestag.de/dokumente/textarchiv/2024/wahlrechtsreform',
-                'https://dip.bundestag.de/vorgang/123456'], 'lobbyregister': [{'betroffene_drucksachen': ['BT-Drs. 20/12345'],
-                'intention': 'Stellungnahme zu Auswirkungen der Gesetzesänderung auf die deutsche Wirtschaft.', 'interne_id':
-                'LR-ID-12345678', 'link': 'https://www.lobbyregister.bundestag.de/eintragung/12345678', 'organisation':
-                {'organisation': 'Bundesverband der Deutschen Industrie e.V.', 'person': 'Dr. Johannes Weber'}}], 'stationen':
-                [{'api_id': 'f1e2d3c4-b5a6-7890-abcd-1234567890cd', 'dokumente': [], 'parlament': 'BT', 'titel': 'Erste Lesung
-                im Bundestag', 'typ': 'parl-vollvlsgn', 'zp_modifiziert': '2024-04-15T13:45:00+02:00', 'zp_start':
-                '2024-04-15T10:00:00+02:00'}], 'titel': 'Gesetz zur Änderung des Bundeswahlgesetzes und anderer Gesetze', 'typ':
-                'gg-einspruch', 'verfassungsaendernd': False, 'wahlperiode': 20}
+            {'api_id': '123e4567-e89b-12d3-a456-426614174000', 'titel': 'Gesetz zur Änderung des Bundeswahlgesetzes und
+                anderer Gesetze', 'kurztitel': 'Wahlrechtsreform', 'wahlperiode': 20, 'verfassungsaendernd': False, 'typ': 'gg-
+                einspruch', 'ids': [{'id': '20/12345', 'typ': 'initdrucks'}, {'id': 'WR-2024-01', 'typ': 'vorgnr'}], 'links':
+                ['https://www.bundestag.de/dokumente/textarchiv/2024/wahlrechtsreform',
+                'https://dip.bundestag.de/vorgang/123456'], 'initiatoren': [{'person': 'Dr. Friedrich Merz', 'organisation':
+                'CDU/CSU-Fraktion', 'fachgebiet': 'Innenpolitik'}, {'organisation': 'SPD-Fraktion'}], 'stationen': [{'api_id':
+                'f1e2d3c4-b5a6-7890-abcd-1234567890cd', 'titel': 'Erste Lesung im Bundestag', 'zp_start':
+                '2024-04-15T10:00:00+02:00', 'zp_modifiziert': '2024-04-15T13:45:00+02:00', 'parlament': 'BT', 'typ': 'parl-
+                vollvlsgn', 'dokumente': []}], 'lobbyregister': [{'organisation': {'organisation': 'Bundesverband der Deutschen
+                Industrie e.V.', 'person': 'Dr. Johannes Weber'}, 'interne_id': 'LR-ID-12345678', 'intention': 'Stellungnahme zu
+                Auswirkungen der Gesetzesänderung auf die deutsche Wirtschaft.', 'link':
+                'https://www.lobbyregister.bundestag.de/eintragung/12345678', 'betroffene_drucksachen': ['BT-Drs. 20/12345']}]}
 
         Attributes:
             api_id (UUID):  Example: 123e4567-e89b-12d3-a456-426614174000.
-            initiatoren (list[Autor]): Liste von Personen oder Organisationen, die den Vorgang initiiert haben. Kann z.B.
-                eine Person, eine Organisation oder ein Gremium sein.
-            stationen (list[Station]):
             titel (str):
+            wahlperiode (int): Nummer der Wahlperiode, in der der Vorgang stattfindet
+            verfassungsaendernd (bool):
             typ (Vorgangstyp): Der Gesetzgebungstrack auf dem wir uns befinden. Zum Beispiel: gesetzgebung -
                 Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich sind zusammen mit den Parlamenten in den
                 Stationen
-            verfassungsaendernd (bool):
-            wahlperiode (int): Nummer der Wahlperiode, in der der Vorgang stattfindet
-            ids (list[VgIdent] | Unset):
+            initiatoren (list[Autor]): Liste von Personen oder Organisationen, die den Vorgang initiiert haben. Kann z.B.
+                eine Person, eine Organisation oder ein Gremium sein.
+            stationen (list[Station]):
+            touched_by (list[TouchedByItem] | Unset): list of scraper uuids / key database ids that have touched this object
             kurztitel (str | Unset):
+            ids (list[VgIdent] | Unset):
             links (list[str] | Unset):
             lobbyregister (list[Lobbyregeintrag] | Unset):
-            touched_by (list[TouchedByItem] | Unset): list of scraper uuids / key database ids that have touched this object
     """
 
     api_id: UUID
+    titel: str
+    wahlperiode: int
+    verfassungsaendernd: bool
+    typ: Vorgangstyp
     initiatoren: list[Autor]
     stationen: list[Station]
-    titel: str
-    typ: Vorgangstyp
-    verfassungsaendernd: bool
-    wahlperiode: int
-    ids: list[VgIdent] | Unset = UNSET
+    touched_by: list[TouchedByItem] | Unset = UNSET
     kurztitel: str | Unset = UNSET
+    ids: list[VgIdent] | Unset = UNSET
     links: list[str] | Unset = UNSET
     lobbyregister: list[Lobbyregeintrag] | Unset = UNSET
-    touched_by: list[TouchedByItem] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         api_id = str(self.api_id)
+
+        titel = self.titel
+
+        wahlperiode = self.wahlperiode
+
+        verfassungsaendernd = self.verfassungsaendernd
+
+        typ = self.typ.value
 
         initiatoren = []
         for initiatoren_item_data in self.initiatoren:
@@ -85,13 +93,14 @@ class Vorgang:
             stationen_item = stationen_item_data.to_dict()
             stationen.append(stationen_item)
 
-        titel = self.titel
+        touched_by: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.touched_by, Unset):
+            touched_by = []
+            for componentsschemastouched_by_item_data in self.touched_by:
+                componentsschemastouched_by_item = componentsschemastouched_by_item_data.to_dict()
+                touched_by.append(componentsschemastouched_by_item)
 
-        typ = self.typ.value
-
-        verfassungsaendernd = self.verfassungsaendernd
-
-        wahlperiode = self.wahlperiode
+        kurztitel = self.kurztitel
 
         ids: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.ids, Unset):
@@ -99,8 +108,6 @@ class Vorgang:
             for ids_item_data in self.ids:
                 ids_item = ids_item_data.to_dict()
                 ids.append(ids_item)
-
-        kurztitel = self.kurztitel
 
         links: list[str] | Unset = UNSET
         if not isinstance(self.links, Unset):
@@ -113,36 +120,29 @@ class Vorgang:
                 lobbyregister_item = lobbyregister_item_data.to_dict()
                 lobbyregister.append(lobbyregister_item)
 
-        touched_by: list[dict[str, Any]] | Unset = UNSET
-        if not isinstance(self.touched_by, Unset):
-            touched_by = []
-            for componentsschemastouched_by_item_data in self.touched_by:
-                componentsschemastouched_by_item = componentsschemastouched_by_item_data.to_dict()
-                touched_by.append(componentsschemastouched_by_item)
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "api_id": api_id,
+                "titel": titel,
+                "wahlperiode": wahlperiode,
+                "verfassungsaendernd": verfassungsaendernd,
+                "typ": typ,
                 "initiatoren": initiatoren,
                 "stationen": stationen,
-                "titel": titel,
-                "typ": typ,
-                "verfassungsaendernd": verfassungsaendernd,
-                "wahlperiode": wahlperiode,
             }
         )
-        if ids is not UNSET:
-            field_dict["ids"] = ids
+        if touched_by is not UNSET:
+            field_dict["touched_by"] = touched_by
         if kurztitel is not UNSET:
             field_dict["kurztitel"] = kurztitel
+        if ids is not UNSET:
+            field_dict["ids"] = ids
         if links is not UNSET:
             field_dict["links"] = links
         if lobbyregister is not UNSET:
             field_dict["lobbyregister"] = lobbyregister
-        if touched_by is not UNSET:
-            field_dict["touched_by"] = touched_by
 
         return field_dict
 
@@ -156,6 +156,14 @@ class Vorgang:
 
         d = dict(src_dict)
         api_id = UUID(d.pop("api_id"))
+
+        titel = d.pop("titel")
+
+        wahlperiode = d.pop("wahlperiode")
+
+        verfassungsaendernd = d.pop("verfassungsaendernd")
+
+        typ = Vorgangstyp(d.pop("typ"))
 
         initiatoren = []
         _initiatoren = d.pop("initiatoren")
@@ -171,13 +179,16 @@ class Vorgang:
 
             stationen.append(stationen_item)
 
-        titel = d.pop("titel")
+        _touched_by = d.pop("touched_by", UNSET)
+        touched_by: list[TouchedByItem] | Unset = UNSET
+        if _touched_by is not UNSET:
+            touched_by = []
+            for componentsschemastouched_by_item_data in _touched_by:
+                componentsschemastouched_by_item = TouchedByItem.from_dict(componentsschemastouched_by_item_data)
 
-        typ = Vorgangstyp(d.pop("typ"))
+                touched_by.append(componentsschemastouched_by_item)
 
-        verfassungsaendernd = d.pop("verfassungsaendernd")
-
-        wahlperiode = d.pop("wahlperiode")
+        kurztitel = d.pop("kurztitel", UNSET)
 
         _ids = d.pop("ids", UNSET)
         ids: list[VgIdent] | Unset = UNSET
@@ -187,8 +198,6 @@ class Vorgang:
                 ids_item = VgIdent.from_dict(ids_item_data)
 
                 ids.append(ids_item)
-
-        kurztitel = d.pop("kurztitel", UNSET)
 
         links = cast(list[str], d.pop("links", UNSET))
 
@@ -201,28 +210,19 @@ class Vorgang:
 
                 lobbyregister.append(lobbyregister_item)
 
-        _touched_by = d.pop("touched_by", UNSET)
-        touched_by: list[TouchedByItem] | Unset = UNSET
-        if _touched_by is not UNSET:
-            touched_by = []
-            for componentsschemastouched_by_item_data in _touched_by:
-                componentsschemastouched_by_item = TouchedByItem.from_dict(componentsschemastouched_by_item_data)
-
-                touched_by.append(componentsschemastouched_by_item)
-
         vorgang = cls(
             api_id=api_id,
+            titel=titel,
+            wahlperiode=wahlperiode,
+            verfassungsaendernd=verfassungsaendernd,
+            typ=typ,
             initiatoren=initiatoren,
             stationen=stationen,
-            titel=titel,
-            typ=typ,
-            verfassungsaendernd=verfassungsaendernd,
-            wahlperiode=wahlperiode,
-            ids=ids,
+            touched_by=touched_by,
             kurztitel=kurztitel,
+            ids=ids,
             links=links,
             lobbyregister=lobbyregister,
-            touched_by=touched_by,
         )
 
         vorgang.additional_properties = d

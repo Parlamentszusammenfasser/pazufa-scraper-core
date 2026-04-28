@@ -14,31 +14,45 @@ CONFIG = Path(__file__).resolve().parent / "openapi-python-client.yaml"
 GEN_PKG_NAME = "corelib_api_client"
 DEST = REPO_ROOT / "corelib" / "api_client"
 
+# openapi-python-client emits broken header code for these formats:
+# - "date-time" produces `datetime | Unset` parameters that the client cannot
+#   serialize back into a string.
+# - "uuid" produces `UUID` parameters that get assigned directly to httpx's
+#   headers dict, which rejects non-str values at request time.
+# Body and query/path schemas keep their formats untouched.
+_UNSUPPORTED_HEADER_FORMATS = {"date-time", "uuid"}
+
 
 def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
 def _patch_spec(spec: dict) -> dict:
-    """Remove format: date-time from header parameters.
+    """Strip header formats that the Python client generator cannot honor.
 
-    openapi-python-client cannot handle datetime.datetime | Unset in headers,
-    so we strip the format annotation before generation. The source file is
-    never modified.
+    See ``_UNSUPPORTED_HEADER_FORMATS`` for the list and the reason. The
+    source file on disk is never modified; this only operates on the loaded
+    dict.
     """
     for path_item in spec.get("paths", {}).values():
         for operation in path_item.values():
             if not isinstance(operation, dict):
                 continue
             for param in operation.get("parameters", []):
-                if not isinstance(param, dict):
-                    continue
-                if param.get("in") == "header":
-                    param.get("schema", {}).pop("format", None)
+                _strip_unsupported_header_format(param)
     for param in spec.get("components", {}).get("parameters", {}).values():
-        if isinstance(param, dict) and param.get("in") == "header":
-            param.get("schema", {}).pop("format", None)
+        _strip_unsupported_header_format(param)
     return spec
+
+
+def _strip_unsupported_header_format(param: object) -> None:
+    if not isinstance(param, dict):
+        return
+    if param.get("in") != "header":
+        return
+    schema = param.get("schema")
+    if isinstance(schema, dict) and schema.get("format") in _UNSUPPORTED_HEADER_FORMATS:
+        schema.pop("format")
 
 
 def main() -> None:
@@ -47,7 +61,7 @@ def main() -> None:
 
         spec = yaml.safe_load(OPENAPI.read_text())
         patched_spec_path = build_dir / "openapi-patched.yaml"
-        patched_spec_path.write_text(yaml.dump(_patch_spec(spec)))
+        patched_spec_path.write_text(yaml.dump(_patch_spec(spec), sort_keys=False))
 
         run(
             [
