@@ -1,6 +1,5 @@
 from http import HTTPStatus
 from typing import Any
-from uuid import UUID
 
 import httpx
 
@@ -13,7 +12,7 @@ from ...types import Response
 def _get_kwargs(
     *,
     body: Vorgang,
-    x_scraper_id: UUID,
+    x_scraper_id: str,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     headers["X-Scraper-Id"] = x_scraper_id
@@ -31,9 +30,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | None:
     if response.status_code == 201:
         return None
 
@@ -49,9 +46,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -64,14 +59,14 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: Vorgang,
-    x_scraper_id: UUID,
+    x_scraper_id: str,
 ) -> Response[Any]:
     """Collector interface for inserting a new legislative process. Processes are automatically
     deduplicated against existing data and merged if necessary. Used by data collection services to add
     new legislative processes to the system.
 
     Args:
-        x_scraper_id (UUID):
+        x_scraper_id (str):
         body (Vorgang): 'Master-Objekt' der API. Der Wrapper um Stationen, die den
             Beratungsverlauf tatsächlich beschreiben. Ein Vorgang kann dabei nicht nur ein Gesetz,
             sondern auch ein parlamentarischer Antrag sein. Example: {'api_id':
@@ -116,14 +111,14 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: Vorgang,
-    x_scraper_id: UUID,
+    x_scraper_id: str,
 ) -> Response[Any]:
     """Collector interface for inserting a new legislative process. Processes are automatically
     deduplicated against existing data and merged if necessary. Used by data collection services to add
     new legislative processes to the system.
 
     Args:
-        x_scraper_id (UUID):
+        x_scraper_id (str):
         body (Vorgang): 'Master-Objekt' der API. Der Wrapper um Stationen, die den
             Beratungsverlauf tatsächlich beschreiben. Ein Vorgang kann dabei nicht nur ein Gesetz,
             sondern auch ein parlamentarischer Antrag sein. Example: {'api_id':

@@ -98,9 +98,7 @@ class Station:
         if not isinstance(self.touched_by, Unset):
             touched_by = []
             for componentsschemastouched_by_item_data in self.touched_by:
-                componentsschemastouched_by_item = (
-                    componentsschemastouched_by_item_data.to_dict()
-                )
+                componentsschemastouched_by_item = componentsschemastouched_by_item_data.to_dict()
                 touched_by.append(componentsschemastouched_by_item)
 
         titel = self.titel
@@ -211,9 +209,7 @@ class Station:
         if _touched_by is not UNSET:
             touched_by = []
             for componentsschemastouched_by_item_data in _touched_by:
-                componentsschemastouched_by_item = TouchedByItem.from_dict(
-                    componentsschemastouched_by_item_data
-                )
+                componentsschemastouched_by_item = TouchedByItem.from_dict(componentsschemastouched_by_item_data)
 
                 touched_by.append(componentsschemastouched_by_item)
 
@@ -253,9 +249,7 @@ class Station:
                         pass
                     return cast(Dokument | str, data)
 
-                stellungnahmen_item = _parse_stellungnahmen_item(
-                    stellungnahmen_item_data
-                )
+                stellungnahmen_item = _parse_stellungnahmen_item(stellungnahmen_item_data)
 
                 stellungnahmen.append(stellungnahmen_item)
 
