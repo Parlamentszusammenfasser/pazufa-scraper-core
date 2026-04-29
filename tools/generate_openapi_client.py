@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -39,15 +40,15 @@ def _patch_spec(spec: dict) -> dict:
             if not isinstance(operation, dict):
                 continue
             for param in operation.get("parameters", []):
-                _strip_unsupported_header_format(param)
+                if isinstance(param, dict):
+                    _strip_unsupported_header_format(param)
     for param in spec.get("components", {}).get("parameters", {}).values():
-        _strip_unsupported_header_format(param)
+        if isinstance(param, dict):
+            _strip_unsupported_header_format(param)
     return spec
 
 
-def _strip_unsupported_header_format(param: object) -> None:
-    if not isinstance(param, dict):
-        return
+def _strip_unsupported_header_format(param: dict[str, Any]) -> None:
     if param.get("in") != "header":
         return
     schema = param.get("schema")

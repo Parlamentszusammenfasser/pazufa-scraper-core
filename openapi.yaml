@@ -71,12 +71,6 @@ paths:
               $ref: "#/components/headers/X-RateLimit-Remaining"
             X-RateLimit-Reset:
               $ref: "#/components/headers/X-RateLimit-Reset"
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                description: "Free-form JSON error payload mirroring the 200 response shape."
 
   /api/v2/vorgang/{vorgang_id}:
     get:

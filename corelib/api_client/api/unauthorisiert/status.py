@@ -1,12 +1,11 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.status_response_200 import StatusResponse200
-from ...models.status_response_500 import StatusResponse500
 from ...types import Response
 
 
@@ -22,15 +21,14 @@ def _get_kwargs() -> dict[str, Any]:
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> StatusResponse200 | StatusResponse500 | None:
+) -> Any | StatusResponse200 | None:
     if response.status_code == 200:
         response_200 = StatusResponse200.from_dict(response.json())
 
         return response_200
 
     if response.status_code == 500:
-        response_500 = StatusResponse500.from_dict(response.json())
-
+        response_500 = cast(Any, None)
         return response_500
 
     if client.raise_on_unexpected_status:
@@ -41,7 +39,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[StatusResponse200 | StatusResponse500]:
+) -> Response[Any | StatusResponse200]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -53,7 +51,7 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-) -> Response[StatusResponse200 | StatusResponse500]:
+) -> Response[Any | StatusResponse200]:
     """Retrieves the current status of the API
 
     Raises:
@@ -61,7 +59,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[StatusResponse200 | StatusResponse500]
+        Response[Any | StatusResponse200]
     """
 
     kwargs = _get_kwargs()
@@ -76,7 +74,7 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-) -> StatusResponse200 | StatusResponse500 | None:
+) -> Any | StatusResponse200 | None:
     """Retrieves the current status of the API
 
     Raises:
@@ -84,7 +82,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        StatusResponse200 | StatusResponse500
+        Any | StatusResponse200
     """
 
     return sync_detailed(
@@ -95,7 +93,7 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-) -> Response[StatusResponse200 | StatusResponse500]:
+) -> Response[Any | StatusResponse200]:
     """Retrieves the current status of the API
 
     Raises:
@@ -103,7 +101,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[StatusResponse200 | StatusResponse500]
+        Response[Any | StatusResponse200]
     """
 
     kwargs = _get_kwargs()
@@ -116,7 +114,7 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-) -> StatusResponse200 | StatusResponse500 | None:
+) -> Any | StatusResponse200 | None:
     """Retrieves the current status of the API
 
     Raises:
@@ -124,7 +122,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        StatusResponse200 | StatusResponse500
+        Any | StatusResponse200
     """
 
     return (

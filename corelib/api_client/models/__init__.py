@@ -23,7 +23,6 @@ from .sitzung import Sitzung
 from .station import Station
 from .stationstyp import Stationstyp
 from .status_response_200 import StatusResponse200
-from .status_response_500 import StatusResponse500
 from .top import Top
 from .touched_by_item import TouchedByItem
 from .vg_ident import VgIdent
@@ -54,7 +53,6 @@ __all__ = (
     "Station",
     "Stationstyp",
     "StatusResponse200",
-    "StatusResponse500",
     "Top",
     "TouchedByItem",
     "VgIdent",

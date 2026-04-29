@@ -46,8 +46,8 @@ def client(captured: list[dict[str, Any]]) -> AuthenticatedClient:
         return httpx.Response(201)
 
     c = AuthenticatedClient(base_url="http://test", token="dummy")
-    c._client = httpx.Client(
-        transport=httpx.MockTransport(handler), base_url="http://test"
+    c.set_httpx_client(
+        httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
     )
     return c
 
