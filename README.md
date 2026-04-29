@@ -30,15 +30,15 @@ The library consists of three parts:
 - Python 3.12+
 - Poetry 2.x
 
- For the full dependency list, see [pyproject.toml](pyproject.toml). 
+ For the full dependency list, see [pyproject.toml](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/pyproject.toml). 
 
 ## Setup 
 
-See [SETUP.md](SETUP.md) for the full setup guide, which is versioned alongside the code.
+See [SETUP.md](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/SETUP.md) for the full setup guide, which is versioned alongside the code.
 
 ## Contribution
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, git workflow, code generation, documentation and project context.
+See [CONTRIBUTING.md](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/CONTRIBUTING.md) for development setup, git workflow, code generation, documentation and project context.
 
 ## License
 

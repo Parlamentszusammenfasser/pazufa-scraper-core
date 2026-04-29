@@ -24,16 +24,18 @@ poetry run ruff check .
 poetry run ruff format --check .
 poetry run mypy .
 poetry run pytest -v
+poetry run pip-audit
 ```
 
 ## Tooling
 
-| Tool          | Purpose              | Run                        |
-|---------------|----------------------|----------------------------|
-| `ruff check`  | Linting              | `poetry run ruff check .`  |
-| `ruff format` | Formatting           | `poetry run ruff format .` |
-| `mypy`        | Static type checking | `poetry run mypy .`        |
-| `pytest`      | Tests                | `poetry run pytest -v`     |
+| Tool          | Purpose                       | Run                          |
+|---------------|-------------------------------|------------------------------|
+| `ruff check`  | Linting                       | `poetry run ruff check .`    |
+| `ruff format` | Formatting                    | `poetry run ruff format .`   |
+| `mypy`        | Static type checking          | `poetry run mypy .`          |
+| `pytest`      | Tests                         | `poetry run pytest -v`       |
+| `pip-audit`   | Dependency vulnerability scan | `poetry run pip-audit`       |
 
 **mypy** is configured in `pyproject.toml` with strict settings (`disallow_untyped_defs`, `warn_return_any`). All new code must pass type checking. Generated files (`api_model.py`, `api_client/`) are excluded.
 
@@ -47,7 +49,7 @@ Documentation for this repository is split between the repo itself and the proje
 
 ### Docstrings
 
-Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `corelib/` require a docstring. Example:
+Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `pazufa_corelib/` require a docstring. Example:
 
 ```python
 def my_function(arg: str) -> int:
@@ -116,8 +118,8 @@ for a later API revision, usually with a larger time lag.
 
 Some files are generated and should usually not be edited by hand:
 
-- [corelib/api_model.py](corelib/api_model.py) from `datamodel-codegen`
-- [corelib/api_client/](corelib/api_client/) from `openapi-python-client`
+- [pazufa_corelib/api_model.py](pazufa_corelib/api_model.py) from `datamodel-codegen`
+- [pazufa_corelib/api_client/](pazufa_corelib/api_client/) from `openapi-python-client`
 
 If you change API-related behavior, prefer updating the OpenAPI source or generator configuration and then regenerate:
 

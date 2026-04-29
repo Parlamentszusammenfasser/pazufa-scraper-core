@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     from instructor.core import InstructorRetryException
 
-from corelib.llm.llm_connector import (
+from pazufa_corelib.llm.llm_connector import (
     TOKEN_ESTIMATE_OUTPUT_BUFFER,
     LLMAuthenticationError,
     LLMConnector,
@@ -60,41 +60,33 @@ class TestExtractInputValidation:
     def test_empty_prompt_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(ValueError, match="prompt must not be empty"):
-            asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt="   ", response_model=Keywords)
-            )
+            asyncio.run(connector.extract(prompt="   ", response_model=Keywords))
 
     def test_non_string_prompt_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(ValueError, match="prompt must be a string"):
-            asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt=42, response_model=Keywords)  # type: ignore[arg-type]
-            )
+            asyncio.run(connector.extract(prompt=42, response_model=Keywords))  # type: ignore[arg-type]
 
     def test_non_basemodel_response_model_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(
             ValueError, match="response_model must be a Pydantic BaseModel"
         ):
-            asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt="test", response_model=dict)  # type: ignore[arg-type,type-var]
-            )
+            asyncio.run(connector.extract(prompt="test", response_model=dict))  # type: ignore[arg-type,type-var]
 
     def test_string_response_model_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(
             ValueError, match="response_model must be a Pydantic BaseModel"
         ):
-            asyncio.get_event_loop().run_until_complete(
-                connector.extract(prompt="test", response_model="Keywords")  # type: ignore[arg-type]
-            )
+            asyncio.run(connector.extract(prompt="test", response_model="Keywords"))  # type: ignore[arg-type]
 
     def test_negative_validation_retries_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(
             ValueError, match="validation_retries must be a non-negative integer"
         ):
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 connector.extract(
                     prompt="test", response_model=Keywords, validation_retries=-1
                 )
@@ -105,7 +97,7 @@ class TestExtractInputValidation:
         with pytest.raises(
             ValueError, match="validation_retries must be a non-negative integer"
         ):
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 connector.extract(
                     prompt="test",
                     response_model=Keywords,
@@ -116,7 +108,7 @@ class TestExtractInputValidation:
     def test_non_string_system_prompt_raises(self) -> None:
         connector = _make_connector()
         with pytest.raises(ValueError, match="system_prompt must be a string or None"):
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 connector.extract(
                     prompt="test",
                     response_model=Keywords,
@@ -272,7 +264,10 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch("corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "pazufa_corelib.llm.llm_connector.asyncio.sleep",
+            new_callable=AsyncMock,
+        ):
             result = await connector.extract(prompt="test", response_model=Keywords)
 
         assert result.sachgebiete == ["Justiz"]
@@ -310,7 +305,10 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch("corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "pazufa_corelib.llm.llm_connector.asyncio.sleep",
+            new_callable=AsyncMock,
+        ):
             with pytest.raises(LLMTemporaryProviderError):
                 await connector.extract(prompt="test", response_model=Keywords)
 
@@ -335,7 +333,7 @@ class TestExtractInstructorInit:
 # ---------------------------------------------------------------------------
 
 
-from corelib.llm.models import ZusammenfassungResult  # noqa: E402
+from pazufa_corelib.llm.models import ZusammenfassungResult  # noqa: E402
 
 
 class TestSummarize:
@@ -622,7 +620,7 @@ class TestEstimateRequestTokens:
         ]
 
         with patch(
-            "corelib.llm.llm_connector.litellm.token_counter",
+            "pazufa_corelib.llm.llm_connector.litellm.token_counter",
             side_effect=lambda model, text: len(text.split()),
         ):
             result = connector._estimate_request_tokens(messages)
@@ -640,7 +638,7 @@ class TestEstimateRequestTokens:
         messages = [{"role": "user", "content": "Hello"}]
 
         with patch(
-            "corelib.llm.llm_connector.litellm.token_counter",
+            "pazufa_corelib.llm.llm_connector.litellm.token_counter",
             side_effect=Exception("unsupported model"),
         ):
             result = connector._estimate_request_tokens(messages)
@@ -659,7 +657,7 @@ class TestEstimateRequestTokens:
         ]
 
         with patch(
-            "corelib.llm.llm_connector.litellm.token_counter",
+            "pazufa_corelib.llm.llm_connector.litellm.token_counter",
             side_effect=lambda model, text: len(text.split()) if text else 0,
         ):
             result = connector._estimate_request_tokens(messages)
@@ -680,10 +678,12 @@ class TestEstimateRequestTokens:
         messages = [{"role": "user", "content": "Hello"}]
 
         with patch(
-            "corelib.llm.llm_connector.litellm.token_counter",
+            "pazufa_corelib.llm.llm_connector.litellm.token_counter",
             side_effect=Exception("unsupported model"),
         ):
-            with caplog.at_level(logging.ERROR, logger="corelib.llm.llm_connector"):
+            with caplog.at_level(
+                logging.ERROR, logger="pazufa_corelib.llm.llm_connector"
+            ):
                 result = connector._estimate_request_tokens(messages)
 
         assert result == 0

@@ -2,7 +2,7 @@
 sachgebiet-derived inputs.
 
 Reads all Sachgebiet IDs from
-``corelib/normalization/mappings/sachgebiete.yaml`` (via the resolver's
+``pazufa_corelib/normalization/mappings/sachgebiete.yaml`` (via the resolver's
 own loader) and builds a test list where:
 
  - 40% are exact (clean) hits
@@ -24,11 +24,11 @@ from __future__ import annotations
 import random
 from collections.abc import Callable
 
-from corelib.normalization.schlagworte import (
+from pazufa_corelib.normalization.schlagworte import (
     SACHGEBIETE_FILES,
     SchlagwortResolver,
 )
-from corelib.schlagworte_model import SachgebietFile
+from pazufa_corelib.schlagworte_model import SachgebietFile
 
 Perturbation = Callable[[str], str]
 

@@ -2,8 +2,8 @@
 
 import pytest
 
-from corelib.normalization import normalize_datum, normalize_volltext
-from corelib.normalization.text import _paragraph_quality_score
+from pazufa_corelib.normalization import normalize_datum, normalize_volltext
+from pazufa_corelib.normalization.text import _paragraph_quality_score
 
 # ---------------------------------------------------------------------------
 # normalize_volltext

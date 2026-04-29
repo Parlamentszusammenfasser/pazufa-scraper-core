@@ -1,6 +1,6 @@
 # LLM module setup
 
-`corelib.llm` uses [litellm](https://docs.litellm.ai) under the
+`pazufa_corelib.llm` uses [litellm](https://docs.litellm.ai) under the
 hood, which means that [any LLM provider supported by litellm](https://docs.litellm.ai/docs/providers) can be used.
 
 ## Configuring the API key
@@ -18,7 +18,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 Alternatively, the key can be passed directly to the `LLMConnector`:
 
 ```python
-from corelib import LLMConnector
+from pazufa_corelib import LLMConnector
 
 connector = LLMConnector(model="openai/gpt-4o-mini", api_key="sk-...")
 ```

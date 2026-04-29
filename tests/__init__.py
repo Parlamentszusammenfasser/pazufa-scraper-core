@@ -1,3 +1,3 @@
 """
-Tests for corelib
+Tests for pazufa_corelib
 """
