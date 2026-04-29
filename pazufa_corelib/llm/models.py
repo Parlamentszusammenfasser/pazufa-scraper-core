@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 if TYPE_CHECKING:
-    from corelib.normalization.schlagworte import SchlagwortResolver
+    from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 
 LOGGER = logging.getLogger(__name__)
 

@@ -92,7 +92,7 @@ German domain terms (Vorgang, Station, Sitzung, TOP, Sachgebiet, Landtag, Aussch
 
 ### Docstrings
 
-Docstrings follow the **Google convention** and are enforced by ruff (pydocstyle rules). All public functions, methods, and classes in `corelib/` require a docstring:
+Docstrings follow the **Google convention** and are enforced by ruff (pydocstyle rules). All public functions, methods, and classes in `pazufa_corelib/` require a docstring:
 
 ```python
 def my_function(arg: str) -> int:
@@ -141,8 +141,8 @@ poetry run pytest tests/test_specific.py::test_function
 
 These paths are generated and should not be hand-edited unless the task explicitly requires it:
 
-- [corelib/api_model.py](corelib/api_model.py)
-- [corelib/api_client/](corelib/api_client/)
+- [pazufa_corelib/api_model.py](pazufa_corelib/api_model.py)
+- [pazufa_corelib/api_client/](pazufa_corelib/api_client/)
 
 Prefer changing one of these inputs instead:
 
@@ -155,10 +155,11 @@ Then regenerate and review the diff carefully.
 
 ## Project Structure
 
-- `corelib/__init__.py` - public package exports
-- `corelib/llm_connector.py` - current LLM entrypoint; LLM-related code is expected to move into `corelib/llm/`
-- `corelib/api_model.py` - generated Pydantic models
-- `corelib/api_client/` - generated OpenAPI client
+- `pazufa_corelib/__init__.py` - public package exports
+- `pazufa_corelib/llm/` - LLM connector, models, and prompts
+- `pazufa_corelib/normalization/` - text, date, URL, hash, and Schlagworte helpers
+- `pazufa_corelib/api_model.py` - generated Pydantic models
+- `pazufa_corelib/api_client/` - generated OpenAPI client
 - `tests/` - unit tests
 - `tools/` - code generation helpers
 

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from corelib.api_helpers import format_if_modified_since
+from pazufa_corelib.api_helpers import format_if_modified_since
 
 
 def test_formats_utc_datetime_with_offset() -> None:

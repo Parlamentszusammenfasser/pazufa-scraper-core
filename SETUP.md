@@ -24,19 +24,19 @@ The examples below prescribe a version `0.1` and above, but under `0.2`.
 **Poetry:**
 
 ```bash
-poetry add "pazufa-corelib~=0.1"
+poetry add "pazufa_corelib~=0.1"
 ```
 
 **uv:**
 
 ```bash
-uv add "pazufa-corelib~=0.1"
+uv add "pazufa_corelib~=0.1"
 ```
 
 **pip:**
 
 ```bash
-pip install "pazufa-corelib~=0.1"
+pip install "pazufa_corelib~=0.1"
 ```
 
 
@@ -69,29 +69,29 @@ uv add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
 ```bash
 pip install "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
 ```
-## Importing corelib
+## Importing pazufa_corelib
 
-The package installs under the name `pazufa-corelib` but is imported as `corelib`.
+The package is installed and imported as `pazufa_corelib`. (PEP 503 normalization means `pip install pazufa-corelib` is also accepted.)
 
 **API client** — authenticated HTTP client for the LTZF API:
 
 ```python
-from corelib.api_client import AuthenticatedClient, Client
+from pazufa_corelib.api_client import AuthenticatedClient, Client
 ```
 
 **Normalization** — text, date, URL, and hash helpers:
 
 ```python
-from corelib.normalization import normalize_datum, normalize_volltext, normalize_url
-from corelib.normalization import hash_text, hash_bytes
+from pazufa_corelib.normalization import normalize_datum, normalize_volltext, normalize_url
+from pazufa_corelib.normalization import hash_text, hash_bytes
 ```
 
 **LLM enrichment** — connector, Pydantic result models, and prompt templates:
 
 ```python
-from corelib.llm import LLMConnector
-from corelib.llm import ZusammenfassungResult, SchlagworteResult
-from corelib.llm import ZUSAMMENFASSUNG_PROMPT, SCHLAGWORTE_PROMPT
+from pazufa_corelib.llm import LLMConnector
+from pazufa_corelib.llm import ZusammenfassungResult, SchlagworteResult
+from pazufa_corelib.llm import ZUSAMMENFASSUNG_PROMPT, SCHLAGWORTE_PROMPT
 ```
 
 

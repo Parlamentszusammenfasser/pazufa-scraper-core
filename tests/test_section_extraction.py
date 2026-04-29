@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from pydantic import ValidationError
 
-from corelib.llm.llm_connector import LLMConnector
-from corelib.llm.models import LineRange, SectionExtractionResult
+from pazufa_corelib.llm.llm_connector import LLMConnector
+from pazufa_corelib.llm.models import LineRange, SectionExtractionResult
 
 # ---------------------------------------------------------------------------
 # Model tests
@@ -114,15 +114,15 @@ class TestChunkLines:
 
     def _make_connector(self) -> LLMConnector:
         """Create a connector with rate limiting disabled."""
-        with patch("corelib.llm.llm_connector.litellm"):
+        with patch("pazufa_corelib.llm.llm_connector.litellm"):
             connector = LLMConnector.__new__(LLMConnector)
             connector.model = "openai/gpt-4o-mini"
         return connector
 
-    @patch("corelib.llm.llm_connector.litellm")
+    @patch("pazufa_corelib.llm.llm_connector.litellm")
     def test_single_chunk(self, mock_litellm: object) -> None:
         """Short document fits in one chunk."""
-        import corelib.llm.llm_connector as mod
+        import pazufa_corelib.llm.llm_connector as mod
 
         mod.litellm.token_counter = lambda model, text: len(text.split())  # type: ignore[misc,assignment]
 
@@ -131,10 +131,10 @@ class TestChunkLines:
         chunks = connector._chunk_lines(lines, chunk_size=100, chunk_overlap=10)
         assert chunks == [(0, 4)]
 
-    @patch("corelib.llm.llm_connector.litellm")
+    @patch("pazufa_corelib.llm.llm_connector.litellm")
     def test_multiple_chunks(self, mock_litellm: object) -> None:
         """Document split into multiple chunks with overlap."""
-        import corelib.llm.llm_connector as mod
+        import pazufa_corelib.llm.llm_connector as mod
 
         mod.litellm.token_counter = lambda model, text: len(text.split())  # type: ignore[misc,assignment]
 
@@ -149,10 +149,10 @@ class TestChunkLines:
         # Last chunk ends at 10
         assert chunks[-1][1] == 10
 
-    @patch("corelib.llm.llm_connector.litellm")
+    @patch("pazufa_corelib.llm.llm_connector.litellm")
     def test_large_line_does_not_loop(self, mock_litellm: object) -> None:
         """A single line exceeding chunk_size must not cause an infinite loop."""
-        import corelib.llm.llm_connector as mod
+        import pazufa_corelib.llm.llm_connector as mod
 
         # Simulate: small line (10 tokens), then a huge line (5000 tokens)
         token_counts = [10, 5000, 10, 10]
@@ -169,9 +169,9 @@ class TestChunkLines:
         assert chunks[0][0] == 0
         assert chunks[-1][1] == 4
 
-    @patch("corelib.llm.llm_connector.litellm")
+    @patch("pazufa_corelib.llm.llm_connector.litellm")
     def test_empty_lines(self, mock_litellm: object) -> None:
-        import corelib.llm.llm_connector as mod
+        import pazufa_corelib.llm.llm_connector as mod
 
         mod.litellm.token_counter = lambda model, text: len(text.split())  # type: ignore[misc,assignment]
 
@@ -212,7 +212,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=10,
             ),
             patch.object(
@@ -240,7 +240,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=10,
             ),
             patch.object(
@@ -271,7 +271,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=50_000,
             ),
             patch.object(
@@ -306,7 +306,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=50_000,
             ),
             patch.object(
@@ -350,7 +350,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=50_000,
             ),
             patch.object(
@@ -383,7 +383,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=50_000,
             ),
             patch.object(
@@ -455,7 +455,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=50_000,
             ),
             patch.object(
@@ -499,7 +499,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=50_000,
             ),
             patch.object(
@@ -574,7 +574,7 @@ class TestExtractRelevantSection:
 
         with (
             patch(
-                "corelib.llm.llm_connector.litellm.token_counter",
+                "pazufa_corelib.llm.llm_connector.litellm.token_counter",
                 return_value=50_000,
             ),
             patch.object(

@@ -2,7 +2,7 @@
 
 import pytest
 
-from corelib.normalization.urls import normalize_url
+from pazufa_corelib.normalization.urls import normalize_url
 
 
 class TestnormalizeUrl:
