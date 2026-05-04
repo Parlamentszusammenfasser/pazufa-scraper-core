@@ -1,0 +1,274 @@
+names:
+  - id: adidas
+    canonical_name: Adidas AG
+    akronym:
+    aliases:
+      - Adidas
+      - adidas AG
+
+  - id: airbus
+    canonical_name: Airbus SE
+    akronym:
+    aliases:
+      - Airbus
+
+  - id: allianz
+    canonical_name: Allianz SE
+    akronym:
+    aliases:
+      - Allianz
+      - Allianz Versicherung
+
+  - id: basf
+    canonical_name: BASF SE
+    akronym: BASF
+    aliases:
+      - BASF
+      - Badische Anilin- und Soda-Fabrik
+
+  - id: bayer
+    canonical_name: Bayer AG
+    akronym:
+    aliases:
+      - Bayer
+      - Bayer Konzern
+
+  - id: beiersdorf
+    canonical_name: Beiersdorf AG
+    akronym:
+    aliases:
+      - Beiersdorf
+      - Nivea (Beiersdorf)
+
+  - id: bmw
+    canonical_name: Bayerische Motoren Werke AG
+    akronym: BMW
+    aliases:
+      - BMW
+      - BMW AG
+      - BMW Group
+
+  - id: brenntag
+    canonical_name: Brenntag SE
+    akronym:
+    aliases:
+      - Brenntag
+
+  - id: commerzbank
+    canonical_name: Commerzbank AG
+    akronym:
+    aliases:
+      - Commerzbank
+
+  - id: continental
+    canonical_name: Continental AG
+    akronym:
+    aliases:
+      - Continental
+      - Conti
+
+  - id: daimler-truck
+    canonical_name: Daimler Truck Holding AG
+    akronym:
+    aliases:
+      - Daimler Truck
+      - Daimler Trucks
+
+  - id: deutsche-bank
+    canonical_name: Deutsche Bank AG
+    akronym: DB
+    aliases:
+      - Deutsche Bank
+      - DB
+
+  - id: deutsche-boerse
+    canonical_name: Deutsche Börse AG
+    akronym:
+    aliases:
+      - Deutsche Börse
+      - Deutsche Boerse
+
+  - id: dhl-group
+    canonical_name: Deutsche Post AG
+    akronym: DHL
+    aliases:
+      - DHL
+      - DHL Group
+      - Deutsche Post
+      - Deutsche Post DHL
+
+  - id: deutsche-telekom
+    canonical_name: Deutsche Telekom AG
+    akronym:
+    aliases:
+      - Deutsche Telekom
+      - Telekom
+      - T-Online
+
+  - id: fresenius
+    canonical_name: Fresenius SE & Co. KGaA
+    akronym:
+    aliases:
+      - Fresenius
+
+  - id: hannover-rueck
+    canonical_name: Hannover Rück SE
+    akronym:
+    aliases:
+      - Hannover Rück
+      - Hannover Re
+      - Hannover Rueck
+
+  - id: heidelberg-materials
+    canonical_name: Heidelberg Materials AG
+    akronym:
+    aliases:
+      - Heidelberg Materials
+      - HeidelbergCement
+      - Heidelberger Zement
+
+  - id: henkel
+    canonical_name: Henkel AG & Co. KGaA
+    akronym:
+    aliases:
+      - Henkel
+
+  - id: infineon
+    canonical_name: Infineon Technologies AG
+    akronym:
+    aliases:
+      - Infineon
+      - Infineon Technologies
+
+  - id: kion
+    canonical_name: Kion Group AG
+    akronym:
+    aliases:
+      - Kion
+      - Kion Group
+      - Linde Material Handling
+
+  - id: mercedes-benz
+    canonical_name: Mercedes-Benz Group AG
+    akronym:
+    aliases:
+      - Mercedes-Benz
+      - Mercedes
+      - Daimler
+      - Mercedes-Benz AG
+
+  - id: merck
+    canonical_name: Merck KGaA
+    akronym:
+    aliases:
+      - Merck
+      - Merck Gruppe
+
+  - id: mtu
+    canonical_name: MTU Aero Engines AG
+    akronym: MTU
+    aliases:
+      - MTU
+      - MTU Aero Engines
+
+  - id: munich-re
+    canonical_name: Münchener Rückversicherungs-Gesellschaft AG
+    akronym:
+    aliases:
+      - Munich Re
+      - Münchener Rück
+      - Muenchener Rueck
+      - MunichRe
+
+  - id: porsche-ag
+    canonical_name: Dr. Ing. h.c. F. Porsche AG
+    akronym:
+    aliases:
+      - Porsche AG
+      - Porsche
+
+  - id: porsche-se
+    canonical_name: Porsche Automobil Holding SE
+    akronym:
+    aliases:
+      - Porsche SE
+      - Porsche Automobil Holding
+      - PAH
+
+  - id: qiagen
+    canonical_name: Qiagen N.V.
+    akronym:
+    aliases:
+      - Qiagen
+
+  - id: rheinmetall
+    canonical_name: Rheinmetall AG
+    akronym:
+    aliases:
+      - Rheinmetall
+
+  - id: rwe
+    canonical_name: RWE AG
+    akronym: RWE
+    aliases:
+      - RWE
+      - Rheinisch-Westfälisches Elektrizitätswerk
+
+  - id: sap
+    canonical_name: SAP SE
+    akronym: SAP
+    aliases:
+      - SAP
+      - SAP AG
+
+  - id: sartorius
+    canonical_name: Sartorius AG
+    akronym:
+    aliases:
+      - Sartorius
+
+  - id: siemens
+    canonical_name: Siemens AG
+    akronym:
+    aliases:
+      - Siemens
+
+  - id: siemens-energy
+    canonical_name: Siemens Energy AG
+    akronym:
+    aliases:
+      - Siemens Energy
+
+  - id: siemens-healthineers
+    canonical_name: Siemens Healthineers AG
+    akronym:
+    aliases:
+      - Siemens Healthineers
+
+  - id: symrise
+    canonical_name: Symrise AG
+    akronym:
+    aliases:
+      - Symrise
+
+  - id: volkswagen
+    canonical_name: Volkswagen AG
+    akronym: VW
+    aliases:
+      - VW
+      - Volkswagen
+      - VW AG
+      - VW-Konzern
+      - Volkswagen-Konzern
+
+  - id: vonovia
+    canonical_name: Vonovia SE
+    akronym:
+    aliases:
+      - Vonovia
+
+  - id: zalando
+    canonical_name: Zalando SE
+    akronym:
+    aliases:
+      - Zalando
