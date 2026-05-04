@@ -2,7 +2,17 @@
 
 import pytest
 
-from pazufa_corelib.normalization import normalize_datum, normalize_volltext
+from pazufa_corelib.normalization import (
+    AuthorIDResolution,
+    AuthorResolver,
+    NameIDResolution,
+    OrganisationIDResolution,
+    OrganisationResolver,
+    normalize_datum,
+    normalize_name,
+    normalize_name_key,
+    normalize_volltext,
+)
 from pazufa_corelib.normalization.text import _paragraph_quality_score
 
 # ---------------------------------------------------------------------------
@@ -483,3 +493,483 @@ class TestnormalizeDatum:
         # Year regex requires exactly 4 digits
         assert normalize_datum("1.1.0001") == "0001-01-01"
         assert normalize_datum("31.12.9999") == "9999-12-31"
+
+
+# ---------------------------------------------------------------------------
+# normalize_name_key
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeNameKey:
+    def test_nfkc_ligature(self) -> None:
+        assert normalize_name_key("ﬁscher") == "fischer"
+
+    def test_umlaut_fold_u(self) -> None:
+        assert normalize_name_key("Müller") == "mueller"
+
+    def test_umlaut_fold_o(self) -> None:
+        assert normalize_name_key("Möller") == "moeller"
+
+    def test_umlaut_fold_a(self) -> None:
+        assert normalize_name_key("Bäcker") == "baecker"
+
+    def test_umlaut_fold_sz(self) -> None:
+        assert normalize_name_key("Straße") == "strasse"
+
+    def test_lowercase(self) -> None:
+        assert normalize_name_key("MUELLER") == "mueller"
+
+    def test_punctuation_stripped(self) -> None:
+        assert normalize_name_key("Müller, Maria") == "mueller maria"
+
+    def test_hyphen_stripped(self) -> None:
+        assert normalize_name_key("Müller-Franken") == "muellerfranken"
+
+    def test_whitespace_collapsed(self) -> None:
+        assert normalize_name_key("  Maria   Müller  ") == "maria mueller"
+
+    def test_invisible_chars_stripped(self) -> None:
+        assert normalize_name_key("Mül​ler") == "mueller"
+
+    def test_empty_string(self) -> None:
+        assert normalize_name_key("") == ""
+
+    def test_mueller_variants_equal(self) -> None:
+        assert normalize_name_key("Müller") == normalize_name_key("Mueller")
+
+    def test_idempotent(self) -> None:
+        key = normalize_name_key("Dr. María Ångström")
+        assert normalize_name_key(key) == key
+
+
+# ---------------------------------------------------------------------------
+# normalize_name
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeName:
+    def test_token_sort_firstname_lastname(self) -> None:
+        assert normalize_name("Maria Müller") == normalize_name("Müller Maria")
+
+    def test_token_sort_comma_form(self) -> None:
+        assert normalize_name("Müller, Maria") == normalize_name("Maria Müller")
+
+    def test_honorific_dr_stripped(self) -> None:
+        assert normalize_name("Dr. Maria Müller") == normalize_name("Maria Müller")
+
+    def test_honorific_prof_stripped(self) -> None:
+        assert normalize_name("Prof. Schmidt") == normalize_name("Schmidt")
+
+    def test_honorific_prof_dr_stripped(self) -> None:
+        assert normalize_name("Prof. Dr. Schmidt") == normalize_name("Schmidt")
+
+    def test_honorific_mdb_stripped(self) -> None:
+        assert normalize_name("Maria Müller MdB") == normalize_name("Maria Müller")
+
+    def test_honorific_mdl_stripped(self) -> None:
+        assert normalize_name("Hans Maier MdL") == normalize_name("Hans Maier")
+
+    def test_honorific_dipl_stripped(self) -> None:
+        assert normalize_name("Dipl.-Ing. Bernd Weber") == normalize_name("Bernd Weber")
+
+    def test_umlaut_fold_applied(self) -> None:
+        assert normalize_name("Müller") == normalize_name("Mueller")
+
+    def test_combined_honorific_umlaut_sort(self) -> None:
+        assert normalize_name("Dr. Maria Müller MdB") == normalize_name("mueller maria")
+
+    def test_empty_string(self) -> None:
+        assert normalize_name("") == ""
+
+    def test_whitespace_only(self) -> None:
+        assert normalize_name("   ") == ""
+
+    def test_integration_same_key_from_different_forms(self) -> None:
+        variants = [
+            "Dr. Maria Müller",
+            "Müller, Maria",
+            "Mueller, Maria",
+            "Maria Mueller",
+            "Dr. Müller, Maria MdL",
+        ]
+        keys = [normalize_name(v) for v in variants]
+        assert len(set(keys)) == 1, f"Expected one unique key, got: {set(keys)}"
+
+
+# ---------------------------------------------------------------------------
+# AuthorResolver
+# ---------------------------------------------------------------------------
+
+
+class TestAuthorResolver:
+    @pytest.fixture(scope="class")
+    def resolver(self) -> AuthorResolver:
+        return AuthorResolver()
+
+    def test_exact_canonical_name(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Olaf Scholz")
+        assert r.resolved_id == "scholz-olaf"
+        assert r.score == 100.0
+        assert r.matched
+
+    def test_exact_alias_comma_form(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Scholz, Olaf")
+        assert r.resolved_id == "scholz-olaf"
+        assert r.score == 100.0
+
+    def test_honorific_stripped_before_resolve(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Dr. Angela Merkel")
+        assert r.resolved_id == "merkel-angela"
+        assert r.matched
+
+    def test_umlaut_variant(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Schroeder, Gerhard")
+        assert r.resolved_id == "schroeder-gerhard"
+        assert r.matched
+
+    def test_fuzzy_typo(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Helmut Schmitt")
+        assert r.resolved_id == "schmidt-helmut"
+        assert r.matched
+
+    def test_von_particle(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Richard von Weizsäcker")
+        assert r.resolved_id == "von-weizsaecker-richard"
+        assert r.matched
+
+    def test_umlaut_in_von_name(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("von Weizsaecker, Richard")
+        assert r.resolved_id == "von-weizsaecker-richard"
+        assert r.matched
+
+    def test_unresolved_unknown_name(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Max Mustermann")
+        assert not r.matched
+        assert r.score == 0.0
+        assert r.resolved_id == ""
+        assert not r.changed
+
+    def test_empty_query(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("")
+        assert not r.matched
+        assert r.score == 0.0
+
+    def test_honorific_only_query(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Dr.")
+        assert not r.matched
+
+    def test_changed_flag_on_match(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Dr. Merkel")
+        assert r.matched
+        assert r.changed
+
+    def test_changed_flag_false_on_no_match(self, resolver: AuthorResolver) -> None:
+        r = resolver.resolve("Unbekannt")
+        assert not r.matched
+        assert not r.changed
+
+    # check_author
+    def test_check_author_exact_hit(self, resolver: AuthorResolver) -> None:
+        assert resolver.check_author("Olaf Scholz") is True
+
+    def test_check_author_alias_hit(self, resolver: AuthorResolver) -> None:
+        assert resolver.check_author("Scholz, Olaf") is True
+
+    def test_check_author_unknown(self, resolver: AuthorResolver) -> None:
+        assert resolver.check_author("Max Mustermann") is False
+
+    def test_check_author_honorific_stripped(self, resolver: AuthorResolver) -> None:
+        assert resolver.check_author("Dr. Angela Merkel") is True
+
+    # fuzzy_check_author
+    def test_fuzzy_check_author_typo(self, resolver: AuthorResolver) -> None:
+        assert resolver.fuzzy_check_author("Helmut Schmitt") is True
+
+    def test_fuzzy_check_author_unknown(self, resolver: AuthorResolver) -> None:
+        assert resolver.fuzzy_check_author("Max Mustermann") is False
+
+    # canonicalise_authors
+    def test_canonicalise_authors_basic(self, resolver: AuthorResolver) -> None:
+        ids = resolver.canonicalise_authors(["Olaf Scholz", "Angela Merkel"])
+        assert ids == ["scholz-olaf", "merkel-angela"]
+
+    def test_canonicalise_authors_unmatched_not_strict(self, resolver: AuthorResolver) -> None:
+        ids = resolver.canonicalise_authors(["Olaf Scholz", "Max Mustermann"])
+        assert ids[0] == "scholz-olaf"
+        assert ids[1] == ""
+
+    def test_canonicalise_authors_strict_drops_unmatched(self, resolver: AuthorResolver) -> None:
+        ids = resolver.canonicalise_authors(["Olaf Scholz", "Max Mustermann"], strict=True)
+        assert ids == ["scholz-olaf"]
+
+
+# ---------------------------------------------------------------------------
+# OrganisationResolver
+# ---------------------------------------------------------------------------
+
+
+class TestOrganisationResolver:
+    @pytest.fixture(scope="class")
+    def resolver(self) -> OrganisationResolver:
+        return OrganisationResolver()
+
+    def test_exact_canonical_name(self, resolver: OrganisationResolver) -> None:
+        r = resolver.resolve("Sozialdemokratische Partei Deutschlands")
+        assert r.resolved_id == "spd"
+        assert r.score == 1.0
+        assert r.matched
+
+    def test_exact_alias(self, resolver: OrganisationResolver) -> None:
+        r = resolver.resolve("SPD")
+        assert r.resolved_id == "spd"
+        assert r.score == 1.0
+
+    def test_exact_via_slash_normalization(self, resolver: OrganisationResolver) -> None:
+        # "Bündnis 90 Die Grünen" normalises to the same key as "Bündnis 90/Die Grünen"
+        r = resolver.resolve("Bündnis 90 Die Grünen")
+        assert r.resolved_id == "gruene"
+        assert r.score == 1.0
+
+    def test_cosine_variant(self, resolver: OrganisationResolver) -> None:
+        # Not in alias list — resolved via cosine similarity
+        r = resolver.resolve("Sozialdemokratische Partei")
+        assert r.resolved_id == "spd"
+        assert r.matched
+
+    def test_umlaut_variant(self, resolver: OrganisationResolver) -> None:
+        r = resolver.resolve("Alternative fuer Deutschland")
+        assert r.resolved_id == "afd"
+        assert r.matched
+
+    def test_unresolved_unknown(self, resolver: OrganisationResolver) -> None:
+        r = resolver.resolve("Bundeswehr")
+        assert not r.matched
+        assert r.score == 0.0
+        assert r.resolved_id == ""
+
+    def test_empty_query(self, resolver: OrganisationResolver) -> None:
+        r = resolver.resolve("")
+        assert not r.matched
+
+    def test_check_organisation_hit(self, resolver: OrganisationResolver) -> None:
+        assert resolver.check_organisation("SPD") is True
+
+    def test_check_organisation_miss(self, resolver: OrganisationResolver) -> None:
+        assert resolver.check_organisation("Piratenpartei") is False
+
+    def test_resolve_batch_single_matmul(self, resolver: OrganisationResolver) -> None:
+        results = resolver.resolve_batch(["CDU", "SPD", "FDP"])
+        ids = [r.resolved_id for r in results]
+        assert ids == ["cdu", "spd", "fdp"]
+
+    def test_resolve_batch_order_preserved(self, resolver: OrganisationResolver) -> None:
+        queries = ["Volt Deutschland", "Die Linke", "Freie Wähler"]
+        results = resolver.resolve_batch(queries)
+        assert len(results) == 3
+        assert results[0].resolved_id == "volt"
+        assert results[1].resolved_id == "linke"
+        assert results[2].resolved_id == "fw"
+
+    def test_resolve_batch_mixed_match(self, resolver: OrganisationResolver) -> None:
+        results = resolver.resolve_batch(["SPD", "Bundeswehr"])
+        assert results[0].matched
+        assert not results[1].matched
+
+    def test_changed_flag(self, resolver: OrganisationResolver) -> None:
+        r = resolver.resolve("SPD-Fraktion")
+        assert r.matched
+        assert r.changed
+
+    # fuzzy_check_organisation
+    def test_fuzzy_check_organisation_hit(self, resolver: OrganisationResolver) -> None:
+        assert resolver.fuzzy_check_organisation("Sozialdemokratische Partei") is True
+
+    def test_fuzzy_check_organisation_exact(self, resolver: OrganisationResolver) -> None:
+        assert resolver.fuzzy_check_organisation("SPD") is True
+
+    def test_fuzzy_check_organisation_miss(self, resolver: OrganisationResolver) -> None:
+        assert resolver.fuzzy_check_organisation("Bundeswehr") is False
+
+    # canonicalise_organisations
+    def test_canonicalise_organisations_basic(self, resolver: OrganisationResolver) -> None:
+        ids = resolver.canonicalise_organisations(["SPD", "FDP"])
+        assert ids == ["spd", "fdp"]
+
+    def test_canonicalise_organisations_unmatched_not_strict(self, resolver: OrganisationResolver) -> None:
+        ids = resolver.canonicalise_organisations(["SPD", "Piratenpartei"])
+        assert ids[0] == "spd"
+        assert ids[1] == ""
+
+    def test_canonicalise_organisations_strict_drops_unmatched(self, resolver: OrganisationResolver) -> None:
+        ids = resolver.canonicalise_organisations(["SPD", "Piratenpartei"], strict=True)
+        assert ids == ["spd"]
+
+    # akronym on resolution result
+    def test_resolve_includes_akronym(self, resolver: OrganisationResolver) -> None:
+        r = resolver.resolve("Sozialdemokratische Partei Deutschlands")
+        assert r.akronym == "SPD"
+
+    def test_resolve_akronym_none_when_unresolved(self, resolver: OrganisationResolver) -> None:
+        r = resolver.resolve("Piratenpartei")
+        assert r.akronym is None
+
+    def test_resolve_batch_includes_akronym(self, resolver: OrganisationResolver) -> None:
+        results = resolver.resolve_batch(["CDU", "FDP"])
+        assert results[0].akronym == "CDU"
+        assert results[1].akronym == "FDP"
+
+    # get_akronym
+    def test_get_akronym_known_id(self, resolver: OrganisationResolver) -> None:
+        assert resolver.get_akronym("spd") == "SPD"
+
+    def test_get_akronym_unknown_id(self, resolver: OrganisationResolver) -> None:
+        assert resolver.get_akronym("piratenpartei") is None
+
+    # get_organisations_by_akronym
+    def test_get_organisations_by_akronym_known(self, resolver: OrganisationResolver) -> None:
+        orgs = resolver.get_organisations_by_akronym("SPD")
+        assert len(orgs) == 1
+        assert orgs[0].id == "spd"
+
+    def test_get_organisations_by_akronym_unknown(self, resolver: OrganisationResolver) -> None:
+        assert resolver.get_organisations_by_akronym("XYZ") == []
+
+    def test_get_organisations_by_akronym_case_sensitive(self, resolver: OrganisationResolver) -> None:
+        assert resolver.get_organisations_by_akronym("spd") == []
+
+
+# ---------------------------------------------------------------------------
+# Integration — cross-resolver key consistency and public API surface
+# ---------------------------------------------------------------------------
+
+
+class TestIntegration:
+    """Verify that both resolvers share the same normalisation pipeline and
+    that all public symbols are importable from ``pazufa_corelib.normalization``."""
+
+    @pytest.fixture(scope="class")
+    def authors(self) -> AuthorResolver:
+        return AuthorResolver()
+
+    @pytest.fixture(scope="class")
+    def orgs(self) -> OrganisationResolver:
+        return OrganisationResolver()
+
+    # --- public API surface -------------------------------------------------
+
+    def test_resolution_models_importable_from_package(self) -> None:
+        assert AuthorIDResolution is not None
+        assert OrganisationIDResolution is not None
+        assert NameIDResolution is not None
+
+    def test_normalize_name_key_importable_from_package(self) -> None:
+        assert callable(normalize_name_key)
+
+    def test_author_resolve_returns_author_id_resolution(self, authors: AuthorResolver) -> None:
+        r = authors.resolve("Angela Merkel")
+        assert isinstance(r, AuthorIDResolution)
+        assert isinstance(r, NameIDResolution)
+
+    def test_org_resolve_returns_org_id_resolution(self, orgs: OrganisationResolver) -> None:
+        r = orgs.resolve("SPD")
+        assert isinstance(r, OrganisationIDResolution)
+        assert isinstance(r, NameIDResolution)
+
+    # --- shared normalisation pipeline -------------------------------------
+
+    def test_normalize_name_is_idempotent(self) -> None:
+        samples = [
+            "Dr. Angela Merkel MdB",
+            "Scholz, Olaf",
+            "CDU/CSU",
+            "Bündnis 90/Die Grünen",
+        ]
+        for s in samples:
+            key = normalize_name(s)
+            assert normalize_name(key) == key, f"Not idempotent for: {s!r}"
+
+    def test_normalize_name_key_is_idempotent(self) -> None:
+        samples = ["Müller, Maria", "CDU/CSU", "Bündnis 90/Die Grünen", "Dr. Schmidt"]
+        for s in samples:
+            key = normalize_name_key(s)
+            assert normalize_name_key(key) == key, f"Not idempotent for: {s!r}"
+
+    def test_umlaut_folding_consistent_with_name_key(self) -> None:
+        # normalize_name uses normalize_name_key internally — same fold must apply
+        assert normalize_name("Müller") == normalize_name("Mueller")
+        assert normalize_name("Grüne") == normalize_name("Gruene")
+        assert normalize_name_key("Müller") == normalize_name_key("Mueller")
+
+    # --- canonical-name round-trip ------------------------------------------
+
+    def test_author_canonical_name_round_trips_to_registered_key(
+        self, authors: AuthorResolver
+    ) -> None:
+        """normalize_name(canonical_name) must be a key the resolver knows."""
+        for name in ["Angela Merkel", "Olaf Scholz", "Helmut Schmidt"]:
+            r = authors.resolve(name)
+            assert r.matched
+            assert normalize_name(r.canonical_name) in authors._key_to_author
+
+    def test_org_canonical_name_round_trips_to_registered_key(
+        self, orgs: OrganisationResolver
+    ) -> None:
+        """normalize_name(canonical_name) must be a key the resolver knows."""
+        for name in ["SPD", "CDU", "FDP"]:
+            r = orgs.resolve(name)
+            assert r.matched
+            assert normalize_name(r.canonical_name) in orgs._key_to_org
+
+    # --- batch vs single consistency ----------------------------------------
+
+    def test_canonicalise_authors_matches_individual_resolve(
+        self, authors: AuthorResolver
+    ) -> None:
+        names = ["Angela Merkel", "Olaf Scholz", "Helmut Schmidt"]
+        batch_ids = authors.canonicalise_authors(names)
+        single_ids = [authors.resolve(n).resolved_id for n in names]
+        assert batch_ids == single_ids
+
+    def test_resolve_batch_matches_individual_resolve(
+        self, orgs: OrganisationResolver
+    ) -> None:
+        names = ["SPD", "FDP", "CDU", "Bündnis 90/Die Grünen"]
+        batch = orgs.resolve_batch(names)
+        singles = [orgs.resolve(n) for n in names]
+        assert [r.resolved_id for r in batch] == [r.resolved_id for r in singles]
+        assert [r.score for r in batch] == [r.score for r in singles]
+        assert [r.akronym for r in batch] == [r.akronym for r in singles]
+
+    # --- akronym propagation ------------------------------------------------
+
+    def test_akronym_on_resolution_matches_get_akronym(
+        self, orgs: OrganisationResolver
+    ) -> None:
+        for name in ["Sozialdemokratische Partei Deutschlands", "FDP", "CDU"]:
+            r = orgs.resolve(name)
+            assert r.matched
+            assert r.akronym == orgs.get_akronym(r.resolved_id)
+
+    # --- matched / changed semantics ----------------------------------------
+
+    def test_exact_canonical_form_not_changed(self, authors: AuthorResolver) -> None:
+        # "Olaf Scholz" is the canonical_name in the YAML → changed must be False
+        r = authors.resolve("Olaf Scholz")
+        assert r.matched
+        assert not r.changed
+
+    def test_alias_form_is_changed(self, authors: AuthorResolver) -> None:
+        # "Scholz, Olaf" is an alias, not the canonical_name → changed must be True
+        r = authors.resolve("Scholz, Olaf")
+        assert r.matched
+        assert r.changed
+
+    def test_unresolved_author_not_changed(self, authors: AuthorResolver) -> None:
+        r = authors.resolve("Max Mustermann")
+        assert not r.matched
+        assert not r.changed
+
+    def test_unresolved_org_not_changed(self, orgs: OrganisationResolver) -> None:
+        r = orgs.resolve("Piratenpartei")
+        assert not r.matched
+        assert not r.changed

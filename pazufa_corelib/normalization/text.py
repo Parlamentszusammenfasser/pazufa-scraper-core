@@ -22,6 +22,17 @@ _RE_HYPHEN_BREAK = re.compile(r"(\w)-\n(\w)")
 # Multiple spaces/tabs within a line (not newlines)
 _RE_MULTI_SPACE = re.compile(r"[ \t]{2,}")
 
+# Punctuation characters that are not word chars or whitespace
+_RE_NAME_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
+
+# German umlaut fold applied after NFKC + lowercase (so only lowercase umlauts needed)
+_UMLAUT_TABLE: dict[int, str] = {
+    ord("ü"): "ue",
+    ord("ö"): "oe",
+    ord("ä"): "ae",
+    ord("ß"): "ss",
+}
+
 
 # German vowels (including umlauts) for consonant-cluster detection
 _GERMAN_VOWELS: frozenset[str] = frozenset("aeiouäöüAEIOUÄÖÜ")
@@ -133,6 +144,40 @@ def _paragraph_quality_score(paragraph: str) -> float:
 
 
 # --- Public Functions ---------------------------------------------------------------
+
+
+def normalize_name_key(text: str) -> str:
+    """Produce a normalised comparison key for a name string.
+
+    Applies character-level transformations only — no structural changes
+    (honorific stripping, token sorting). Intended as the shared base for
+    all name resolver preprocessing.
+
+    Pipeline:
+
+    1. NFKC unicode normalisation (ligatures, full-width, NBSP, …)
+    2. Strip invisible/zero-width and C1 control characters
+    3. Lowercase
+    4. German umlaut fold (``ü→ue``, ``ö→oe``, ``ä→ae``, ``ß→ss``)
+    5. Strip punctuation (everything that is not ``\\w`` or whitespace)
+    6. Collapse multiple spaces/tabs to a single space and strip ends
+
+    Args:
+        text: Raw name string.
+
+    Returns:
+        Normalised key suitable for exact lookup or as input to a fuzzy
+        or n-gram matcher.
+    """
+    text = unicodedata.normalize("NFKC", text)
+    text = _RE_INVISIBLE.sub("", text)
+    text = _RE_C1_CONTROLS.sub("", text)
+    text = text.lower()
+    text = text.translate(_UMLAUT_TABLE)
+    text = text.replace("/", " ")  # slash separates words (CDU/CSU, Bündnis 90/Die Grünen)
+    text = _RE_NAME_PUNCT.sub("", text)
+    text = _RE_MULTI_SPACE.sub(" ", text)
+    return text.strip()
 
 
 def normalize_volltext(text: str) -> str:

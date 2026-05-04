@@ -18,11 +18,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
 
-import numpy as np
 from pydantic import AfterValidator, BaseModel
 from rapidfuzz import fuzz
-from rapidfuzz.process import cdist
 
+from pazufa_corelib.normalization._fuzzy import fuzzy_resolve
 from pazufa_corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
@@ -103,72 +102,19 @@ def _canonicalise_ids(
     Raises:
         ValueError: If raw_ids or canonical_ids is empty.
     """
-    # Catching possible errors that a Matrix with an empty row or column would create.
-    if not raw_ids or not canonical_ids:
-        raise ValueError(
-            f"raw_ids and canonical_ids must not be empty, "
-            f"got {len(raw_ids)} raw and {len(canonical_ids)} canonical IDs"
-        )
-
-    # C++ Matrix call
-    matrix = cdist(
+    pairs = fuzzy_resolve(
         raw_ids,
         canonical_ids,
         scorer=fuzz.token_sort_ratio,
         processor=_processor_ids,
-        score_cutoff=cutoff,  # scores below cutoff → 0.0
+        cutoff=cutoff,
+        strict=strict,
+        near_tie_epsilon=_NEAR_TIE_EPSILON,
     )
-
-    result: list[SchlagwortIDResolution] = []
-
-    for i, raw_id in enumerate(raw_ids):
-        row = matrix[i]
-        best_idx: int = row.argmax()
-        best_score: float = row[best_idx]
-
-        if best_score == 0:
-            if not strict:
-                result.append(
-                    SchlagwortIDResolution(
-                        original_id=raw_id, resolved_id=raw_id, score=0.0
-                    )
-                )
-
-        else:
-            # Warn when the runner-up score is within _NEAR_TIE_EPSILON of the best.
-            sorted_scores = np.sort(row)[::-1]
-            if len(sorted_scores) >= 2:
-                second_best_score = sorted_scores[1]
-                if (
-                    best_score - second_best_score <= _NEAR_TIE_EPSILON
-                    and second_best_score > 0
-                ):
-                    second_best_idx = int(np.where(row == second_best_score)[0][0])
-                    LOGGER.warning(
-                        "Near-tie for %r: %r (%.2f) vs %r (%.2f),"
-                        " delta=%.2f <= epsilon=%.2f",
-                        raw_id,
-                        canonical_ids[best_idx],
-                        best_score,
-                        canonical_ids[second_best_idx],
-                        second_best_score,
-                        best_score - second_best_score,
-                        _NEAR_TIE_EPSILON,
-                    )
-
-            resolved_id = canonical_ids[best_idx]
-            result.append(
-                SchlagwortIDResolution(
-                    original_id=raw_id, resolved_id=resolved_id, score=best_score
-                )
-            )
-
-    if not result:
-        LOGGER.warning(
-            f"Canonicalization of IDs returned 0 results.. With strict = {strict}"
-        )
-
-    return result
+    return [
+        SchlagwortIDResolution(original_id=o, resolved_id=r, score=s)
+        for o, r, s in pairs
+    ]
 
 
 def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
