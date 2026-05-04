@@ -693,13 +693,19 @@ class TestAuthorResolver:
         ids = resolver.canonicalise_authors(["Olaf Scholz", "Angela Merkel"])
         assert ids == ["scholz-olaf", "merkel-angela"]
 
-    def test_canonicalise_authors_unmatched_not_strict(self, resolver: AuthorResolver) -> None:
+    def test_canonicalise_authors_unmatched_not_strict(
+        self, resolver: AuthorResolver
+    ) -> None:
         ids = resolver.canonicalise_authors(["Olaf Scholz", "Max Mustermann"])
         assert ids[0] == "scholz-olaf"
         assert ids[1] == ""
 
-    def test_canonicalise_authors_strict_drops_unmatched(self, resolver: AuthorResolver) -> None:
-        ids = resolver.canonicalise_authors(["Olaf Scholz", "Max Mustermann"], strict=True)
+    def test_canonicalise_authors_strict_drops_unmatched(
+        self, resolver: AuthorResolver
+    ) -> None:
+        ids = resolver.canonicalise_authors(
+            ["Olaf Scholz", "Max Mustermann"], strict=True
+        )
         assert ids == ["scholz-olaf"]
 
 
@@ -724,7 +730,9 @@ class TestOrganisationResolver:
         assert r.resolved_id == "spd"
         assert r.score == 1.0
 
-    def test_exact_via_slash_normalization(self, resolver: OrganisationResolver) -> None:
+    def test_exact_via_slash_normalization(
+        self, resolver: OrganisationResolver
+    ) -> None:
         # "Bündnis 90 Die Grünen" normalises to the same key as "Bündnis 90/Die Grünen"
         r = resolver.resolve("Bündnis 90 Die Grünen")
         assert r.resolved_id == "gruene"
@@ -762,7 +770,9 @@ class TestOrganisationResolver:
         ids = [r.resolved_id for r in results]
         assert ids == ["cdu", "spd", "fdp"]
 
-    def test_resolve_batch_order_preserved(self, resolver: OrganisationResolver) -> None:
+    def test_resolve_batch_order_preserved(
+        self, resolver: OrganisationResolver
+    ) -> None:
         queries = ["Volt Deutschland", "Die Linke", "Freie Wähler"]
         results = resolver.resolve_batch(queries)
         assert len(results) == 3
@@ -784,23 +794,33 @@ class TestOrganisationResolver:
     def test_fuzzy_check_organisation_hit(self, resolver: OrganisationResolver) -> None:
         assert resolver.fuzzy_check_organisation("Sozialdemokratische Partei") is True
 
-    def test_fuzzy_check_organisation_exact(self, resolver: OrganisationResolver) -> None:
+    def test_fuzzy_check_organisation_exact(
+        self, resolver: OrganisationResolver
+    ) -> None:
         assert resolver.fuzzy_check_organisation("SPD") is True
 
-    def test_fuzzy_check_organisation_miss(self, resolver: OrganisationResolver) -> None:
+    def test_fuzzy_check_organisation_miss(
+        self, resolver: OrganisationResolver
+    ) -> None:
         assert resolver.fuzzy_check_organisation("Bundeswehr") is False
 
     # canonicalise_organisations
-    def test_canonicalise_organisations_basic(self, resolver: OrganisationResolver) -> None:
+    def test_canonicalise_organisations_basic(
+        self, resolver: OrganisationResolver
+    ) -> None:
         ids = resolver.canonicalise_organisations(["SPD", "FDP"])
         assert ids == ["spd", "fdp"]
 
-    def test_canonicalise_organisations_unmatched_not_strict(self, resolver: OrganisationResolver) -> None:
+    def test_canonicalise_organisations_unmatched_not_strict(
+        self, resolver: OrganisationResolver
+    ) -> None:
         ids = resolver.canonicalise_organisations(["SPD", "Piratenpartei"])
         assert ids[0] == "spd"
         assert ids[1] == ""
 
-    def test_canonicalise_organisations_strict_drops_unmatched(self, resolver: OrganisationResolver) -> None:
+    def test_canonicalise_organisations_strict_drops_unmatched(
+        self, resolver: OrganisationResolver
+    ) -> None:
         ids = resolver.canonicalise_organisations(["SPD", "Piratenpartei"], strict=True)
         assert ids == ["spd"]
 
@@ -809,11 +829,15 @@ class TestOrganisationResolver:
         r = resolver.resolve("Sozialdemokratische Partei Deutschlands")
         assert r.akronym == "SPD"
 
-    def test_resolve_akronym_none_when_unresolved(self, resolver: OrganisationResolver) -> None:
+    def test_resolve_akronym_none_when_unresolved(
+        self, resolver: OrganisationResolver
+    ) -> None:
         r = resolver.resolve("Piratenpartei")
         assert r.akronym is None
 
-    def test_resolve_batch_includes_akronym(self, resolver: OrganisationResolver) -> None:
+    def test_resolve_batch_includes_akronym(
+        self, resolver: OrganisationResolver
+    ) -> None:
         results = resolver.resolve_batch(["CDU", "FDP"])
         assert results[0].akronym == "CDU"
         assert results[1].akronym == "FDP"
@@ -826,15 +850,21 @@ class TestOrganisationResolver:
         assert resolver.get_akronym("piratenpartei") is None
 
     # get_organisations_by_akronym
-    def test_get_organisations_by_akronym_known(self, resolver: OrganisationResolver) -> None:
+    def test_get_organisations_by_akronym_known(
+        self, resolver: OrganisationResolver
+    ) -> None:
         orgs = resolver.get_organisations_by_akronym("SPD")
         assert len(orgs) == 1
         assert orgs[0].id == "spd"
 
-    def test_get_organisations_by_akronym_unknown(self, resolver: OrganisationResolver) -> None:
+    def test_get_organisations_by_akronym_unknown(
+        self, resolver: OrganisationResolver
+    ) -> None:
         assert resolver.get_organisations_by_akronym("XYZ") == []
 
-    def test_get_organisations_by_akronym_case_sensitive(self, resolver: OrganisationResolver) -> None:
+    def test_get_organisations_by_akronym_case_sensitive(
+        self, resolver: OrganisationResolver
+    ) -> None:
         assert resolver.get_organisations_by_akronym("spd") == []
 
 
@@ -865,12 +895,16 @@ class TestIntegration:
     def test_normalize_name_key_importable_from_package(self) -> None:
         assert callable(normalize_name_key)
 
-    def test_author_resolve_returns_author_id_resolution(self, authors: AuthorResolver) -> None:
+    def test_author_resolve_returns_author_id_resolution(
+        self, authors: AuthorResolver
+    ) -> None:
         r = authors.resolve("Angela Merkel")
         assert isinstance(r, AuthorIDResolution)
         assert isinstance(r, NameIDResolution)
 
-    def test_org_resolve_returns_org_id_resolution(self, orgs: OrganisationResolver) -> None:
+    def test_org_resolve_returns_org_id_resolution(
+        self, orgs: OrganisationResolver
+    ) -> None:
         r = orgs.resolve("SPD")
         assert isinstance(r, OrganisationIDResolution)
         assert isinstance(r, NameIDResolution)

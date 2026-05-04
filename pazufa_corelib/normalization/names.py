@@ -354,9 +354,7 @@ def _build_vocab(keys: list[str], n: int = _NGRAM_SIZE) -> dict[str, int]:
     return vocab
 
 
-def _vectorise(
-    key: str, vocab: dict[str, int], n: int = _NGRAM_SIZE
-) -> np.ndarray:
+def _vectorise(key: str, vocab: dict[str, int], n: int = _NGRAM_SIZE) -> np.ndarray:
     """Vectorise a normalised key into an L2-normalised n-gram count vector.
 
     N-grams not present in *vocab* are silently ignored, so the function

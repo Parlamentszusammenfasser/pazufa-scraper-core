@@ -147,7 +147,7 @@ def _paragraph_quality_score(paragraph: str) -> float:
 
 
 def normalize_name_key(text: str) -> str:
-    """Produce a normalised comparison key for a name string.
+    r"""Produce a normalised comparison key for a name string.
 
     Applies character-level transformations only — no structural changes
     (honorific stripping, token sorting). Intended as the shared base for
@@ -174,7 +174,7 @@ def normalize_name_key(text: str) -> str:
     text = _RE_C1_CONTROLS.sub("", text)
     text = text.lower()
     text = text.translate(_UMLAUT_TABLE)
-    text = text.replace("/", " ")  # slash separates words (CDU/CSU, Bündnis 90/Die Grünen)
+    text = text.replace("/", " ")  # slash as separator: CDU/CSU, Bündnis 90/Die Grünen
     text = _RE_NAME_PUNCT.sub("", text)
     text = _RE_MULTI_SPACE.sub(" ", text)
     return text.strip()

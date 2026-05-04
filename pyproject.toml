@@ -78,7 +78,7 @@ ignore = [
     "D107",  # missing docstring in __init__
 ]
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D"]
+"tests/**" = ["D", "E501"]
 "tools/**" = ["D"]
 "pazufa_corelib/api_client/**" = ["D", "E501"]
 "pazufa_corelib/api_model.py" = ["D", "E501"]

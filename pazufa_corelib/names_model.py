@@ -36,7 +36,7 @@ class BaseName(BaseModel):
     @field_validator("id")
     @classmethod
     def validate_id_format(cls, value: str) -> str:
-        """Validate that the ID is a slug containing only letters, digits, hyphens and underscores.
+        """Validate the ID is a slug: letters, digits, hyphens, underscores only.
 
         Args:
             value: The ID string to validate.
@@ -198,7 +198,7 @@ class NameIDResolution(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def changed(self) -> bool:
-        """Return True if the resolved canonical name differs from the original input."""
+        """Return True if the canonical name differs from the original input."""
         return self.original_name != self.canonical_name
 
 
@@ -213,5 +213,5 @@ class OrganisationIDResolution(NameIDResolution):
 
     akronym: Optional[str] = Field(
         default=None,
-        description="Short-form abbreviation of the resolved organisation, if available",
+        description="Short-form abbreviation of the resolved organisation, if any",
     )

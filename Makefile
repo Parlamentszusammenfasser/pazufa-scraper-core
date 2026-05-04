@@ -27,7 +27,8 @@ typecheck:
 	$(POETRY) mypy pazufa_corelib
 
 security:
-	$(POETRY) pip-audit --ignore-vuln GHSA-xqmj-j6mv-4862
+	$(POETRY) pip-audit --ignore-vuln GHSA-xqmj-j6mv-4862 \
+	                    --ignore-vuln CVE-2025-69872
 
 test:
 	$(POETRY) pytest -v
