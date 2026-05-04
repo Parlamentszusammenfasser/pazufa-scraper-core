@@ -34,17 +34,26 @@ If a design choice improves short-term convenience but increases long-term maint
 Before finishing work, run all checks:
 
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy .
-poetry run pytest -v
+make check
 ```
+
+This runs linting, type checking, security audit, and the full test suite. Other targets:
+
+| Target           | What it does                              |
+|------------------|-------------------------------------------|
+| `make lint`      | `ruff check` + `ruff format --check`      |
+| `make typecheck` | `mypy pazufa_corelib`                     |
+| `make security`  | `pip-audit`                               |
+| `make test`      | `pytest -v`                               |
+| `make coverage`  | pytest with term + XML coverage report    |
+| `make format`    | auto-fix lint and reformat                |
+| `make generate`  | regenerate API models and client          |
+| `make clean`     | remove caches, `dist/`, `coverage.xml`    |
 
 To regenerate API models and client after OpenAPI changes:
 
 ```bash
-poetry run datamodel-codegen
-poetry run python tools/generate_openapi_client.py
+make generate
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for further detail on tooling and code generation.
