@@ -1,13 +1,17 @@
 """Tests for normalization utilities."""
 
+import logging
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 
 from pazufa_corelib.normalization import (
     AuthorIDResolution,
     AuthorResolver,
     NameIDResolution,
-    OrganisationIDResolution,
-    OrganisationResolver,
+    OrganizationIDResolution,
+    OrganizationResolver,
     normalize_datum,
     normalize_name,
     normalize_name_key,
@@ -746,6 +750,24 @@ class TestAuthorResolver:
         assert r.matched
         assert r.resolved_id == "schmidt-helmut"
 
+    # debug logging (line 216)
+    def test_init_emits_debug_log(self, caplog: pytest.LogCaptureFixture) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            AuthorResolver()
+        assert any("AuthorResolver initialised" in r.message for r in caplog.records)
+
+    # empty canonical_keys guard in resolve (line 397)
+    def test_resolve_empty_resolver(self, tmp_path: Path) -> None:
+        empty = tmp_path / "empty_authors.yaml"
+        empty.write_text("names: []\n")
+        with patch("pazufa_corelib.normalization.names.AUTHORS_FILES", [empty]):
+            resolver = AuthorResolver()
+        r = resolver.resolve("Olaf Scholz")
+        assert not r.matched
+        assert r.score == 0.0
+
 
 # ---------------------------------------------------------------------------
 # OrganisationResolver
@@ -754,62 +776,62 @@ class TestAuthorResolver:
 
 class TestOrganisationResolver:
     @pytest.fixture(scope="class")
-    def resolver(self) -> OrganisationResolver:
-        return OrganisationResolver()
+    def resolver(self) -> OrganizationResolver:
+        return OrganizationResolver()
 
-    def test_exact_canonical_name(self, resolver: OrganisationResolver) -> None:
+    def test_exact_canonical_name(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("Sozialdemokratische Partei Deutschlands")
         assert r.resolved_id == "spd"
         assert r.score == 1.0
         assert r.matched
 
-    def test_exact_alias(self, resolver: OrganisationResolver) -> None:
+    def test_exact_alias(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("SPD")
         assert r.resolved_id == "spd"
         assert r.score == 1.0
 
     def test_exact_via_slash_normalization(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
         # "Bündnis 90 Die Grünen" normalises to the same key as "Bündnis 90/Die Grünen"
         r = resolver.resolve("Bündnis 90 Die Grünen")
         assert r.resolved_id == "gruene"
         assert r.score == 1.0
 
-    def test_cosine_variant(self, resolver: OrganisationResolver) -> None:
+    def test_cosine_variant(self, resolver: OrganizationResolver) -> None:
         # Not in alias list — resolved via cosine similarity
         r = resolver.resolve("Sozialdemokratische Partei")
         assert r.resolved_id == "spd"
         assert r.matched
 
-    def test_umlaut_variant(self, resolver: OrganisationResolver) -> None:
+    def test_umlaut_variant(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("Alternative fuer Deutschland")
         assert r.resolved_id == "afd"
         assert r.matched
 
-    def test_unresolved_unknown(self, resolver: OrganisationResolver) -> None:
+    def test_unresolved_unknown(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("Bundeswehr")
         assert not r.matched
         assert r.score == 0.0
         assert r.resolved_id == ""
 
-    def test_empty_query(self, resolver: OrganisationResolver) -> None:
+    def test_empty_query(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("")
         assert not r.matched
 
-    def test_check_organisation_hit(self, resolver: OrganisationResolver) -> None:
-        assert resolver.check_organisation("SPD") is True
+    def test_check_organisation_hit(self, resolver: OrganizationResolver) -> None:
+        assert resolver.check_organization("SPD") is True
 
-    def test_check_organisation_miss(self, resolver: OrganisationResolver) -> None:
-        assert resolver.check_organisation("Piratenpartei") is False
+    def test_check_organisation_miss(self, resolver: OrganizationResolver) -> None:
+        assert resolver.check_organization("Piratenpartei") is False
 
-    def test_resolve_batch_single_matmul(self, resolver: OrganisationResolver) -> None:
+    def test_resolve_batch_single_matmul(self, resolver: OrganizationResolver) -> None:
         results = resolver.resolve_batch(["CDU", "SPD", "FDP"])
         ids = [r.resolved_id for r in results]
         assert ids == ["cdu", "spd", "fdp"]
 
     def test_resolve_batch_order_preserved(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
         queries = ["Volt Deutschland", "Die Linke", "Freie Wähler"]
         results = resolver.resolve_batch(queries)
@@ -818,92 +840,184 @@ class TestOrganisationResolver:
         assert results[1].resolved_id == "linke"
         assert results[2].resolved_id == "fw"
 
-    def test_resolve_batch_mixed_match(self, resolver: OrganisationResolver) -> None:
+    def test_resolve_batch_mixed_match(self, resolver: OrganizationResolver) -> None:
         results = resolver.resolve_batch(["SPD", "Bundeswehr"])
         assert results[0].matched
         assert not results[1].matched
 
-    def test_changed_flag(self, resolver: OrganisationResolver) -> None:
+    def test_changed_flag(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("SPD-Fraktion")
         assert r.matched
         assert r.changed
 
     # fuzzy_check_organisation
-    def test_fuzzy_check_organisation_hit(self, resolver: OrganisationResolver) -> None:
-        assert resolver.fuzzy_check_organisation("Sozialdemokratische Partei") is True
+    def test_fuzzy_check_organisation_hit(self, resolver: OrganizationResolver) -> None:
+        assert resolver.fuzzy_check_organization("Sozialdemokratische Partei") is True
 
     def test_fuzzy_check_organisation_exact(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.fuzzy_check_organisation("SPD") is True
+        assert resolver.fuzzy_check_organization("SPD") is True
 
     def test_fuzzy_check_organisation_miss(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.fuzzy_check_organisation("Bundeswehr") is False
+        assert resolver.fuzzy_check_organization("Bundeswehr") is False
 
-    # canonicalise_organisations
-    def test_canonicalise_organisations_basic(
-        self, resolver: OrganisationResolver
+    # canonicalize_organisations — returns canonical names, not IDs
+    def test_canonicalize_organisations_basic(
+        self, resolver: OrganizationResolver
     ) -> None:
-        ids = resolver.canonicalise_organisations(["SPD", "FDP"])
-        assert ids == ["spd", "fdp"]
+        names = resolver.canonicalize_organizations(["SPD", "FDP"])
+        assert names == [
+            "Sozialdemokratische Partei Deutschlands",
+            "Freie Demokratische Partei",
+        ]
 
-    def test_canonicalise_organisations_unmatched_not_strict(
-        self, resolver: OrganisationResolver
+    def test_canonicalize_organisations_unmatched_not_strict(
+        self, resolver: OrganizationResolver
     ) -> None:
-        ids = resolver.canonicalise_organisations(["SPD", "Piratenpartei"])
-        assert ids[0] == "spd"
-        assert ids[1] == ""
+        names = resolver.canonicalize_organizations(["SPD", "Piratenpartei"])
+        assert names[0] == "Sozialdemokratische Partei Deutschlands"
+        assert names[1] == "Piratenpartei"  # original query returned for unmatched
 
-    def test_canonicalise_organisations_strict_drops_unmatched(
-        self, resolver: OrganisationResolver
+    def test_canonicalize_organisations_strict_drops_unmatched(
+        self, resolver: OrganizationResolver
     ) -> None:
-        ids = resolver.canonicalise_organisations(["SPD", "Piratenpartei"], strict=True)
-        assert ids == ["spd"]
+        names = resolver.canonicalize_organizations(
+            ["SPD", "Piratenpartei"], strict=True
+        )
+        assert names == ["Sozialdemokratische Partei Deutschlands"]
+
+    # canonicalize_organisation (singular)
+    def test_canonicalize_organisation_resolved(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        assert (
+            resolver.canonicalize_organization("SPD")
+            == "Sozialdemokratische Partei Deutschlands"
+        )
+
+    def test_canonicalize_organisation_unresolved_non_strict(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        assert resolver.canonicalize_organization("Piratenpartei") == "Piratenpartei"
+
+    def test_canonicalize_organisation_unresolved_strict(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        assert resolver.canonicalize_organization("Piratenpartei", strict=True) == ""
+
+    # fuzzy_match_akronym
+    def test_fuzzy_match_akronym_known(self, resolver: OrganizationResolver) -> None:
+        assert resolver.fuzzy_match_akronym("SPD") == "SPD"
+
+    def test_fuzzy_match_akronym_fuzzy(self, resolver: OrganizationResolver) -> None:
+        assert resolver.fuzzy_match_akronym("Sozialdemokratische Partei") == "SPD"
+
+    def test_fuzzy_match_akronym_unresolved(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        assert resolver.fuzzy_match_akronym("Piratenpartei") == "Piratenpartei"
 
     # akronym on resolution result
-    def test_resolve_includes_akronym(self, resolver: OrganisationResolver) -> None:
+    def test_resolve_includes_akronym(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("Sozialdemokratische Partei Deutschlands")
         assert r.akronym == "SPD"
 
     def test_resolve_akronym_none_when_unresolved(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
         r = resolver.resolve("Piratenpartei")
         assert r.akronym is None
 
     def test_resolve_batch_includes_akronym(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
         results = resolver.resolve_batch(["CDU", "FDP"])
         assert results[0].akronym == "CDU"
         assert results[1].akronym == "FDP"
 
-    # get_akronym
-    def test_get_akronym_known_id(self, resolver: OrganisationResolver) -> None:
-        assert resolver.get_akronym("spd") == "SPD"
+    # akronym via resolve result (get_akronym was removed)
+    def test_resolve_akronym_on_matched(self, resolver: OrganizationResolver) -> None:
+        assert (
+            resolver.resolve("Sozialdemokratische Partei Deutschlands").akronym == "SPD"
+        )
 
-    def test_get_akronym_unknown_id(self, resolver: OrganisationResolver) -> None:
-        assert resolver.get_akronym("piratenpartei") is None
+    def test_resolve_akronym_none_on_unresolved(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        assert resolver.resolve("Piratenpartei").akronym is None
 
     # get_organisations_by_akronym
     def test_get_organisations_by_akronym_known(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
-        orgs = resolver.get_organisations_by_akronym("SPD")
+        orgs = resolver.get_organizations_by_akronym("SPD")
         assert len(orgs) == 1
         assert orgs[0].id == "spd"
 
     def test_get_organisations_by_akronym_unknown(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.get_organisations_by_akronym("XYZ") == []
+        assert resolver.get_organizations_by_akronym("XYZ") == []
 
     def test_get_organisations_by_akronym_case_sensitive(
-        self, resolver: OrganisationResolver
+        self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.get_organisations_by_akronym("spd") == []
+        assert resolver.get_organizations_by_akronym("spd") == []
+
+    # debug logging (line 570)
+    def test_init_emits_debug_log(self, caplog: pytest.LogCaptureFixture) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            OrganizationResolver()
+        assert any(
+            "OrganizationResolver initialised" in r.message for r in caplog.records
+        )
+
+    # fuzzy_match_akronym — matched but akronym is None (lines 665-670)
+    def test_fuzzy_match_akronym_no_akronym(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        # "Adidas AG" resolves but has no akronym
+        result = resolver.fuzzy_match_akronym("Adidas AG")
+        assert result == "Adidas AG"
+
+    # empty canonical_keys guard in resolve_batch (lines 820-828)
+    def test_resolve_batch_empty_resolver(self, tmp_path: Path) -> None:
+        empty = tmp_path / "empty_orgs.yaml"
+        empty.write_text("names: []\n")
+        with patch("pazufa_corelib.normalization.names.ORGANIZATIONS_FILES", [empty]):
+            resolver = OrganizationResolver()
+        results = resolver.resolve_batch(["SPD"])
+        assert not results[0].matched
+        assert results[0].score == 0.0
+
+    # near-tie warning in resolve_batch (lines 855-856)
+    def test_resolve_batch_near_tie_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        near_tie_yaml = tmp_path / "near_tie_orgs.yaml"
+        near_tie_yaml.write_text(
+            "names:\n"
+            "  - id: org-alpha\n"
+            "    canonical_name: Deutsche Organisation Test Alpha\n"
+            "    aliases: []\n"
+            "  - id: org-beta\n"
+            "    canonical_name: Deutsche Organisation Test Beta\n"
+            "    aliases: []\n"
+        )
+        with patch(
+            "pazufa_corelib.normalization.names.ORGANIZATIONS_FILES", [near_tie_yaml]
+        ):
+            resolver = OrganizationResolver()
+        with caplog.at_level(
+            logging.WARNING, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.resolve_batch(["Deutsche Organisation Test"])
+        assert any("Near-tie" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------
@@ -920,14 +1034,14 @@ class TestIntegration:
         return AuthorResolver()
 
     @pytest.fixture(scope="class")
-    def orgs(self) -> OrganisationResolver:
-        return OrganisationResolver()
+    def orgs(self) -> OrganizationResolver:
+        return OrganizationResolver()
 
     # --- public API surface -------------------------------------------------
 
     def test_resolution_models_importable_from_package(self) -> None:
         assert AuthorIDResolution is not None
-        assert OrganisationIDResolution is not None
+        assert OrganizationIDResolution is not None
         assert NameIDResolution is not None
 
     def test_normalize_name_key_importable_from_package(self) -> None:
@@ -941,10 +1055,10 @@ class TestIntegration:
         assert isinstance(r, NameIDResolution)
 
     def test_org_resolve_returns_org_id_resolution(
-        self, orgs: OrganisationResolver
+        self, orgs: OrganizationResolver
     ) -> None:
         r = orgs.resolve("SPD")
-        assert isinstance(r, OrganisationIDResolution)
+        assert isinstance(r, OrganizationIDResolution)
         assert isinstance(r, NameIDResolution)
 
     # --- shared normalisation pipeline -------------------------------------
@@ -984,7 +1098,7 @@ class TestIntegration:
             assert normalize_name(r.canonical_name) in authors._key_to_author
 
     def test_org_canonical_name_round_trips_to_registered_key(
-        self, orgs: OrganisationResolver
+        self, orgs: OrganizationResolver
     ) -> None:
         """normalize_name(canonical_name) must be a key the resolver knows."""
         for name in ["SPD", "CDU", "FDP"]:
@@ -1003,7 +1117,7 @@ class TestIntegration:
         assert batch_names == single_names
 
     def test_resolve_batch_matches_individual_resolve(
-        self, orgs: OrganisationResolver
+        self, orgs: OrganizationResolver
     ) -> None:
         names = ["SPD", "FDP", "CDU", "Bündnis 90/Die Grünen"]
         batch = orgs.resolve_batch(names)
@@ -1014,13 +1128,15 @@ class TestIntegration:
 
     # --- akronym propagation ------------------------------------------------
 
-    def test_akronym_on_resolution_matches_get_akronym(
-        self, orgs: OrganisationResolver
+    def test_akronym_on_resolution_consistent_with_batch(
+        self, orgs: OrganizationResolver
     ) -> None:
-        for name in ["Sozialdemokratische Partei Deutschlands", "FDP", "CDU"]:
-            r = orgs.resolve(name)
-            assert r.matched
-            assert r.akronym == orgs.get_akronym(r.resolved_id)
+        names = ["Sozialdemokratische Partei Deutschlands", "FDP", "CDU"]
+        singles = [orgs.resolve(n) for n in names]
+        batch = orgs.resolve_batch(names)
+        for single, batched in zip(singles, batch):
+            assert single.matched
+            assert single.akronym == batched.akronym
 
     # --- matched / changed semantics ----------------------------------------
 
@@ -1041,7 +1157,7 @@ class TestIntegration:
         assert not r.matched
         assert not r.changed
 
-    def test_unresolved_org_not_changed(self, orgs: OrganisationResolver) -> None:
+    def test_unresolved_org_not_changed(self, orgs: OrganizationResolver) -> None:
         r = orgs.resolve("Piratenpartei")
         assert not r.matched
         assert not r.changed

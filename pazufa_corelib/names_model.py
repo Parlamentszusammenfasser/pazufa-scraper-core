@@ -1,4 +1,4 @@
-"""Pydantic models for the author and organisation normalisation chain."""
+"""Pydantic models for the author and organization normalization chain."""
 
 from pathlib import Path
 from typing import Optional, Self, Sequence
@@ -22,7 +22,7 @@ _SLUG_RE = r"^[A-ZÄÖÜa-zäöüß0-9][A-ZÄÖÜa-zäöüß0-9\-_]+$"
 
 
 class BaseName(BaseModel):
-    """Base model for Author and Organisation entries."""
+    """Base model for Author and Organization entries."""
 
     id: str = Field(..., description="Unique slug identifier, e.g. 'mueller-maria'")
     canonical_name: str = Field(
@@ -62,8 +62,8 @@ class Author(BaseName):
     pass
 
 
-class Organisation(BaseName):
-    """Model for a single organisation entry."""
+class Organization(BaseName):
+    """Model for a single organization entry."""
 
     akronym: Optional[str] = Field(
         default=None,
@@ -146,8 +146,8 @@ class AuthorFile(BaseNameFile):
     names: list[Author]
 
 
-class OrganisationFile(BaseNameFile):
-    """Concrete file model for organisation YAML files.
+class OrganizationFile(BaseNameFile):
+    """Concrete file model for organization YAML files.
 
     Expected YAML structure::
 
@@ -160,7 +160,7 @@ class OrganisationFile(BaseNameFile):
               - Bundesfinanzministerium
     """
 
-    names: list[Organisation]
+    names: list[Organization]
 
 
 # =====================================================================
@@ -174,7 +174,7 @@ class NameIDResolution(BaseModel):
     Attributes:
         original_name: The raw name string as it appeared in the input.
         resolved_id: The slug ID of the best-matching entry, or the
-            original name normalised if no match cleared the threshold.
+            original name normalized if no match cleared the threshold.
         canonical_name: The display form of the resolved entry, or the
             original name if unresolved.
         score: Match quality score in [0.0, 100.0]; 0.0 means no match
@@ -208,10 +208,10 @@ class AuthorIDResolution(NameIDResolution):
     pass
 
 
-class OrganisationIDResolution(NameIDResolution):
-    """Resolution result for an organisation query."""
+class OrganizationIDResolution(NameIDResolution):
+    """Resolution result for an organization query."""
 
     akronym: Optional[str] = Field(
         default=None,
-        description="Short-form abbreviation of the resolved organisation, if any",
+        description="Short-form abbreviation of the resolved organization, if any",
     )

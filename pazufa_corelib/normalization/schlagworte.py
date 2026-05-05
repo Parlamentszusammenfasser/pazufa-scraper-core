@@ -257,7 +257,7 @@ class SchlagwortResolver:
         self._tags: list[Tag] = _load_tags(local_tags)
         self._sachgebiete: list[Sachgebiet] = _load_sachgebiete()
 
-        # pre-serialise JSON representations
+        # pre-serialize JSON representations
         self._tags_json: str = _build_json(self._tags)
         self._sachgebiete_json: str = _build_json(self._sachgebiete)
         self._sachgebiete_no_numbers_json: str = _build_json_sachgebiete_no_numbers(
@@ -283,6 +283,16 @@ class SchlagwortResolver:
             set(self._sachgebiete_number_to_id), "Invalid Sachgebiet-Nummern"
         )
         self.TagList: Any = _make_validated_list(self._tag_ids, "Invalid Tags")
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "SchlagwortResolver initialised",
+                extra={
+                    "local_tag_files_count": len(local_tags) if local_tags else 0,
+                    "tags_count": len(self._tags),
+                    "sachgebiete_count": len(self._sachgebiete),
+                },
+            )
 
     # =====================================================================
     # Tag actions
