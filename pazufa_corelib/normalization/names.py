@@ -175,19 +175,27 @@ def _canonicalise_names(
 
 
 class AuthorResolver:
-    """Resolves raw author name strings to canonical author IDs.
+    """Resolves raw author name strings to canonical author information.
 
     Loads the global author YAML and any caller-supplied extra files,
-    builds a normalised-key lookup, and resolves queries via exact match
+    builds a normalized-key lookup, and resolves queries via exact match
     first, then rapidfuzz ``WRatio`` fuzzy matching.
 
     Args:
         extra_files: Optional additional author YAML files merged on top
             of the global mapping. Later files override earlier entries
             on ID collision.
+        fuzzy_cutoff: Minimum ``WRatio`` score for a fuzzy match to be
+            accepted. Scores below this threshold are treated as no match.
+            Defaults to :data:`_FUZZY_MATCH_THRESHOLD`.
     """
 
-    def __init__(self, extra_files: list[Path] | None = None) -> None:
+    def __init__(
+        self,
+        extra_files: list[Path] | None = None,
+        fuzzy_cutoff: float = _FUZZY_MATCH_THRESHOLD,
+    ) -> None:
+        self._fuzzy_cutoff = fuzzy_cutoff
         self._authors: list[Author] = _load_authors(extra_files)
 
         # normalised key → (id, canonical_name)
@@ -199,18 +207,21 @@ class AuthorResolver:
                     self._key_to_author[key] = (author.id, author.canonical_name)
 
         self._author_ids: set[str] = {a.id for a in self._authors}
+        self._canonical_name_keys: set[str] = {
+            k for a in self._authors if (k := normalize_name(a.canonical_name))
+        }
         self._canonical_keys: list[str] = list(self._key_to_author)
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(
-                "AuthorResolver: %d authors, %d canonical keys | "
-                "_key_to_author %d B (shallow), _author_ids %d B (shallow), "
-                "_canonical_keys %d B (shallow)",
-                len(self._authors),
-                len(self._canonical_keys),
-                sys.getsizeof(self._key_to_author),
-                sys.getsizeof(self._author_ids),
-                sys.getsizeof(self._canonical_keys),
+                "AuthorResolver initialised",
+                extra={
+                    "author_count": len(self._authors),
+                    "canonical_key_count": len(self._canonical_keys),
+                    "key_to_author_bytes": sys.getsizeof(self._key_to_author),
+                    "author_ids_bytes": sys.getsizeof(self._author_ids),
+                    "canonical_keys_bytes": sys.getsizeof(self._canonical_keys),
+                },
             )
 
     # =====================================================================
@@ -218,15 +229,17 @@ class AuthorResolver:
     # =====================================================================
 
     def check_author(self, query: str) -> bool:
-        """Check whether a query string exactly matches a known author.
+        """Check whether a query string exactly matches a known canonical author name.
+
+        Aliases are not considered; only canonical names are checked.
 
         Args:
             query: Raw name string to check.
 
         Returns:
-            ``True`` if the normalised query matches a known author key.
+            ``True`` if the normalised query matches a known canonical author name.
         """
-        return normalize_name(query) in self._key_to_author
+        return normalize_name(query) in self._canonical_name_keys
 
     def fuzzy_check_author(self, query: str) -> bool:
         """Fuzzy-match a name string against the known author vocabulary.
@@ -241,15 +254,22 @@ class AuthorResolver:
             cutoff, ``False`` otherwise.
         """
         result = _canonicalise_names(
-            [normalize_name(query)], self._canonical_keys, self._key_to_author
+            [normalize_name(query)],
+            self._canonical_keys,
+            self._key_to_author,
+            cutoff=self._fuzzy_cutoff,
         )[0]
-        LOGGER.debug("Fuzzy check returned: %s", result)
+        LOGGER.debug(
+            "Fuzzy author check for %r",
+            query,
+            extra={"query": query, "matched": result.matched, "score": result.score},
+        )
         return result.matched
 
     def canonicalise_authors(
         self, queries: list[str], strict: bool = False
     ) -> list[str]:
-        """Canonicalise a list of raw name strings to author IDs.
+        """Canonicalise a list of raw name strings to canonical author names.
 
         Args:
             queries: Raw name strings to resolve.
@@ -257,7 +277,7 @@ class AuthorResolver:
                 they are returned as empty strings.
 
         Returns:
-            List of resolved canonical author IDs, in the same order as
+            List of resolved canonical author names, in the same order as
             *queries* (unless ``strict=True`` drops some).
         """
         resolved = _canonicalise_names(
@@ -265,11 +285,65 @@ class AuthorResolver:
             self._canonical_keys,
             self._key_to_author,
             strict=strict,
+            cutoff=self._fuzzy_cutoff,
         )
-        return [r.resolved_id for r in resolved]
+        return [r.canonical_name for r in resolved]
+
+    def canonicalise_author(self, query: str, strict: bool = False) -> str:
+        """
+        Canonicalizes an author's name by attempting to resolve it to a canonical form
+        using the `resolve` function. If the query can be resolved, the canonical name
+        is returned. Otherwise, the function behaves based on the `strict` parameter.
+
+        In strict mode, if the author name cannot be resolved, an empty string is
+        returned. In non-strict mode, the original query is returned as-is.
+
+        Args:
+            query (str): The name of the author to canonicalize.
+            strict (bool): If True, unresolved names result in an empty string.
+                Defaults to False.
+
+        Returns:
+            str: The canonicalized author name, the original query, or an empty
+            string depending on resolution and strict mode.
+        """
+        resolved = self.resolve(query)
+
+        if resolved.matched:
+            LOGGER.debug(
+                "Resolved author %r → %r",
+                query,
+                resolved.canonical_name,
+                extra={
+                    "original_name": query,
+                    "canonical_name": resolved.canonical_name,
+                    "score": resolved.score,
+                },
+            )
+            return resolved.canonical_name
+
+        if strict:
+            LOGGER.warning(
+                "Dropping unresolved author %r (strict=True)",
+                query,
+                extra={"original_name": query, "strict": True},
+            )
+            return ""
+
+        LOGGER.debug(
+            "Author %r unresolved, keeping original",
+            query,
+            extra={"original_name": query, "strict": False},
+        )
+        return query
+
+
+
 
     def resolve(self, query: str) -> AuthorIDResolution:
         """Resolve a single raw author name to a canonical entry.
+
+        This function is intended to be used by advanced users.
 
         Resolution order:
 
@@ -317,7 +391,10 @@ class AuthorResolver:
             )
 
         return _canonicalise_names(
-            [query_key], self._canonical_keys, self._key_to_author
+            [query_key],
+            self._canonical_keys,
+            self._key_to_author,
+            cutoff=self._fuzzy_cutoff,
         )[0]
 
 
@@ -331,6 +408,13 @@ def _ngrams(text: str, n: int = _NGRAM_SIZE) -> list[str]:
 
     Pads with a single space on each side so short tokens still produce
     edge n-grams (e.g. ``"FDP"`` → ``" FD"``, ``"FDP"``, ``"DP "``).
+
+    Args:
+        text: Input string to decompose into n-grams.
+        n: N-gram size.
+
+    Returns:
+        List of n-gram strings extracted from the padded text.
     """
     padded = f" {text} "
     return [padded[i : i + n] for i in range(len(padded) - n + 1)]
@@ -473,21 +557,19 @@ class OrganisationResolver:
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(
-                "OrganisationResolver: %d organisations, %d canonical keys, "
-                "%d vocab entries | "
-                "matrix %s dtype=%s (%d B exact) | "
-                "_key_to_org %d B (shallow), _vocab %d B (shallow), "
-                "_id_to_akronym %d B (shallow), _akronym_to_orgs %d B (shallow)",
-                len(self._organisations),
-                len(self._canonical_keys),
-                len(self._vocab),
-                self._matrix.shape,
-                self._matrix.dtype,
-                self._matrix.nbytes,
-                sys.getsizeof(self._key_to_org),
-                sys.getsizeof(self._vocab),
-                sys.getsizeof(self._id_to_akronym),
-                sys.getsizeof(self._akronym_to_orgs),
+                "OrganisationResolver initialised",
+                extra={
+                    "organisation_count": len(self._organisations),
+                    "canonical_key_count": len(self._canonical_keys),
+                    "vocab_size": len(self._vocab),
+                    "matrix_shape": self._matrix.shape,
+                    "matrix_dtype": str(self._matrix.dtype),
+                    "matrix_bytes": self._matrix.nbytes,
+                    "key_to_org_bytes": sys.getsizeof(self._key_to_org),
+                    "vocab_bytes": sys.getsizeof(self._vocab),
+                    "id_to_akronym_bytes": sys.getsizeof(self._id_to_akronym),
+                    "akronym_to_orgs_bytes": sys.getsizeof(self._akronym_to_orgs),
+                },
             )
 
     # =====================================================================
@@ -545,7 +627,11 @@ class OrganisationResolver:
             threshold, ``False`` otherwise.
         """
         result = self.resolve_batch([query])[0]
-        LOGGER.debug("Fuzzy check returned: %s", result)
+        LOGGER.debug(
+            "Fuzzy organisation check for %r",
+            query,
+            extra={"query": query, "matched": result.matched, "score": result.score},
+        )
         return result.matched
 
     def canonicalise_organisations(
@@ -667,15 +753,17 @@ class OrganisationResolver:
                 ):
                     second_idx = int(np.where(scores == second_score)[0][0])
                     LOGGER.warning(
-                        "Near-tie for %r: %r (%.4f) vs %r (%.4f),"
-                        " delta=%.4f <= epsilon=%.4f",
+                        "Near-tie for organisation %r",
                         query,
-                        self._canonical_keys[best_idx],
-                        best_score,
-                        self._canonical_keys[second_idx],
-                        second_score,
-                        best_score - second_score,
-                        _COSINE_NEAR_TIE_EPSILON,
+                        extra={
+                            "query": query,
+                            "best_match": self._canonical_keys[best_idx],
+                            "best_score": best_score,
+                            "second_match": self._canonical_keys[second_idx],
+                            "second_score": second_score,
+                            "delta": best_score - second_score,
+                            "epsilon": _COSINE_NEAR_TIE_EPSILON,
+                        },
                     )
 
             org_id, canonical_name, akronym = self._key_to_org[

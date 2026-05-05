@@ -668,12 +668,18 @@ class TestAuthorResolver:
         assert not r.matched
         assert not r.changed
 
-    # check_author
+    # check_author — canonical names only, aliases excluded
     def test_check_author_exact_hit(self, resolver: AuthorResolver) -> None:
         assert resolver.check_author("Olaf Scholz") is True
 
-    def test_check_author_alias_hit(self, resolver: AuthorResolver) -> None:
+    def test_check_author_comma_form_same_key(self, resolver: AuthorResolver) -> None:
+        # "Scholz, Olaf" token-sorts to the same key as canonical "Olaf Scholz"
         assert resolver.check_author("Scholz, Olaf") is True
+
+    def test_check_author_distinct_alias_no_hit(self, resolver: AuthorResolver) -> None:
+        # "Brandt" is an alias; its key ("brandt") differs from the canonical
+        # key ("brandt willy") — must not match check_author
+        assert resolver.check_author("Brandt") is False
 
     def test_check_author_unknown(self, resolver: AuthorResolver) -> None:
         assert resolver.check_author("Max Mustermann") is False
@@ -688,25 +694,57 @@ class TestAuthorResolver:
     def test_fuzzy_check_author_unknown(self, resolver: AuthorResolver) -> None:
         assert resolver.fuzzy_check_author("Max Mustermann") is False
 
-    # canonicalise_authors
+    # canonicalise_authors — returns canonical names, not IDs
     def test_canonicalise_authors_basic(self, resolver: AuthorResolver) -> None:
-        ids = resolver.canonicalise_authors(["Olaf Scholz", "Angela Merkel"])
-        assert ids == ["scholz-olaf", "merkel-angela"]
+        names = resolver.canonicalise_authors(["Olaf Scholz", "Angela Merkel"])
+        assert names == ["Olaf Scholz", "Angela Merkel"]
 
     def test_canonicalise_authors_unmatched_not_strict(
         self, resolver: AuthorResolver
     ) -> None:
-        ids = resolver.canonicalise_authors(["Olaf Scholz", "Max Mustermann"])
-        assert ids[0] == "scholz-olaf"
-        assert ids[1] == ""
+        names = resolver.canonicalise_authors(["Olaf Scholz", "Max Mustermann"])
+        assert names[0] == "Olaf Scholz"
+        assert names[1] == normalize_name("Max Mustermann")  # normalised fallback
 
     def test_canonicalise_authors_strict_drops_unmatched(
         self, resolver: AuthorResolver
     ) -> None:
-        ids = resolver.canonicalise_authors(
+        names = resolver.canonicalise_authors(
             ["Olaf Scholz", "Max Mustermann"], strict=True
         )
-        assert ids == ["scholz-olaf"]
+        assert names == ["Olaf Scholz"]
+
+    # canonicalise_author
+    def test_canonicalise_author_resolved(self, resolver: AuthorResolver) -> None:
+        assert resolver.canonicalise_author("Olaf Scholz") == "Olaf Scholz"
+
+    def test_canonicalise_author_unresolved_non_strict(
+        self, resolver: AuthorResolver
+    ) -> None:
+        assert resolver.canonicalise_author("Max Mustermann") == "Max Mustermann"
+
+    def test_canonicalise_author_unresolved_strict(
+        self, resolver: AuthorResolver
+    ) -> None:
+        assert resolver.canonicalise_author("Max Mustermann", strict=True) == ""
+
+    def test_canonicalise_author_honorific_stripped(
+        self, resolver: AuthorResolver
+    ) -> None:
+        assert resolver.canonicalise_author("Dr. Angela Merkel") == "Angela Merkel"
+
+    # fuzzy_cutoff
+    def test_fuzzy_cutoff_high_rejects_fuzzy_match(self) -> None:
+        strict_resolver = AuthorResolver(fuzzy_cutoff=100.0)
+        # "Helmut Schmitt" is a typo that fuzzy-matches but not exact-matches
+        r = strict_resolver.resolve("Helmut Schmitt")
+        assert not r.matched
+
+    def test_fuzzy_cutoff_default_accepts_fuzzy_match(self) -> None:
+        default_resolver = AuthorResolver()
+        r = default_resolver.resolve("Helmut Schmitt")
+        assert r.matched
+        assert r.resolved_id == "schmidt-helmut"
 
 
 # ---------------------------------------------------------------------------
@@ -960,9 +998,9 @@ class TestIntegration:
         self, authors: AuthorResolver
     ) -> None:
         names = ["Angela Merkel", "Olaf Scholz", "Helmut Schmidt"]
-        batch_ids = authors.canonicalise_authors(names)
-        single_ids = [authors.resolve(n).resolved_id for n in names]
-        assert batch_ids == single_ids
+        batch_names = authors.canonicalise_authors(names)
+        single_names = [authors.resolve(n).canonical_name for n in names]
+        assert batch_names == single_names
 
     def test_resolve_batch_matches_individual_resolve(
         self, orgs: OrganisationResolver
