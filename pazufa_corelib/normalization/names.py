@@ -3,11 +3,13 @@
 import logging
 import re
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
 from rapidfuzz import fuzz
 
+from pazufa_corelib.api_model import Autor
 from pazufa_corelib.names_model import (
     Author,
     AuthorFile,
@@ -938,3 +940,54 @@ class OrganizationResolver:
                 )
 
         return results  # type: ignore[return-value]  # all slots filled by construction
+
+
+# =====================================================================
+# Experimental Functions
+# =====================================================================
+
+
+def normalize_autor(
+    item: Autor,
+    authorresolver: AuthorResolver,
+    organizationresolver: OrganizationResolver,
+) -> None:
+    """Normalize the ``organisation`` and ``person`` fields of an Autor in-place.
+
+    Resolves each field against the provided resolvers and updates it to the
+    canonical name if a match is found; logs debug information otherwise.
+
+    .. warning::
+        Experimental — may be removed or changed without notice.
+
+    Args:
+        item: The Autor object whose fields are normalized in-place.
+        authorresolver: Resolver used to normalize the ``person`` field.
+        organizationresolver: Resolver used to normalize the ``organisation`` field.
+    """
+    warnings.warn(
+        "normalize_autor is experimental and may be removed or changed without notice.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    org_resolution = organizationresolver.resolve(item.organisation)
+    if org_resolution.score > 0:
+        item.organisation = org_resolution.canonical_name
+    else:
+        LOGGER.debug(
+            "Organisation nicht auflösbar: '%s'",
+            item.organisation,
+            extra={"raw": item.organisation, "score": org_resolution.score},
+        )
+
+    if item.person:
+        person_resolution = authorresolver.resolve(item.person)
+        if person_resolution.score > 0:
+            item.person = person_resolution.canonical_name
+        else:
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                LOGGER.debug(
+                    "Autor nicht auflösbar: '%s'",
+                    item.person,
+                    extra={"raw": item.person, "score": person_resolution.score},
+                )

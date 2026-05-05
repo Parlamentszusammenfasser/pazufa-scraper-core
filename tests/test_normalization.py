@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from pazufa_corelib.api_model import Autor
 from pazufa_corelib.normalization import (
     AuthorIDResolution,
     AuthorResolver,
@@ -17,6 +18,7 @@ from pazufa_corelib.normalization import (
     normalize_name_key,
     normalize_volltext,
 )
+from pazufa_corelib.normalization.names import normalize_autor
 from pazufa_corelib.normalization.text import _paragraph_quality_score
 
 # ---------------------------------------------------------------------------
@@ -1172,3 +1174,74 @@ class TestIntegration:
         r = orgs.resolve("Piratenpartei")
         assert not r.matched
         assert not r.changed
+
+
+# ---------------------------------------------------------------------------
+# normalize_autor
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeAutor:
+    @pytest.fixture(scope="class")
+    def author_resolver(self) -> AuthorResolver:
+        return AuthorResolver()
+
+    @pytest.fixture(scope="class")
+    def org_resolver(self) -> OrganizationResolver:
+        return OrganizationResolver()
+
+    def test_organisation_resolved_to_canonical(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="SPD")
+        with pytest.warns(FutureWarning):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert item.organisation == "Sozialdemokratische Partei Deutschlands"
+
+    def test_organisation_alias_resolved(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="CDU")
+        with pytest.warns(FutureWarning):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert item.organisation == "Christlich Demokratische Union Deutschlands"
+
+    def test_unknown_organisation_unchanged(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="Piratenpartei")
+        with pytest.warns(FutureWarning):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert item.organisation == "Piratenpartei"
+
+    def test_person_resolved_to_canonical(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="SPD", person="Scholz, Olaf")
+        with pytest.warns(FutureWarning):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert item.person == "Olaf Scholz"
+
+    def test_person_with_honorific_resolved(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="CDU", person="Dr. Angela Merkel")
+        with pytest.warns(FutureWarning):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert item.person == "Angela Merkel"
+
+    def test_unknown_person_unchanged(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="SPD", person="Max Mustermann")
+        with pytest.warns(FutureWarning):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert item.person == "Max Mustermann"
+
+    def test_none_person_not_touched(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="SPD", person=None)
+        with pytest.warns(FutureWarning):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert item.person is None
