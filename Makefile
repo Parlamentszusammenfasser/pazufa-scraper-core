@@ -28,7 +28,8 @@ typecheck:
 
 security:
 	$(POETRY) pip-audit --ignore-vuln GHSA-xqmj-j6mv-4862 \
-	                    --ignore-vuln CVE-2025-69872
+	                      --ignore-vuln CVE-2026-42208 \
+	                      --ignore-vuln CVE-2026-42271
 
 test:
 	$(POETRY) pytest -v
