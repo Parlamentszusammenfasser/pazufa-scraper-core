@@ -698,44 +698,44 @@ class TestAuthorResolver:
     def test_fuzzy_check_author_unknown(self, resolver: AuthorResolver) -> None:
         assert resolver.fuzzy_check_author("Max Mustermann") is False
 
-    # canonicalise_authors — returns canonical names, not IDs
-    def test_canonicalise_authors_basic(self, resolver: AuthorResolver) -> None:
-        names = resolver.canonicalise_authors(["Olaf Scholz", "Angela Merkel"])
+    # canonicalize_authors — returns canonical names, not IDs
+    def test_canonicalize_authors_basic(self, resolver: AuthorResolver) -> None:
+        names = resolver.canonicalize_authors(["Olaf Scholz", "Angela Merkel"])
         assert names == ["Olaf Scholz", "Angela Merkel"]
 
-    def test_canonicalise_authors_unmatched_not_strict(
+    def test_canonicalize_authors_unmatched_not_strict(
         self, resolver: AuthorResolver
     ) -> None:
-        names = resolver.canonicalise_authors(["Olaf Scholz", "Max Mustermann"])
+        names = resolver.canonicalize_authors(["Olaf Scholz", "Max Mustermann"])
         assert names[0] == "Olaf Scholz"
         assert names[1] == normalize_name("Max Mustermann")  # normalised fallback
 
-    def test_canonicalise_authors_strict_drops_unmatched(
+    def test_canonicalize_authors_strict_drops_unmatched(
         self, resolver: AuthorResolver
     ) -> None:
-        names = resolver.canonicalise_authors(
+        names = resolver.canonicalize_authors(
             ["Olaf Scholz", "Max Mustermann"], strict=True
         )
         assert names == ["Olaf Scholz"]
 
-    # canonicalise_author
-    def test_canonicalise_author_resolved(self, resolver: AuthorResolver) -> None:
-        assert resolver.canonicalise_author("Olaf Scholz") == "Olaf Scholz"
+    # canonicalize_author
+    def test_canonicalize_author_resolved(self, resolver: AuthorResolver) -> None:
+        assert resolver.canonicalize_author("Olaf Scholz") == "Olaf Scholz"
 
-    def test_canonicalise_author_unresolved_non_strict(
+    def test_canonicalize_author_unresolved_non_strict(
         self, resolver: AuthorResolver
     ) -> None:
-        assert resolver.canonicalise_author("Max Mustermann") == "Max Mustermann"
+        assert resolver.canonicalize_author("Max Mustermann") == "Max Mustermann"
 
-    def test_canonicalise_author_unresolved_strict(
+    def test_canonicalize_author_unresolved_strict(
         self, resolver: AuthorResolver
     ) -> None:
-        assert resolver.canonicalise_author("Max Mustermann", strict=True) == ""
+        assert resolver.canonicalize_author("Max Mustermann", strict=True) == ""
 
-    def test_canonicalise_author_honorific_stripped(
+    def test_canonicalize_author_honorific_stripped(
         self, resolver: AuthorResolver
     ) -> None:
-        assert resolver.canonicalise_author("Dr. Angela Merkel") == "Angela Merkel"
+        assert resolver.canonicalize_author("Dr. Angela Merkel") == "Angela Merkel"
 
     # fuzzy_cutoff
     def test_fuzzy_cutoff_high_rejects_fuzzy_match(self) -> None:
@@ -782,13 +782,13 @@ class TestOrganisationResolver:
     def test_exact_canonical_name(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("Sozialdemokratische Partei Deutschlands")
         assert r.resolved_id == "spd"
-        assert r.score == 1.0
+        assert r.score == 100.0
         assert r.matched
 
     def test_exact_alias(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("SPD")
         assert r.resolved_id == "spd"
-        assert r.score == 1.0
+        assert r.score == 100.0
 
     def test_exact_via_slash_normalization(
         self, resolver: OrganizationResolver
@@ -796,7 +796,7 @@ class TestOrganisationResolver:
         # "Bündnis 90 Die Grünen" normalises to the same key as "Bündnis 90/Die Grünen"
         r = resolver.resolve("Bündnis 90 Die Grünen")
         assert r.resolved_id == "gruene"
-        assert r.score == 1.0
+        assert r.score == 100.0
 
     def test_cosine_variant(self, resolver: OrganizationResolver) -> None:
         # Not in alias list — resolved via cosine similarity
@@ -819,8 +819,19 @@ class TestOrganisationResolver:
         r = resolver.resolve("")
         assert not r.matched
 
-    def test_check_organisation_hit(self, resolver: OrganizationResolver) -> None:
-        assert resolver.check_organization("SPD") is True
+    def test_check_organisation_canonical_hit(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        assert (
+            resolver.check_organization("Sozialdemokratische Partei Deutschlands")
+            is True
+        )
+
+    def test_check_organisation_alias_no_hit(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        # "SPD" is an alias/acronym, not a canonical name
+        assert resolver.check_organization("SPD") is False
 
     def test_check_organisation_miss(self, resolver: OrganizationResolver) -> None:
         assert resolver.check_organization("Piratenpartei") is False
@@ -908,64 +919,64 @@ class TestOrganisationResolver:
     ) -> None:
         assert resolver.canonicalize_organization("Piratenpartei", strict=True) == ""
 
-    # fuzzy_match_akronym
-    def test_fuzzy_match_akronym_known(self, resolver: OrganizationResolver) -> None:
-        assert resolver.fuzzy_match_akronym("SPD") == "SPD"
+    # fuzzy_match_acronym
+    def test_fuzzy_match_acronym_known(self, resolver: OrganizationResolver) -> None:
+        assert resolver.fuzzy_match_acronym("SPD") == "SPD"
 
-    def test_fuzzy_match_akronym_fuzzy(self, resolver: OrganizationResolver) -> None:
-        assert resolver.fuzzy_match_akronym("Sozialdemokratische Partei") == "SPD"
+    def test_fuzzy_match_acronym_fuzzy(self, resolver: OrganizationResolver) -> None:
+        assert resolver.fuzzy_match_acronym("Sozialdemokratische Partei") == "SPD"
 
-    def test_fuzzy_match_akronym_unresolved(
+    def test_fuzzy_match_acronym_unresolved(
         self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.fuzzy_match_akronym("Piratenpartei") == "Piratenpartei"
+        assert resolver.fuzzy_match_acronym("Piratenpartei") == "Piratenpartei"
 
-    # akronym on resolution result
-    def test_resolve_includes_akronym(self, resolver: OrganizationResolver) -> None:
+    # acronym on resolution result
+    def test_resolve_includes_acronym(self, resolver: OrganizationResolver) -> None:
         r = resolver.resolve("Sozialdemokratische Partei Deutschlands")
-        assert r.akronym == "SPD"
+        assert r.acronym == "SPD"
 
-    def test_resolve_akronym_none_when_unresolved(
+    def test_resolve_acronym_none_when_unresolved(
         self, resolver: OrganizationResolver
     ) -> None:
         r = resolver.resolve("Piratenpartei")
-        assert r.akronym is None
+        assert r.acronym is None
 
-    def test_resolve_batch_includes_akronym(
+    def test_resolve_batch_includes_acronym(
         self, resolver: OrganizationResolver
     ) -> None:
         results = resolver.resolve_batch(["CDU", "FDP"])
-        assert results[0].akronym == "CDU"
-        assert results[1].akronym == "FDP"
+        assert results[0].acronym == "CDU"
+        assert results[1].acronym == "FDP"
 
-    # akronym via resolve result (get_akronym was removed)
-    def test_resolve_akronym_on_matched(self, resolver: OrganizationResolver) -> None:
+    # acronym via resolve result (get_acronym was removed)
+    def test_resolve_acronym_on_matched(self, resolver: OrganizationResolver) -> None:
         assert (
-            resolver.resolve("Sozialdemokratische Partei Deutschlands").akronym == "SPD"
+            resolver.resolve("Sozialdemokratische Partei Deutschlands").acronym == "SPD"
         )
 
-    def test_resolve_akronym_none_on_unresolved(
+    def test_resolve_acronym_none_on_unresolved(
         self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.resolve("Piratenpartei").akronym is None
+        assert resolver.resolve("Piratenpartei").acronym is None
 
-    # get_organisations_by_akronym
-    def test_get_organisations_by_akronym_known(
+    # get_organisations_by_acronym
+    def test_get_organisations_by_acronym_known(
         self, resolver: OrganizationResolver
     ) -> None:
-        orgs = resolver.get_organizations_by_akronym("SPD")
+        orgs = resolver.get_organizations_by_acronym("SPD")
         assert len(orgs) == 1
         assert orgs[0].id == "spd"
 
-    def test_get_organisations_by_akronym_unknown(
+    def test_get_organisations_by_acronym_unknown(
         self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.get_organizations_by_akronym("XYZ") == []
+        assert resolver.get_organizations_by_acronym("XYZ") == []
 
-    def test_get_organisations_by_akronym_case_sensitive(
+    def test_get_organisations_by_acronym_case_sensitive(
         self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.get_organizations_by_akronym("spd") == []
+        assert resolver.get_organizations_by_acronym("spd") == []
 
     # debug logging (line 570)
     def test_init_emits_debug_log(self, caplog: pytest.LogCaptureFixture) -> None:
@@ -977,12 +988,12 @@ class TestOrganisationResolver:
             "OrganizationResolver initialised" in r.message for r in caplog.records
         )
 
-    # fuzzy_match_akronym — matched but akronym is None (lines 665-670)
-    def test_fuzzy_match_akronym_no_akronym(
+    # fuzzy_match_acronym — matched but acronym is None (lines 665-670)
+    def test_fuzzy_match_acronym_no_acronym(
         self, resolver: OrganizationResolver
     ) -> None:
-        # "Adidas AG" resolves but has no akronym
-        result = resolver.fuzzy_match_akronym("Adidas AG")
+        # "Adidas AG" resolves but has no acronym
+        result = resolver.fuzzy_match_acronym("Adidas AG")
         assert result == "Adidas AG"
 
     # empty canonical_keys guard in resolve_batch (lines 820-828)
@@ -1108,11 +1119,11 @@ class TestIntegration:
 
     # --- batch vs single consistency ----------------------------------------
 
-    def test_canonicalise_authors_matches_individual_resolve(
+    def test_canonicalize_authors_matches_individual_resolve(
         self, authors: AuthorResolver
     ) -> None:
         names = ["Angela Merkel", "Olaf Scholz", "Helmut Schmidt"]
-        batch_names = authors.canonicalise_authors(names)
+        batch_names = authors.canonicalize_authors(names)
         single_names = [authors.resolve(n).canonical_name for n in names]
         assert batch_names == single_names
 
@@ -1124,11 +1135,11 @@ class TestIntegration:
         singles = [orgs.resolve(n) for n in names]
         assert [r.resolved_id for r in batch] == [r.resolved_id for r in singles]
         assert [r.score for r in batch] == [r.score for r in singles]
-        assert [r.akronym for r in batch] == [r.akronym for r in singles]
+        assert [r.acronym for r in batch] == [r.acronym for r in singles]
 
-    # --- akronym propagation ------------------------------------------------
+    # --- acronym propagation ------------------------------------------------
 
-    def test_akronym_on_resolution_consistent_with_batch(
+    def test_acronym_on_resolution_consistent_with_batch(
         self, orgs: OrganizationResolver
     ) -> None:
         names = ["Sozialdemokratische Partei Deutschlands", "FDP", "CDU"]
@@ -1136,7 +1147,7 @@ class TestIntegration:
         batch = orgs.resolve_batch(names)
         for single, batched in zip(singles, batch):
             assert single.matched
-            assert single.akronym == batched.akronym
+            assert single.acronym == batched.acronym
 
     # --- matched / changed semantics ----------------------------------------
 

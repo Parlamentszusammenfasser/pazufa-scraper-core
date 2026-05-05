@@ -17,7 +17,7 @@ def fuzzy_resolve(
     raw: list[str],
     canonical: list[str],
     scorer: Any,
-    processor: Callable[[str], str],
+    processor: Callable[[str], str] | None,
     cutoff: float,
     strict: bool = False,
     near_tie_epsilon: float = 1.0,

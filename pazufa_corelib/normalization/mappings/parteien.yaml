@@ -1,7 +1,7 @@
 names:
   - id: cdu
     canonical_name: Christlich Demokratische Union Deutschlands
-    akronym: CDU
+    acronym: CDU
     aliases:
       - CDU
       - CDU/CSU
@@ -11,14 +11,14 @@ names:
 
   - id: csu
     canonical_name: Christlich-Soziale Union in Bayern
-    akronym: CSU
+    acronym: CSU
     aliases:
       - CSU
       - Christlich-Soziale Union
 
   - id: spd
     canonical_name: Sozialdemokratische Partei Deutschlands
-    akronym: SPD
+    acronym: SPD
     aliases:
       - SPD
       - Sozialdemokraten
@@ -26,7 +26,7 @@ names:
 
   - id: gruene
     canonical_name: Bündnis 90/Die Grünen
-    akronym: GRÜNE
+    acronym: GRÜNE
     aliases:
       - Grüne
       - Die Grünen
@@ -37,7 +37,7 @@ names:
 
   - id: bsw
     canonical_name: Bündnis Sahra Wagenknecht
-    akronym: BSW
+    acronym: BSW
     aliases:
       - BSW
       - Bündnis Sahra Wagenknecht – Vernunft und Gerechtigkeit
@@ -45,7 +45,7 @@ names:
 
   - id: linke
     canonical_name: Die Linke
-    akronym: LINKE
+    acronym: LINKE
     aliases:
       - Linke
       - Die Linke.
@@ -54,7 +54,7 @@ names:
 
   - id: fdp
     canonical_name: Freie Demokratische Partei
-    akronym: FDP
+    acronym: FDP
     aliases:
       - FDP
       - Freie Demokraten
@@ -63,7 +63,7 @@ names:
 
   - id: fw
     canonical_name: Freie Wähler
-    akronym: FW
+    acronym: FW
     aliases:
       - FW
       - FREIE WÄHLER
@@ -71,7 +71,7 @@ names:
 
   - id: afd
     canonical_name: Alternative für Deutschland
-    akronym: AfD
+    acronym: AfD
     aliases:
       - AfD
       - Alternative fuer Deutschland
@@ -79,7 +79,7 @@ names:
 
   - id: volt
     canonical_name: Volt Deutschland
-    akronym: Volt
+    acronym: Volt
     aliases:
       - Volt
       - VOLT
@@ -87,21 +87,21 @@ names:
 
   - id: ssw
     canonical_name: Südschleswigscher Wählerverband
-    akronym: SSW
+    acronym: SSW
     aliases:
       - SSW
       - Südschleswigscher Wählerverband
 
   - id: die-partei
     canonical_name: Partei für Arbeit, Rechtsstaat, Tierschutz, Elitenförderung und basisdemokratische Initiative
-    akronym: PARTEI
+    acronym: PARTEI
     aliases:
       - Die PARTEI
       - PARTEI
 
   - id: familien-partei
     canonical_name: Familien-Partei Deutschlands
-    akronym: FAMILIE
+    acronym: FAMILIE
     aliases:
       - FAMILIE
       - Familienpartei
@@ -109,7 +109,7 @@ names:
 
   - id: oedp
     canonical_name: Ökologisch-Demokratische Partei
-    akronym: ÖDP
+    acronym: ÖDP
     aliases:
       - ÖDP
       - OeDP
@@ -117,27 +117,27 @@ names:
 
   - id: pdf
     canonical_name: Partei des Fortschritts
-    akronym: PDF
+    acronym: PDF
     aliases:
       - PDF
 
   - id: tierschutzpartei
     canonical_name: Partei Mensch Umwelt Tierschutz
-    akronym: Tierschutzpartei
+    acronym: Tierschutzpartei
     aliases:
       - Tierschutzpartei
       - PMUT
 
   - id: buendnis-deutschland
     canonical_name: Bündnis Deutschland
-    akronym: BÜNDNIS DEUTSCHLAND
+    acronym: BÜNDNIS DEUTSCHLAND
     aliases:
       - Bündnis Deutschland
       - BÜNDNIS DEUTSCHLAND
 
   - id: werteunion
     canonical_name: Werteunion
-    akronym: WU
+    acronym: WU
     aliases:
       - WU
       - Werte Union

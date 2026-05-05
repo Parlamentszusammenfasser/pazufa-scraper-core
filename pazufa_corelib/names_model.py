@@ -65,7 +65,7 @@ class Author(BaseName):
 class Organization(BaseName):
     """Model for a single organization entry."""
 
-    akronym: Optional[str] = Field(
+    acronym: Optional[str] = Field(
         default=None,
         description="Optional short-form abbreviation, e.g. 'BMF'",
     )
@@ -211,7 +211,7 @@ class AuthorIDResolution(NameIDResolution):
 class OrganizationIDResolution(NameIDResolution):
     """Resolution result for an organization query."""
 
-    akronym: Optional[str] = Field(
+    acronym: Optional[str] = Field(
         default=None,
         description="Short-form abbreviation of the resolved organization, if any",
     )

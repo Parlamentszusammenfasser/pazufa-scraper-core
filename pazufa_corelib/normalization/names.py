@@ -36,8 +36,11 @@ _FUZZY_MATCH_THRESHOLD: float = 90.0
 _NEAR_TIE_EPSILON: float = 1.0
 
 _NGRAM_SIZE: int = 3
-_COSINE_MATCH_THRESHOLD: float = 0.80
-_COSINE_NEAR_TIE_EPSILON: float = 0.02
+# Cosine scores are scaled to 0–100 to share the scale used by the
+# rapidfuzz-based AuthorResolver, so callers can apply a single threshold
+# across both resolvers.
+_COSINE_MATCH_THRESHOLD: float = 80.0
+_COSINE_NEAR_TIE_EPSILON: float = 2.0
 
 LOGGER = logging.getLogger(__name__)
 
@@ -109,7 +112,7 @@ def _load_authors(extra_files: list[Path] | None = None) -> list[Author]:
     return list(author_map.values())
 
 
-def _canonicalise_names(
+def _canonicalize_names(
     raw_names: list[str],
     canonical_keys: list[str],
     key_to_author: dict[str, tuple[str, str]],
@@ -140,7 +143,7 @@ def _canonicalise_names(
         raw_names,
         canonical_keys,
         scorer=fuzz.WRatio,
-        processor=normalize_name,  # idempotent on pre-normalized keys
+        processor=None,  # callers pre-normalize; avoid double work
         cutoff=cutoff,
         strict=strict,
         near_tie_epsilon=_NEAR_TIE_EPSILON,
@@ -206,7 +209,6 @@ class AuthorResolver:
                 if key:
                     self._key_to_author[key] = (author.id, author.canonical_name)
 
-        self._author_ids: set[str] = {a.id for a in self._authors}
         self._canonical_name_keys: set[str] = {
             k for a in self._authors if (k := normalize_name(a.canonical_name))
         }
@@ -220,7 +222,6 @@ class AuthorResolver:
                     "author_count": len(self._authors),
                     "canonical_key_count": len(self._canonical_keys),
                     "key_to_author_bytes": sys.getsizeof(self._key_to_author),
-                    "author_ids_bytes": sys.getsizeof(self._author_ids),
                     "canonical_keys_bytes": sys.getsizeof(self._canonical_keys),
                 },
             )
@@ -245,7 +246,7 @@ class AuthorResolver:
     def fuzzy_check_author(self, query: str) -> bool:
         """Fuzzy-match a name string against the known author vocabulary.
 
-        Uses :func:`_canonicalise_names` to find the best fuzzy match.
+        Uses :func:`_canonicalize_names` to find the best fuzzy match.
 
         Args:
             query: Raw name string to check.
@@ -254,53 +255,87 @@ class AuthorResolver:
             ``True`` if the name matched a known author above the fuzzy
             cutoff, ``False`` otherwise.
         """
-        result = _canonicalise_names(
+        result = _canonicalize_names(
             [normalize_name(query)],
             self._canonical_keys,
             self._key_to_author,
             cutoff=self._fuzzy_cutoff,
         )[0]
-        LOGGER.debug(
-            "Fuzzy author check for %r",
-            query,
-            extra={"query": query, "matched": result.matched, "score": result.score},
-        )
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Fuzzy author check for %r",
+                query,
+                extra={
+                    "query": query,
+                    "matched": result.matched,
+                    "score": result.score,
+                },
+            )
         return result.matched
 
-    def canonicalise_authors(
+    def canonicalize_authors(
         self, queries: list[str], strict: bool = False
     ) -> list[str]:
         """Canonicalize a list of raw name strings to canonical author names.
 
-        This function is more performant compared to using canonicalise_author
-        repeatatly.
+        More performant than calling :meth:`canonicalize_author` in a loop
+        because the underlying fuzzy match runs as a single batch.
 
         Args:
             queries: Raw name strings to resolve.
-            strict: If ``True``, unmatched names are dropped; if ``False``,
-                they are returned as empty strings.
+            strict: If ``True``, unmatched names are dropped from the
+                result. If ``False``, the normalized form of each unmatched
+                query is kept in place (note: this is the *normalized*
+                fallback, not the raw query — :meth:`canonicalize_author`
+                returns the raw query instead).
 
         Returns:
             List of resolved canonical author names, in the same order as
             *queries* (unless ``strict=True`` drops some).
         """
-        resolved = _canonicalise_names(
-            [normalize_name(q) for q in queries],
-            self._canonical_keys,
-            self._key_to_author,
-            strict=strict,
-            cutoff=self._fuzzy_cutoff,
-        )
+        if not queries:
+            return []
 
-        if strict and len(resolved) != len(queries):
-            LOGGER.warning(
-                "Dropped %d unresolved author names (strict=True)",
-                len(queries) - len(resolved),
-                extra={"strict": True, "query_count": len(queries)},
+        output: list[str | None] = [None] * len(queries)
+        fuzzy_idxs: list[int] = []
+        fuzzy_keys: list[str] = []
+
+        for i, query in enumerate(queries):
+            key = normalize_name(query)
+            if key in self._key_to_author:
+                _, canonical_name = self._key_to_author[key]
+                output[i] = canonical_name
+            else:
+                fuzzy_idxs.append(i)
+                fuzzy_keys.append(key)
+
+        if fuzzy_keys:
+            resolved = _canonicalize_names(
+                fuzzy_keys,
+                self._canonical_keys,
+                self._key_to_author,
+                strict=False,  # handle strict below so we can count dropped
+                cutoff=self._fuzzy_cutoff,
             )
-        return [r.canonical_name for r in resolved]
+            for j, i in enumerate(fuzzy_idxs):
+                r = resolved[j]
+                if r.matched or not strict:
+                    output[i] = r.canonical_name
+                # strict + unmatched: output[i] stays None → dropped
 
-    def canonicalise_author(self, query: str, strict: bool = False) -> str:
+        if strict:
+            result = [v for v in output if v is not None]
+            dropped = output.count(None)
+            if dropped:
+                LOGGER.warning(
+                    "Dropped %d unresolved author names (strict=True)",
+                    dropped,
+                    extra={"strict": True, "query_count": len(queries)},
+                )
+            return result
+        return output  # type: ignore[return-value]  # all slots filled in non-strict
+
+    def canonicalize_author(self, query: str, strict: bool = False) -> str:
         """Resolve a raw author name to its canonical form.
 
         Args:
@@ -316,16 +351,17 @@ class AuthorResolver:
         resolved = self.resolve(query)
 
         if resolved.matched:
-            LOGGER.debug(
-                "Resolved author %r → %r",
-                query,
-                resolved.canonical_name,
-                extra={
-                    "original_name": query,
-                    "canonical_name": resolved.canonical_name,
-                    "score": resolved.score,
-                },
-            )
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                LOGGER.debug(
+                    "Resolved author %r → %r",
+                    query,
+                    resolved.canonical_name,
+                    extra={
+                        "original_name": query,
+                        "canonical_name": resolved.canonical_name,
+                        "score": resolved.score,
+                    },
+                )
             return resolved.canonical_name
 
         if strict:
@@ -336,24 +372,27 @@ class AuthorResolver:
             )
             return ""
 
-        LOGGER.debug(
-            "Author %r unresolved, keeping original",
-            query,
-            extra={"original_name": query, "strict": False},
-        )
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Author %r unresolved, keeping original",
+                query,
+                extra={"original_name": query, "strict": False},
+            )
         return query
 
     def resolve(self, query: str) -> AuthorIDResolution:
         """Resolve a single raw author name to a canonical entry.
 
-        This function is intended to be used by advanced users.
-        How need more information
+        Returns the full :class:`AuthorIDResolution` (ID, score, canonical
+        name, ``matched``/``changed`` flags). For most callers the higher-
+        level :meth:`canonicalize_author` is sufficient; use ``resolve``
+        when the score or ID is needed.
 
         Resolution order:
 
         1. normalize the query with :func:`normalize_name`.
         2. Exact lookup in the normalized-key index.
-        3. Fuzzy match via :func:`_canonicalise_names`.
+        3. Fuzzy match via :func:`_canonicalize_names`.
         4. Return unresolved (score ``0.0``) if nothing clears
            ``_FUZZY_MATCH_THRESHOLD``.
 
@@ -394,7 +433,7 @@ class AuthorResolver:
                 score=0.0,
             )
 
-        return _canonicalise_names(
+        return _canonicalize_names(
             [query_key],
             self._canonical_keys,
             self._key_to_author,
@@ -533,30 +572,29 @@ class OrganizationResolver:
     def __init__(self, extra_files: list[Path] | None = None) -> None:
         self._organizations: list[Organization] = _load_organizations(extra_files)
 
-        # normalized key → (id, canonical_name, akronym)
+        # normalized key → (id, canonical_name, acronym)
         self._key_to_org: dict[str, tuple[str, str, str | None]] = {}
         for org in self._organizations:
             for surface in [org.canonical_name, *org.aliases]:
                 key = normalize_name(surface)
                 if key:
-                    self._key_to_org[key] = (org.id, org.canonical_name, org.akronym)
+                    self._key_to_org[key] = (org.id, org.canonical_name, org.acronym)
 
-        self._org_ids: set[str] = {o.id for o in self._organizations}
-        self._id_to_akronym: dict[str, str | None] = {
-            o.id: o.akronym for o in self._organizations
+        self._canonical_name_keys: set[str] = {
+            k for o in self._organizations if (k := normalize_name(o.canonical_name))
         }
-        self._akronym_to_orgs: dict[str, list[Organization]] = {}
+        self._acronym_to_orgs: dict[str, list[Organization]] = {}
         for org in self._organizations:
-            if org.akronym is not None:
-                self._akronym_to_orgs.setdefault(org.akronym, []).append(org)
+            if org.acronym is not None:
+                self._acronym_to_orgs.setdefault(org.acronym, []).append(org)
         self._canonical_keys: list[str] = list(self._key_to_org)
 
         # pre-build n-gram index
         self._vocab: dict[str, int] = _build_vocab(self._canonical_keys)
-        self._matrix: np.ndarray = (
+        self._matrix: np.ndarray | None = (
             _build_matrix(self._canonical_keys, self._vocab)
             if self._canonical_keys
-            else np.empty((0, 0), dtype=np.float32)
+            else None
         )
 
         if LOGGER.isEnabledFor(logging.DEBUG):
@@ -567,13 +605,18 @@ class OrganizationResolver:
                     "organization_count": len(self._organizations),
                     "canonical_key_count": len(self._canonical_keys),
                     "vocab_size": len(self._vocab),
-                    "matrix_shape": self._matrix.shape,
-                    "matrix_dtype": self._matrix.dtype.name,
-                    "matrix_bytes": self._matrix.nbytes,
+                    "matrix_shape": (
+                        self._matrix.shape if self._matrix is not None else None
+                    ),
+                    "matrix_dtype": (
+                        self._matrix.dtype.name if self._matrix is not None else None
+                    ),
+                    "matrix_bytes": (
+                        self._matrix.nbytes if self._matrix is not None else 0
+                    ),
                     "key_to_org_bytes": sys.getsizeof(self._key_to_org),
                     "vocab_bytes": sys.getsizeof(self._vocab),
-                    "id_to_akronym_bytes": sys.getsizeof(self._id_to_akronym),
-                    "akronym_to_orgs_bytes": sys.getsizeof(self._akronym_to_orgs),
+                    "acronym_to_orgs_bytes": sys.getsizeof(self._acronym_to_orgs),
                 },
             )
 
@@ -582,30 +625,33 @@ class OrganizationResolver:
     # =====================================================================
 
     def check_organization(self, query: str) -> bool:
-        """Check whether a query string exactly matches a known organization.
+        """Check if a query exactly matches a known canonical organization name.
+
+        Aliases are not considered; only canonical names are checked.
 
         Args:
             query: Raw organization name string to check.
 
         Returns:
-            ``True`` if the normalized query matches a known organization key.
+            ``True`` if the normalized query matches a known canonical organization
+            name.
         """
-        return normalize_name(query) in self._key_to_org
+        return normalize_name(query) in self._canonical_name_keys
 
-    def get_organizations_by_akronym(self, akronym: str) -> list[Organization]:
-        """Return all organizations that carry the given akronym.
+    def get_organizations_by_acronym(self, acronym: str) -> list[Organization]:
+        """Return all organizations that carry the given acronym.
 
-        The lookup is case-sensitive and matches the akronym exactly as stored
+        The lookup is case-sensitive and matches the acronym exactly as stored
         in the YAML (e.g. ``"SPD"``, not ``"spd"``).
 
         Args:
-            akronym: Abbreviation to look up, e.g. ``"CDU"``.
+            acronym: Abbreviation to look up, e.g. ``"CDU"``.
 
         Returns:
             List of matching :class:`~pazufa_corelib.names_model.Organization`
-            objects. Empty list if no organization carries this akronym.
+            objects. Empty list if no organization carries this acronym.
         """
-        return list(self._akronym_to_orgs.get(akronym, []))
+        return list(self._acronym_to_orgs.get(acronym, []))
 
     def fuzzy_check_organization(self, query: str) -> bool:
         """Fuzzy-match a name string against the known organization vocabulary.
@@ -620,41 +666,47 @@ class OrganizationResolver:
             threshold, ``False`` otherwise.
         """
         result = self.resolve(query)
-        LOGGER.debug(
-            "Fuzzy organization check for %r",
-            query,
-            extra={"query": query, "matched": result.matched, "score": result.score},
-        )
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Fuzzy organization check for %r",
+                query,
+                extra={
+                    "query": query,
+                    "matched": result.matched,
+                    "score": result.score,
+                },
+            )
         return result.matched
 
-    def fuzzy_match_akronym(self, query: str) -> str:
-        """Resolve a raw organization name to its akronym via fuzzy matching.
+    def fuzzy_match_acronym(self, query: str) -> str:
+        """Resolve a raw organization name to its acronym via fuzzy matching.
 
         Args:
             query: Raw organization name string.
 
         Returns:
-            The akronym if the query resolves to an organization that has one,
+            The acronym if the query resolves to an organization that has one,
             or the original query otherwise.
         """
         resolved = self.resolve(query)
 
         if resolved.matched:
-            if resolved.akronym is not None:
-                LOGGER.debug(
-                    "Fuzzy match %r has akronym %r, returning akronym",
-                    query,
-                    resolved.akronym,
-                    extra={
-                        "query": query,
-                        "matched": resolved.matched,
-                        "score": resolved.score,
-                    },
-                )
-                return resolved.akronym
+            if resolved.acronym is not None:
+                if LOGGER.isEnabledFor(logging.DEBUG):
+                    LOGGER.debug(
+                        "Fuzzy match %r has acronym %r, returning acronym",
+                        query,
+                        resolved.acronym,
+                        extra={
+                            "query": query,
+                            "matched": resolved.matched,
+                            "score": resolved.score,
+                        },
+                    )
+                return resolved.acronym
             else:
                 LOGGER.warning(
-                    "Fuzzy match %r has no akronym, returning query",
+                    "Fuzzy match %r has no acronym, returning query",
                     query,
                     extra={
                         "query": query,
@@ -663,17 +715,17 @@ class OrganizationResolver:
                     },
                 )
                 return query
-
         else:
-            LOGGER.debug(
-                "Fuzzy organization match %r unresolved, returning query",
-                query,
-                extra={
-                    "query": query,
-                    "matched": resolved.matched,
-                    "score": resolved.score,
-                },
-            )
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                LOGGER.debug(
+                    "Fuzzy organization match %r unresolved, returning query",
+                    query,
+                    extra={
+                        "query": query,
+                        "matched": resolved.matched,
+                        "score": resolved.score,
+                    },
+                )
             return query
 
     def canonicalize_organizations(
@@ -683,12 +735,13 @@ class OrganizationResolver:
 
         Args:
             queries: Raw organization name strings to resolve.
-            strict: If ``True``, unmatched names are dropped; if ``False``,
-                they are returned as empty strings.
+            strict: If ``True``, unmatched names are dropped from the
+                result. If ``False``, the original raw query is kept in
+                place for each unmatched name.
 
         Returns:
-            List of resolved canonical organization IDs, in the same order
-            as *queries* (unless ``strict=True`` drops some).
+            List of resolved canonical organization names, in the same
+            order as *queries* (unless ``strict=True`` drops some).
         """
         resolved = self.resolve_batch(queries)
 
@@ -724,16 +777,17 @@ class OrganizationResolver:
         resolved = self.resolve(query)
 
         if resolved.matched:
-            LOGGER.debug(
-                "Resolved organization %r → %r",
-                query,
-                resolved.canonical_name,
-                extra={
-                    "original_name": query,
-                    "canonical_name": resolved.canonical_name,
-                    "score": resolved.score,
-                },
-            )
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                LOGGER.debug(
+                    "Resolved organization %r → %r",
+                    query,
+                    resolved.canonical_name,
+                    extra={
+                        "original_name": query,
+                        "canonical_name": resolved.canonical_name,
+                        "score": resolved.score,
+                    },
+                )
             return resolved.canonical_name
 
         if strict:
@@ -744,11 +798,12 @@ class OrganizationResolver:
             )
             return ""
 
-        LOGGER.debug(
-            "Organization %r unresolved, keeping original",
-            query,
-            extra={"original_name": query, "strict": False},
-        )
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Organization %r unresolved, keeping original",
+                query,
+                extra={"original_name": query, "strict": False},
+            )
         return query
 
     def resolve(self, query: str) -> OrganizationIDResolution:
@@ -779,102 +834,107 @@ class OrganizationResolver:
             queries: Raw organization name strings.
 
         Returns:
-            List of :class:`~pazufa_corelib.names_model.organizationIDResolution`
+            List of :class:`~pazufa_corelib.names_model.OrganizationIDResolution`
             in the same order as *queries*.
         """
-        results: list[OrganizationIDResolution] = []
+        if not queries:
+            return []
 
-        for query in queries:
+        results: list[OrganizationIDResolution | None] = [None] * len(queries)
+        fuzzy_idxs: list[int] = []
+        fuzzy_keys: list[str] = []
+
+        # --- first pass: resolve empty queries and exact matches -----------
+        for i, query in enumerate(queries):
             query_key = normalize_name(query)
 
             if not query_key:
-                results.append(
-                    OrganizationIDResolution(
-                        original_name=query,
-                        resolved_id="",
-                        canonical_name=query,
-                        score=0.0,
-                    )
+                results[i] = OrganizationIDResolution(
+                    original_name=query,
+                    resolved_id="",
+                    canonical_name=query,
+                    score=0.0,
                 )
                 continue
 
-            # --- exact match --------------------------------------------
             if query_key in self._key_to_org:
-                org_id, canonical_name, akronym = self._key_to_org[query_key]
-                results.append(
-                    OrganizationIDResolution(
-                        original_name=query,
-                        resolved_id=org_id,
-                        canonical_name=canonical_name,
-                        akronym=akronym,
-                        score=1.0,
-                    )
-                )
-                continue
-
-            # --- cosine match -------------------------------------------
-            if not self._canonical_keys:
-                results.append(
-                    OrganizationIDResolution(
-                        original_name=query,
-                        resolved_id="",
-                        canonical_name=query,
-                        score=0.0,
-                    )
-                )
-                continue
-
-            q_vec = _vectorize(query_key, self._vocab)
-            scores = self._matrix @ q_vec
-
-            best_idx = int(scores.argmax())
-            best_score = float(scores[best_idx])
-
-            if best_score < _COSINE_MATCH_THRESHOLD:
-                results.append(
-                    OrganizationIDResolution(
-                        original_name=query,
-                        resolved_id="",
-                        canonical_name=query,
-                        score=0.0,
-                    )
-                )
-                continue
-
-            # near-tie warning
-            sorted_scores = np.sort(scores)[::-1]
-            if len(sorted_scores) >= 2:
-                second_score = float(sorted_scores[1])
-                if (
-                    second_score > 0
-                    and best_score - second_score <= _COSINE_NEAR_TIE_EPSILON
-                ):
-                    second_idx = int(np.where(scores == second_score)[0][0])
-                    LOGGER.warning(
-                        "Near-tie for organization %r",
-                        query,
-                        extra={
-                            "query": query,
-                            "best_match": self._canonical_keys[best_idx],
-                            "best_score": best_score,
-                            "second_match": self._canonical_keys[second_idx],
-                            "second_score": second_score,
-                            "delta": best_score - second_score,
-                            "epsilon": _COSINE_NEAR_TIE_EPSILON,
-                        },
-                    )
-
-            org_id, canonical_name, akronym = self._key_to_org[
-                self._canonical_keys[best_idx]
-            ]
-            results.append(
-                OrganizationIDResolution(
+                org_id, canonical_name, acronym = self._key_to_org[query_key]
+                results[i] = OrganizationIDResolution(
                     original_name=query,
                     resolved_id=org_id,
                     canonical_name=canonical_name,
-                    akronym=akronym,
+                    acronym=acronym,
+                    score=_EXACT_MATCH_THRESHOLD,
+                )
+                continue
+
+            if self._matrix is None:
+                results[i] = OrganizationIDResolution(
+                    original_name=query,
+                    resolved_id="",
+                    canonical_name=query,
+                    score=0.0,
+                )
+                continue
+
+            fuzzy_idxs.append(i)
+            fuzzy_keys.append(query_key)
+
+        # --- second pass: single matmul for all remaining fuzzy queries ----
+        if fuzzy_idxs:
+            # guaranteed: fuzzy_idxs only populated when matrix exists
+            assert self._matrix is not None
+            q_matrix = _build_matrix(fuzzy_keys, self._vocab)
+            # (n_fuzzy, n_canonical)
+            scores_matrix = (q_matrix @ self._matrix.T) * 100.0
+
+            for j, i in enumerate(fuzzy_idxs):
+                query = queries[i]
+                scores = scores_matrix[j]
+                best_idx = int(scores.argmax())
+                best_score = float(scores[best_idx])
+
+                if best_score < _COSINE_MATCH_THRESHOLD:
+                    results[i] = OrganizationIDResolution(
+                        original_name=query,
+                        resolved_id="",
+                        canonical_name=query,
+                        score=0.0,
+                    )
+                    continue
+
+                # near-tie warning
+                sorted_scores = np.sort(scores)[::-1]
+                if len(sorted_scores) >= 2:
+                    second_score = float(sorted_scores[1])
+                    if (
+                        second_score > 0
+                        and best_score - second_score <= _COSINE_NEAR_TIE_EPSILON
+                    ):
+                        second_idx = int(np.where(scores == second_score)[0][0])
+                        LOGGER.warning(
+                            "Near-tie for organization %r",
+                            query,
+                            extra={
+                                "query": query,
+                                "best_match": self._canonical_keys[best_idx],
+                                "best_score": best_score,
+                                "second_match": self._canonical_keys[second_idx],
+                                "second_score": second_score,
+                                "delta": best_score - second_score,
+                                "epsilon": _COSINE_NEAR_TIE_EPSILON,
+                            },
+                        )
+
+                org_id, canonical_name, acronym = self._key_to_org[
+                    self._canonical_keys[best_idx]
+                ]
+                results[i] = OrganizationIDResolution(
+                    original_name=query,
+                    resolved_id=org_id,
+                    canonical_name=canonical_name,
+                    acronym=acronym,
                     score=best_score,
                 )
-            )
 
-        return results
+        return results  # type: ignore[return-value]  # all slots filled by construction
