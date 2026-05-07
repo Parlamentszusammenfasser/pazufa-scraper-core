@@ -1,4 +1,4 @@
-"""Generic fuzzy string resolution shared across normalisation resolvers.
+"""Generic fuzzy string resolution shared across normalization resolvers.
 
 Private module — import only from within the normalization package.
 """
@@ -28,7 +28,7 @@ def fuzzy_resolve(
         raw: Strings to resolve.
         canonical: Accepted strings to match against.
         scorer: rapidfuzz scorer (e.g. ``fuzz.WRatio``, ``fuzz.token_sort_ratio``).
-        processor: Normalisation function applied to both sides before scoring.
+        processor: Normalization function applied to both sides before scoring.
         cutoff: Minimum score; matches below this threshold are treated as 0.0.
         strict: If ``True``, unmatched strings are dropped from the result.
             If ``False``, they are returned with score ``0.0`` and the resolved
@@ -61,35 +61,39 @@ def fuzzy_resolve(
 
     for i, raw_str in enumerate(raw):
         row = matrix[i]
-        best_idx: int = int(row.argmax())
-        best_score: float = float(row[best_idx])
+        order = np.argsort(row, kind="stable")[::-1]
+        best_idx = int(order[0])
+        best_score = float(row[best_idx])
 
         if best_score == 0.0:
             if not strict:
                 result.append((raw_str, raw_str, 0.0))
-        else:
-            sorted_scores = np.sort(row)[::-1]
-            if len(sorted_scores) >= 2:
-                second_best_score = float(sorted_scores[1])
-                if second_best_score > 0 and (
-                    best_score - second_best_score <= near_tie_epsilon
-                ):
-                    second_best_idx = int(np.where(row == second_best_score)[0][0])
-                    LOGGER.warning(
-                        "Near-tie for %r: %r (%.2f) vs %r (%.2f),"
-                        " delta=%.2f <= epsilon=%.2f",
-                        raw_str,
-                        canonical[best_idx],
-                        best_score,
-                        canonical[second_best_idx],
-                        second_best_score,
-                        best_score - second_best_score,
-                        near_tie_epsilon,
-                    )
+            continue
 
-            result.append((raw_str, canonical[best_idx], best_score))
+        if len(order) >= 2:
+            second_best_idx = int(order[1])
+            second_best_score = float(row[second_best_idx])
+            delta = best_score - second_best_score
+            if second_best_score > 0 and delta <= near_tie_epsilon:
+                LOGGER.warning(
+                    "Near-tie in fuzzy_resolve",
+                    extra={
+                        "raw": raw_str,
+                        "best_match": canonical[best_idx],
+                        "best_score": best_score,
+                        "second_match": canonical[second_best_idx],
+                        "second_score": second_best_score,
+                        "delta": delta,
+                        "epsilon": near_tie_epsilon,
+                    },
+                )
+
+        result.append((raw_str, canonical[best_idx], best_score))
 
     if not result:
-        LOGGER.warning("fuzzy_resolve returned 0 results (strict=%s)", strict)
+        LOGGER.warning(
+            "fuzzy_resolve returned 0 results",
+            extra={"strict": strict, "raw_count": len(raw)},
+        )
 
     return result

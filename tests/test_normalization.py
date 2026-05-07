@@ -1194,7 +1194,7 @@ class TestNormalizeAutor:
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
         item = Autor(organisation="SPD")
-        with pytest.warns(FutureWarning):
+        with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.organisation == "Sozialdemokratische Partei Deutschlands"
 
@@ -1202,7 +1202,7 @@ class TestNormalizeAutor:
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
         item = Autor(organisation="CDU")
-        with pytest.warns(FutureWarning):
+        with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.organisation == "Christlich Demokratische Union Deutschlands"
 
@@ -1210,7 +1210,7 @@ class TestNormalizeAutor:
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
         item = Autor(organisation="Piratenpartei")
-        with pytest.warns(FutureWarning):
+        with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.organisation == "Piratenpartei"
 
@@ -1218,7 +1218,7 @@ class TestNormalizeAutor:
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
         item = Autor(organisation="SPD", person="Scholz, Olaf")
-        with pytest.warns(FutureWarning):
+        with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.person == "Olaf Scholz"
 
@@ -1226,7 +1226,7 @@ class TestNormalizeAutor:
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
         item = Autor(organisation="CDU", person="Dr. Angela Merkel")
-        with pytest.warns(FutureWarning):
+        with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.person == "Angela Merkel"
 
@@ -1234,7 +1234,7 @@ class TestNormalizeAutor:
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
         item = Autor(organisation="SPD", person="Max Mustermann")
-        with pytest.warns(FutureWarning):
+        with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.person == "Max Mustermann"
 
@@ -1242,6 +1242,6 @@ class TestNormalizeAutor:
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
         item = Autor(organisation="SPD", person=None)
-        with pytest.warns(FutureWarning):
+        with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.person is None

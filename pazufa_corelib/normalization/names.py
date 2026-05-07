@@ -949,45 +949,58 @@ class OrganizationResolver:
 
 def normalize_autor(
     item: Autor,
-    authorresolver: AuthorResolver,
-    organizationresolver: OrganizationResolver,
+    author_resolver: AuthorResolver,
+    organization_resolver: OrganizationResolver,
 ) -> None:
     """Normalize the ``organisation`` and ``person`` fields of an Autor in-place.
 
     Resolves each field against the provided resolvers and updates it to the
     canonical name if a match is found; logs debug information otherwise.
 
+    The original raw values are overwritten and not preserved. Callers that
+    need the score, ID, or original string should use the resolvers directly.
+
+    For batches of many ``Autor`` instances, calling this in a loop pays
+    per-item matmul cost in :class:`OrganizationResolver`. Prefer
+    :meth:`OrganizationResolver.resolve_batch` and write back manually.
+
     .. warning::
         Experimental — may be removed or changed without notice.
 
     Args:
         item: The Autor object whose fields are normalized in-place.
-        authorresolver: Resolver used to normalize the ``person`` field.
-        organizationresolver: Resolver used to normalize the ``organisation`` field.
+        author_resolver: Resolver used to normalize the ``person`` field.
+        organization_resolver: Resolver used to normalize the
+            ``organisation`` field.
+
+    Raises:
+        ValueError: If ``item.organisation`` is empty or whitespace-only.
     """
     warnings.warn(
         "normalize_autor is experimental and may be removed or changed without notice.",
-        FutureWarning,
+        DeprecationWarning,
         stacklevel=2,
     )
-    org_resolution = organizationresolver.resolve(item.organisation)
+    if not item.organisation.strip():
+        raise ValueError("Autor.organisation must be a non-empty string")
+    org_resolution = organization_resolver.resolve(item.organisation)
     if org_resolution.score > 0:
         item.organisation = org_resolution.canonical_name
     else:
-        LOGGER.debug(
-            "Organisation nicht auflösbar: '%s'",
-            item.organisation,
-            extra={"raw": item.organisation, "score": org_resolution.score},
-        )
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "organization not resolvable",
+                extra={"raw": item.organisation, "score": org_resolution.score},
+            )
 
     if item.person:
-        person_resolution = authorresolver.resolve(item.person)
+        # No error risen here, as an empty person is allowed.
+        person_resolution = author_resolver.resolve(item.person)
         if person_resolution.score > 0:
             item.person = person_resolution.canonical_name
         else:
             if LOGGER.isEnabledFor(logging.DEBUG):
                 LOGGER.debug(
-                    "Autor nicht auflösbar: '%s'",
-                    item.person,
+                    "author not resolvable",
                     extra={"raw": item.person, "score": person_resolution.score},
                 )
