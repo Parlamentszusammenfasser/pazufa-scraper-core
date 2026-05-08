@@ -10,6 +10,8 @@ from pydantic import TypeAdapter, ValidationError
 
 import pazufa_corelib.normalization.schlagworte as schlagworte_mod
 from pazufa_corelib.normalization.schlagworte import (
+    _FUZZY_MATCH_THRESHOLD,
+    _NEAR_TIE_EPSILON,
     SchlagwortResolver,
     _build_json,
     _build_json_sachgebiete_no_numbers,
@@ -193,6 +195,22 @@ class TestSchlagwortResolverConstruction:
         tag_ids = {t.id for t in patched_resolver._tags}
         assert "Digitalisierung" in tag_ids
         assert "Wohnungsbau" in tag_ids
+
+    def test_default_match_threshold_stored(self) -> None:
+        resolver = SchlagwortResolver()
+        assert resolver._match_threshold == _FUZZY_MATCH_THRESHOLD
+
+    def test_custom_match_threshold_stored(self) -> None:
+        resolver = SchlagwortResolver(match_threshold=75.0)
+        assert resolver._match_threshold == 75.0
+
+    def test_default_near_tie_epsilon_stored(self) -> None:
+        resolver = SchlagwortResolver()
+        assert resolver._near_tie_epsilon == _NEAR_TIE_EPSILON
+
+    def test_custom_near_tie_epsilon_stored(self) -> None:
+        resolver = SchlagwortResolver(near_tie_epsilon=5.0)
+        assert resolver._near_tie_epsilon == 5.0
 
 
 # =====================================================================
@@ -473,6 +491,118 @@ class TestLocalTags:
 
 
 # =====================================================================
+# SchlagwortResolver — match_threshold and near_tie_epsilon
+# =====================================================================
+
+
+class TestSchlagwortResolverMatchThreshold:
+    """Tests that match_threshold is forwarded to fuzzy operations."""
+
+    def test_explain_reflects_custom_threshold(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tags_yaml: Path,
+        sachgebiete_yaml: Path,
+    ) -> None:
+        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        resolver = SchlagwortResolver(match_threshold=75.0)
+        trace = resolver.explain("Digitalisierung")
+        assert trace["threshold"] == 75.0
+
+    def test_threshold_100_blocks_near_match(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tags_yaml: Path,
+        sachgebiete_yaml: Path,
+    ) -> None:
+        """Threshold of 100 requires a post-normalization exact match."""
+        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        resolver = SchlagwortResolver(match_threshold=100)
+        # "Digitalisierungs" scores ~97 against "Digitalisierung" — below 100
+        assert not resolver.fuzzy_check_tag("Digitalisierungs")
+
+    def test_default_threshold_accepts_near_match(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tags_yaml: Path,
+        sachgebiete_yaml: Path,
+    ) -> None:
+        """Default threshold of 90 accepts a high-scoring near-match."""
+        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        resolver = SchlagwortResolver()
+        # "Digitalisierungs" scores ~97 against "Digitalisierung" — above 90
+        assert resolver.fuzzy_check_tag("Digitalisierungs")
+
+    def test_threshold_propagates_to_canonicalise_tags(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tags_yaml: Path,
+        sachgebiete_yaml: Path,
+    ) -> None:
+        """Custom threshold also affects canonicalise_tags."""
+        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        strict_resolver = SchlagwortResolver(match_threshold=100)
+        # Non-exact input stays unchanged (unmatched, strict=False)
+        result = strict_resolver.canonicalise_tags(["Digitalisierungs"])
+        assert result == ["Digitalisierungs"]
+
+        loose_resolver = SchlagwortResolver()
+        result = loose_resolver.canonicalise_tags(["Digitalisierungs"])
+        assert result == ["Digitalisierung"]
+
+
+class TestSchlagwortResolverNearTieEpsilon:
+    """Tests that near_tie_epsilon is forwarded to fuzzy operations."""
+
+    def test_explain_reflects_custom_epsilon(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tags_yaml: Path,
+        sachgebiete_yaml: Path,
+    ) -> None:
+        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        resolver = SchlagwortResolver(near_tie_epsilon=5.0)
+        trace = resolver.explain("Digitalisierung")
+        assert trace["near_tie_epsilon"] == 5.0
+
+    def test_near_tie_epsilon_propagates_to_fuzzy_check(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """near_tie_epsilon is forwarded to _canonicalise_ids in fuzzy_check_tag.
+
+        Vocabulary: "AB" (~80) and "ABCDE" (~75) vs query "ABC" — delta ≈ 5.
+        With match_threshold=70 both candidates clear the cutoff.
+        Default epsilon=1.0: delta > epsilon → no warning.
+        Custom epsilon=10.0: delta ≤ epsilon → warning fires.
+        """
+        two_tags = tmp_path / "two_tags.yaml"
+        two_tags.write_text(
+            "tags:\n  - id: AB\n  - id: ABCDE\n", encoding="utf-8"
+        )
+        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [two_tags])
+        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [])
+
+        resolver_default = SchlagwortResolver(match_threshold=70)
+        with caplog.at_level(logging.WARNING):
+            resolver_default.fuzzy_check_tag("ABC")
+        assert not any("Near-tie" in msg for msg in caplog.messages)
+
+        caplog.clear()
+        resolver_wide = SchlagwortResolver(match_threshold=70, near_tie_epsilon=10.0)
+        with caplog.at_level(logging.WARNING):
+            resolver_wide.fuzzy_check_tag("ABC")
+        assert any("Near-tie" in msg for msg in caplog.messages)
+
+
+# =====================================================================
 # Duplicate Sachgebiet number detection
 # =====================================================================
 
@@ -525,6 +655,46 @@ class TestCanonicaliseIdsNearTieWarning:
         results = _canonicalise_ids(raw, canonical)
         assert len(results) == 1
         assert results[0].resolved_id in canonical
+
+    def test_epsilon_zero_still_warns_for_equal_scores(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """epsilon=0.0 still fires when delta==0 (scores are identical)."""
+        canonical = ["Umweltschutz A", "Umweltschutz B"]
+        raw = ["Umweltschutz C"]
+        with caplog.at_level(logging.WARNING):
+            _canonicalise_ids(raw, canonical, near_tie_epsilon=0.0)
+        assert any("Near-tie" in msg for msg in caplog.messages)
+
+    def test_large_epsilon_triggers_warning_for_non_equal_scores(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A large epsilon catches near-ties that the default epsilon lets through.
+
+        "AB" scores ~80 and "ABCDE" scores ~75 against "ABC" (delta ≈ 5).
+        Default epsilon=1.0: delta > epsilon → no warning.
+        Custom epsilon=10.0: delta ≤ epsilon → warning fires.
+        """
+        canonical = ["AB", "ABCDE"]
+        raw = ["ABC"]
+        with caplog.at_level(logging.WARNING):
+            _canonicalise_ids(raw, canonical, cutoff=70)  # default near_tie_epsilon=1.0
+        assert not any("Near-tie" in msg for msg in caplog.messages)
+
+        caplog.clear()
+        with caplog.at_level(logging.WARNING):
+            _canonicalise_ids(raw, canonical, cutoff=70, near_tie_epsilon=10.0)
+        assert any("Near-tie" in msg for msg in caplog.messages)
+
+    def test_default_near_tie_epsilon_equals_module_constant(self) -> None:
+        """The default near_tie_epsilon matches the module-level constant."""
+        canonical = ["Umweltschutz A", "Umweltschutz B"]
+        raw = ["Umweltschutz C"]
+        # Both calls should behave identically — no assertion needed beyond no error
+        result_default = _canonicalise_ids(raw, canonical)
+        result_explicit = _canonicalise_ids(raw, canonical, near_tie_epsilon=_NEAR_TIE_EPSILON)
+        assert result_default[0].resolved_id == result_explicit[0].resolved_id
+        assert result_default[0].score == result_explicit[0].score
 
 
 # =====================================================================

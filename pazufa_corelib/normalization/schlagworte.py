@@ -82,6 +82,7 @@ def _canonicalise_ids(
     canonical_ids: list[str],
     strict: bool = False,
     cutoff: float = _FUZZY_MATCH_THRESHOLD,
+    near_tie_epsilon: float = _NEAR_TIE_EPSILON,
 ) -> list[SchlagwortIDResolution]:
     """Fuzzy-match raw IDs against canonical IDs and return resolutions.
 
@@ -94,6 +95,8 @@ def _canonicalise_ids(
         strict: If True, drop raw IDs that fall below the cutoff.
             If False, keep them unchanged.
         cutoff: Minimum fuzzy-match score; scores below are treated as 0.
+        near_tie_epsilon: Score difference within which two candidates are
+            considered a near-tie and logged as a warning.
 
     Returns:
         A list of SchlagwortIDResolution with the original ID, resolved ID,
@@ -109,7 +112,7 @@ def _canonicalise_ids(
         processor=_processor_ids,
         cutoff=cutoff,
         strict=strict,
-        near_tie_epsilon=_NEAR_TIE_EPSILON,
+        near_tie_epsilon=near_tie_epsilon,
     )
     return [
         SchlagwortIDResolution(original_id=o, resolved_id=r, score=s)
@@ -252,7 +255,14 @@ class SchlagwortResolver:
     to prevent stale tag or sachgebiet lists in the scraper.
     """
 
-    def __init__(self, local_tags: list[Path] | None = None) -> None:
+    def __init__(
+        self,
+        local_tags: list[Path] | None = None,
+        match_threshold: float = _FUZZY_MATCH_THRESHOLD,
+        near_tie_epsilon: float = _NEAR_TIE_EPSILON,
+    ) -> None:
+        self._match_threshold = match_threshold
+        self._near_tie_epsilon = near_tie_epsilon
         # load vocabulary
         self._tags: list[Tag] = _load_tags(local_tags)
         self._sachgebiete: list[Sachgebiet] = _load_sachgebiete()
@@ -331,7 +341,7 @@ class SchlagwortResolver:
         Returns:
             True if the ID matched a known tag above the fuzzy cutoff, False otherwise.
         """
-        check_id = _canonicalise_ids([tag_id], self._tag_ids_list)[0]
+        check_id = _canonicalise_ids([tag_id], self._tag_ids_list, cutoff=self._match_threshold, near_tie_epsilon=self._near_tie_epsilon)[0]
         LOGGER.debug("Fuzzy check returned: %s", check_id)
         # explicitly typed for mypy
         return bool(check_id.matched)
@@ -348,7 +358,7 @@ class SchlagwortResolver:
         Returns:
             List of resolved canonical tag IDs.
         """
-        resolved_ids = _canonicalise_ids(tag_ids, self._tag_ids_list, strict)
+        resolved_ids = _canonicalise_ids(tag_ids, self._tag_ids_list, strict, cutoff=self._match_threshold, near_tie_epsilon=self._near_tie_epsilon)
         return [r.resolved_id for r in resolved_ids]
 
     def canonicalise_tag(self, tag_id: str, strict: bool = False) -> str:
@@ -402,8 +412,8 @@ class SchlagwortResolver:
             "query": query,
             "processed_query": processed_query,
             "exact_hit": False,
-            "threshold": _FUZZY_MATCH_THRESHOLD,
-            "near_tie_epsilon": _NEAR_TIE_EPSILON,
+            "threshold": self._match_threshold,
+            "near_tie_epsilon": self._near_tie_epsilon,
             "top_k": [],
         }
 
@@ -517,7 +527,7 @@ class SchlagwortResolver:
             List of resolved canonical Sachgebiet IDs.
         """
         resolved_ids = _canonicalise_ids(
-            sachgebiet_ids, self._sachgebiete_ids_list, True
+            sachgebiet_ids, self._sachgebiete_ids_list, True, cutoff=self._match_threshold, near_tie_epsilon=self._near_tie_epsilon
         )
         return [r.resolved_id for r in resolved_ids]
 
