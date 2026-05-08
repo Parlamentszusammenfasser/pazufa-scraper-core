@@ -770,6 +770,38 @@ class TestAuthorResolver:
         assert not r.matched
         assert r.score == 0.0
 
+    # canonicalize_authors empty input
+    def test_canonicalize_authors_empty_list(self, resolver: AuthorResolver) -> None:
+        assert resolver.canonicalize_authors([]) == []
+
+    # debug-log paths require DEBUG to be enabled
+    def test_fuzzy_check_author_debug_log(
+        self, resolver: AuthorResolver, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.fuzzy_check_author("Helmut Schmitt")
+        assert any("Fuzzy author check" in r.message for r in caplog.records)
+
+    def test_canonicalize_author_debug_log_resolved(
+        self, resolver: AuthorResolver, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.canonicalize_author("Olaf Scholz")
+        assert any("Resolved author" in r.message for r in caplog.records)
+
+    def test_canonicalize_author_debug_log_unresolved(
+        self, resolver: AuthorResolver, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.canonicalize_author("Max Mustermann")
+        assert any("unresolved, keeping original" in r.message for r in caplog.records)
+
 
 # ---------------------------------------------------------------------------
 # OrganisationResolver
@@ -1032,6 +1064,169 @@ class TestOrganisationResolver:
             resolver.resolve_batch(["Deutsche Organisation Test"])
         assert any("Near-tie" in r.message for r in caplog.records)
 
+    # get_organization_by_id ------------------------------------------------
+    def test_get_organization_by_id_hit(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        org = resolver.get_organization_by_id("spd")
+        assert org is not None
+        assert org.id == "spd"
+        assert org.canonical_name == "Sozialdemokratische Partei Deutschlands"
+
+    def test_get_organization_by_id_miss(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        assert resolver.get_organization_by_id("does-not-exist") is None
+
+    # explain ---------------------------------------------------------------
+    def test_explain_exact_hit_returns_single_top_match(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        trace = resolver.explain("SPD")
+        assert trace["query"] == "SPD"
+        assert trace["exact_hit"] is True
+        assert len(trace["top_k"]) == 1
+        assert trace["top_k"][0]["id"] == "spd"
+        assert trace["top_k"][0]["score"] == 100.0
+
+    def test_explain_fuzzy_hit_ranks_candidates(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        trace = resolver.explain("Sozialdemokratische Partei", k=3)
+        assert trace["exact_hit"] is False
+        assert len(trace["top_k"]) == 3
+        # SPD should be the top fuzzy candidate
+        assert trace["top_k"][0]["id"] == "spd"
+        # scores are descending
+        scores = [c["score"] for c in trace["top_k"]]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_explain_empty_query_returns_empty_top_k(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        trace = resolver.explain("")
+        assert trace["normalized_key"] == ""
+        assert trace["exact_hit"] is False
+        assert trace["top_k"] == []
+
+    def test_explain_includes_thresholds(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        trace = resolver.explain("SPD")
+        # default constructor uses module-level constants
+        assert trace["threshold"] == 80.0
+        assert trace["near_tie_epsilon"] == 2.0
+
+    def test_explain_k_caps_top_k_length(
+        self, resolver: OrganizationResolver
+    ) -> None:
+        trace = resolver.explain("Sozialdemokratische Partei", k=2)
+        assert len(trace["top_k"]) == 2
+
+    # constructor parameters ------------------------------------------------
+    def test_custom_match_threshold_rejects_borderline_match(self) -> None:
+        # default threshold accepts this fuzzy match…
+        default = OrganizationResolver().resolve("Sozialdemokratische Partei")
+        assert default.matched
+        assert default.score < 100.0
+        # …but raising the threshold above its score rejects it.
+        strict = OrganizationResolver(
+            match_threshold=default.score + 1.0
+        ).resolve("Sozialdemokratische Partei")
+        assert not strict.matched
+        assert strict.score == 0.0
+
+    def test_custom_match_threshold_in_explain(self) -> None:
+        resolver = OrganizationResolver(match_threshold=42.0)
+        assert resolver.explain("SPD")["threshold"] == 42.0
+
+    def test_custom_near_tie_epsilon_in_explain(self) -> None:
+        resolver = OrganizationResolver(near_tie_epsilon=10.0)
+        assert resolver.explain("SPD")["near_tie_epsilon"] == 10.0
+
+    def test_custom_near_tie_epsilon_suppresses_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        near_tie_yaml = tmp_path / "near_tie_orgs.yaml"
+        near_tie_yaml.write_text(
+            "names:\n"
+            "  - id: org-alpha\n"
+            "    canonical_name: Deutsche Organisation Test Alpha\n"
+            "    aliases: []\n"
+            "  - id: org-beta\n"
+            "    canonical_name: Deutsche Organisation Test Beta\n"
+            "    aliases: []\n"
+        )
+        with patch(
+            "pazufa_corelib.normalization.names.ORGANIZATIONS_FILES", [near_tie_yaml]
+        ):
+            resolver = OrganizationResolver(near_tie_epsilon=0.0)
+        with caplog.at_level(
+            logging.WARNING, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.resolve_batch(["Deutsche Organisation Test"])
+        assert not any("Near-tie" in r.message for r in caplog.records)
+
+    # resolve_batch empty input
+    def test_resolve_batch_empty_list(self, resolver: OrganizationResolver) -> None:
+        assert resolver.resolve_batch([]) == []
+
+    # explain — empty resolver hits the matrix-is-None branch
+    def test_explain_empty_resolver_returns_empty_top_k(self, tmp_path: Path) -> None:
+        empty = tmp_path / "empty_orgs.yaml"
+        empty.write_text("names: []\n")
+        with patch("pazufa_corelib.normalization.names.ORGANIZATIONS_FILES", [empty]):
+            resolver = OrganizationResolver()
+        trace = resolver.explain("SPD")
+        assert trace["top_k"] == []
+        assert trace["exact_hit"] is False
+
+    # debug-log paths require DEBUG to be enabled
+    def test_fuzzy_check_organization_debug_log(
+        self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.fuzzy_check_organization("SPD")
+        assert any("Fuzzy organization check" in r.message for r in caplog.records)
+
+    def test_fuzzy_match_acronym_debug_log_matched(
+        self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.fuzzy_match_acronym("SPD")
+        assert any("returning acronym" in r.message for r in caplog.records)
+
+    def test_fuzzy_match_acronym_debug_log_unresolved(
+        self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.fuzzy_match_acronym("Piratenpartei")
+        assert any("unresolved, returning query" in r.message for r in caplog.records)
+
+    def test_canonicalize_organization_debug_log_resolved(
+        self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.canonicalize_organization("SPD")
+        assert any("Resolved organization" in r.message for r in caplog.records)
+
+    def test_canonicalize_organization_debug_log_unresolved(
+        self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            resolver.canonicalize_organization("Piratenpartei")
+        assert any("unresolved, keeping original" in r.message for r in caplog.records)
+
 
 # ---------------------------------------------------------------------------
 # Integration — cross-resolver key consistency and public API surface
@@ -1245,3 +1440,57 @@ class TestNormalizeAutor:
         with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.person is None
+
+    def test_whitespace_only_person_normalized_to_none(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="SPD", person="   ")
+        with pytest.warns(DeprecationWarning):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert item.person is None
+
+    def test_empty_organisation_raises(
+        self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
+    ) -> None:
+        item = Autor(organisation="   ")
+        with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
+            normalize_autor(item, author_resolver, org_resolver)
+
+    def test_unresolved_organisation_debug_log(
+        self,
+        author_resolver: AuthorResolver,
+        org_resolver: OrganizationResolver,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        item = Autor(organisation="Piratenpartei")
+        with pytest.warns(DeprecationWarning), caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert any("organization not resolvable" in r.message for r in caplog.records)
+
+    def test_none_person_debug_log(
+        self,
+        author_resolver: AuthorResolver,
+        org_resolver: OrganizationResolver,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        item = Autor(organisation="SPD", person=None)
+        with pytest.warns(DeprecationWarning), caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert any("author person empty" in r.message for r in caplog.records)
+
+    def test_unresolved_person_debug_log(
+        self,
+        author_resolver: AuthorResolver,
+        org_resolver: OrganizationResolver,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        item = Autor(organisation="SPD", person="Max Mustermann")
+        with pytest.warns(DeprecationWarning), caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        ):
+            normalize_autor(item, author_resolver, org_resolver)
+        assert any("author not resolvable" in r.message for r in caplog.records)

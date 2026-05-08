@@ -5,6 +5,7 @@ import re
 import sys
 import warnings
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from rapidfuzz import fuzz
@@ -569,14 +570,30 @@ class OrganizationResolver:
         extra_files: Optional additional organization YAML files merged on
             top of the global mapping. Later files override earlier entries
             on ID collision.
+        match_threshold: Minimum cosine score (0–100 scale) a fuzzy match
+            must clear to be returned as resolved. Below this, queries are
+            reported unresolved. Defaults to the module-level constant.
+        near_tie_epsilon: Maximum cosine-score gap (0–100 scale) between
+            the best and second-best fuzzy match that triggers a near-tie
+            warning log. Defaults to the module-level constant.
     """
 
-    def __init__(self, extra_files: list[Path] | None = None) -> None:
+    def __init__(
+        self,
+        extra_files: list[Path] | None = None,
+        match_threshold: float = _COSINE_MATCH_THRESHOLD,
+        near_tie_epsilon: float = _COSINE_NEAR_TIE_EPSILON,
+    ) -> None:
         self._organizations: list[Organization] = _load_organizations(extra_files)
+        self._match_threshold: float = match_threshold
+        self._near_tie_epsilon: float = near_tie_epsilon
 
         # normalized key → (id, canonical_name, acronym)
         self._key_to_org: dict[str, tuple[str, str, str | None]] = {}
+        # canonical id → full Organization record
+        self._id_to_org: dict[str, Organization] = {}
         for org in self._organizations:
+            self._id_to_org[org.id] = org
             for surface in [org.canonical_name, *org.aliases]:
                 key = normalize_name(surface)
                 if key:
@@ -639,6 +656,18 @@ class OrganizationResolver:
             name.
         """
         return normalize_name(query) in self._canonical_name_keys
+
+    def get_organization_by_id(self, org_id: str) -> Organization | None:
+        """Look up the full Organization record by its canonical ID.
+
+        Args:
+            org_id: Canonical organization ID as stored in the YAML.
+
+        Returns:
+            The matching :class:`~pazufa_corelib.names_model.Organization`,
+            or ``None`` if no organization carries this ID.
+        """
+        return self._id_to_org.get(org_id)
 
     def get_organizations_by_acronym(self, acronym: str) -> list[Organization]:
         """Return all organizations that carry the given acronym.
@@ -816,8 +845,8 @@ class OrganizationResolver:
         1. Normalize the query with :func:`normalize_name`.
         2. Exact lookup in the normalized-key index.
         3. N-gram cosine similarity against the canonical matrix.
-        4. Return unresolved (score ``0.0``) if nothing clears
-           ``_COSINE_MATCH_THRESHOLD``.
+        4. Return unresolved (score ``0.0``) if nothing clears the
+           configured ``match_threshold``.
 
         Args:
             query: Raw organization name string.
@@ -896,7 +925,7 @@ class OrganizationResolver:
                 best_idx = int(scores.argmax())
                 best_score = float(scores[best_idx])
 
-                if best_score < _COSINE_MATCH_THRESHOLD:
+                if best_score < self._match_threshold:
                     results[i] = OrganizationIDResolution(
                         original_name=query,
                         resolved_id="",
@@ -911,7 +940,7 @@ class OrganizationResolver:
                     second_score = float(sorted_scores[1])
                     if (
                         second_score > 0
-                        and best_score - second_score <= _COSINE_NEAR_TIE_EPSILON
+                        and best_score - second_score <= self._near_tie_epsilon
                     ):
                         second_idx = int(np.where(scores == second_score)[0][0])
                         LOGGER.warning(
@@ -924,7 +953,7 @@ class OrganizationResolver:
                                 "second_match": self._canonical_keys[second_idx],
                                 "second_score": second_score,
                                 "delta": best_score - second_score,
-                                "epsilon": _COSINE_NEAR_TIE_EPSILON,
+                                "epsilon": self._near_tie_epsilon,
                             },
                         )
 
@@ -940,6 +969,73 @@ class OrganizationResolver:
                 )
 
         return results  # type: ignore[return-value]  # all slots filled by construction
+
+    def explain(self, query: str, k: int = 5) -> dict[str, Any]:
+        """Trace the resolution path of a query for diagnostics.
+
+        Walks the same steps as :meth:`resolve` but returns the full trace
+        (normalized key, exact-match status, top-K fuzzy candidates,
+        configured thresholds) instead of a single resolution. Intended
+        for debugging and audit output; the returned dict shape is
+        informational and may evolve.
+
+        Args:
+            query: Raw organization name string.
+            k: Maximum number of fuzzy candidates to include in ``top_k``.
+
+        Returns:
+            Dict with keys ``query``, ``normalized_key``, ``exact_hit``,
+            ``threshold``, ``near_tie_epsilon``, and ``top_k`` (a list of
+            ``{canonical_name, id, acronym, score}`` dicts ordered by
+            descending score).
+        """
+        normalized_key = normalize_name(query)
+        trace: dict[str, Any] = {
+            "query": query,
+            "normalized_key": normalized_key,
+            "exact_hit": False,
+            "threshold": self._match_threshold,
+            "near_tie_epsilon": self._near_tie_epsilon,
+            "top_k": [],
+        }
+
+        if not normalized_key:
+            return trace
+
+        if normalized_key in self._key_to_org:
+            org_id, canonical_name, acronym = self._key_to_org[normalized_key]
+            trace["exact_hit"] = True
+            trace["top_k"] = [
+                {
+                    "canonical_name": canonical_name,
+                    "id": org_id,
+                    "acronym": acronym,
+                    "score": _EXACT_MATCH_THRESHOLD,
+                }
+            ]
+            return trace
+
+        if self._matrix is None:
+            return trace
+
+        q_vec = _build_matrix([normalized_key], self._vocab)
+        scores = ((q_vec @ self._matrix.T) * 100.0)[0]
+        top_n = min(k, len(self._canonical_keys))
+        top_idx = np.argsort(scores, kind="stable")[::-1][:top_n]
+        top_k: list[dict[str, Any]] = []
+        for raw_i in top_idx:
+            i = int(raw_i)
+            org_id, canonical_name, acronym = self._key_to_org[self._canonical_keys[i]]
+            top_k.append(
+                {
+                    "canonical_name": canonical_name,
+                    "id": org_id,
+                    "acronym": acronym,
+                    "score": float(scores[i]),
+                }
+            )
+        trace["top_k"] = top_k
+        return trace
 
 
 # =====================================================================
@@ -993,7 +1089,11 @@ def normalize_autor(
                 extra={"raw": item.organisation, "score": org_resolution.score},
             )
 
-    if item.person:
+    if item.person is None or item.person.strip() == "":
+        item.person = None
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug("author person empty")
+    else:
         # No error risen here, as an empty person is allowed.
         person_resolution = author_resolver.resolve(item.person)
         if person_resolution.score > 0:
