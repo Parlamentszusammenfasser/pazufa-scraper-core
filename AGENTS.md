@@ -120,6 +120,20 @@ Exceptions — no docstring required for:
 - Public modules and packages
 - `tests/`, `tools/`, and generated files (`api_client/`, `api_model.py`)
 
+## Normalization Module Notes
+
+### Name resolution
+
+`AuthorResolver` and `OrganizationResolver` both normalize via `normalize_name` (honorific stripping + umlaut fold + token sort) before matching. Both support:
+
+- **Exact lookup** (normalized key index) before falling back to fuzzy/cosine matching
+- **Constructor cutoff params**: `AuthorResolver(fuzzy_cutoff=…)`, `OrganizationResolver(match_threshold=…, near_tie_epsilon=…)`
+- Use `OrganizationResolver.explain(query, k=5)` to trace resolution candidates for debugging
+
+### Experimental functions
+
+Functions marked experimental emit a `DeprecationWarning` and may be removed without notice. When calling them in tests, use `pytest.warns(DeprecationWarning)`. Example: `normalize_autor`.
+
 ## Testing Expectations
 
 - Add or update tests for every behavior change
@@ -127,6 +141,7 @@ Exceptions — no docstring required for:
 - Use `@pytest.mark.asyncio` for async behavior
 - Cover retry, validation, and failure paths when changing connector logic
 - If you change generated API models or clients, verify regeneration and affected tests together
+- To cover `if LOGGER.isEnabledFor(logging.DEBUG):` branches, use `caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names")` in the test
 
 Run a specific test file or function:
 
@@ -166,7 +181,14 @@ Then regenerate and review the diff carefully.
 
 - `pazufa_corelib/__init__.py` - public package exports
 - `pazufa_corelib/llm/` - LLM connector, models, and prompts
-- `pazufa_corelib/normalization/` - text, date, URL, hash, and Schlagworte helpers
+- `pazufa_corelib/normalization/` - text, date, URL, hash, name, and Schlagworte helpers
+  - `names.py` - `normalize_name`, `AuthorResolver`, `OrganizationResolver`; experimental `normalize_autor`
+  - `text.py` - `normalize_name_key`, `normalize_volltext`
+  - `hash.py` - content hashing utilities
+  - `urls.py` - URL normalization
+  - `schlagworte.py` - controlled topic taxonomy helpers
+  - `_fuzzy.py` - shared fuzzy-match internals
+- `pazufa_corelib/names_model.py` - `Author`, `Organization`, `AuthorIDResolution`, `OrganizationIDResolution`
 - `pazufa_corelib/api_model.py` - generated Pydantic models
 - `pazufa_corelib/api_client/` - generated OpenAPI client
 - `tests/` - unit tests

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from pydantic import AfterValidator, BaseModel
-from rapidfuzz import fuzz
+from rapidfuzz import fuzz, process
 
 from pazufa_corelib.normalization._fuzzy import fuzzy_resolve
 from pazufa_corelib.schlagworte_model import (
@@ -336,8 +336,9 @@ class SchlagwortResolver:
         # explicitly typed for mypy
         return bool(check_id.matched)
 
+
     def canonicalise_tags(self, tag_ids: list[str], strict: bool = False) -> list[str]:
-        """Canonicalise a list of tag IDs against the known vocabulary.
+        """Canonicalize a list of tag IDs against the known vocabulary.
 
         Args:
             tag_ids: Raw tag IDs to resolve.
@@ -349,6 +350,84 @@ class SchlagwortResolver:
         """
         resolved_ids = _canonicalise_ids(tag_ids, self._tag_ids_list, strict)
         return [r.resolved_id for r in resolved_ids]
+
+    def canonicalise_tag(self, tag_id: str, strict: bool = False) -> str:
+        """
+        Canonicalizes a tag ID to its resolved canonical form. This method ensures that
+        the provided tag ID is transformed into its standardized or normalized version.
+        It also optionally supports strict validation during the canonicalization process.
+
+        Args:
+            tag_id: The tag ID to be canonicalized.
+            strict: If True, applies strict validation rules during canonicalization.
+                Defaults to False.
+
+        Returns:
+            str: The resolved canonical form of the given tag ID.
+        """
+        resolved_id: str = self.canonicalise_tags([tag_id], strict=strict)[0]
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Resolved organization %r → %r",
+                tag_id,
+                resolved_id,
+                extra={
+                    "original_id": tag_id ,
+                    "canonical_id": resolved_id,
+                },
+            )
+        return resolved_id
+
+    def explain(self, query: str, k: int = 5) -> dict[str, Any]:
+        """Trace the resolution path of a tag ID query for diagnostics.
+
+        Walks the same steps as :meth:`fuzzy_check_tag` but returns the full
+        trace (processed query, exact-match status, top-K candidates,
+        configured threshold) instead of a single boolean. Intended for
+        debugging and audit output; the returned dict shape is informational
+        and may evolve.
+
+        Args:
+            query: Raw tag ID string.
+            k: Maximum number of fuzzy candidates to include in ``top_k``.
+
+        Returns:
+            Dict with keys ``query``, ``processed_query``, ``exact_hit``,
+            ``threshold``, ``near_tie_epsilon``, and ``top_k`` (a list of
+            ``{id, score}`` dicts ordered by descending score).
+        """
+        processed_query = _processor_ids(query)
+        trace: dict[str, Any] = {
+            "query": query,
+            "processed_query": processed_query,
+            "exact_hit": False,
+            "threshold": _FUZZY_MATCH_THRESHOLD,
+            "near_tie_epsilon": _NEAR_TIE_EPSILON,
+            "top_k": [],
+        }
+
+        if not processed_query:
+            return trace
+
+        if query in self._tag_ids:
+            trace["exact_hit"] = True
+            trace["top_k"] = [{"id": query, "score": _EXACT_MATCH_THRESHOLD}]
+            return trace
+
+        if not self._tag_ids_list:
+            return trace
+
+        top_n = min(k, len(self._tag_ids_list))
+        candidates = process.extract(
+            query,
+            self._tag_ids_list,
+            scorer=fuzz.token_sort_ratio,
+            processor=_processor_ids,
+            limit=top_n,
+        )
+        trace["top_k"] = [{"id": match, "score": score} for match, score, _ in candidates]
+        return trace
 
     # =====================================================================
     # Sachgebiet actions
@@ -441,3 +520,31 @@ class SchlagwortResolver:
             sachgebiet_ids, self._sachgebiete_ids_list, True
         )
         return [r.resolved_id for r in resolved_ids]
+
+    def canonicalise_sachgebiet(self, sachgebiet_id: str) -> str:
+        """Canonicalizes a given sachgebiet identifier to its standard form.
+
+        This method resolves a single sachgebiet ID to its canonical form by utilizing
+        the `canonicalise_sachgebiete` method. Debug logging is performed to capture the
+        resolution process, including the original and canonicalized identifiers.
+        Unmatched IDs are dropped (strict mode).
+
+        Args:
+            sachgebiet_id (str): The sachgebiet identifier to canonicalize.
+
+        Returns:
+            str: The canonicalized sachgebiet identifier.
+        """
+        resolved_id: str = self.canonicalise_sachgebiete([sachgebiet_id])[0]
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Resolved organization %r → %r",
+                sachgebiet_id,
+                resolved_id,
+                extra={
+                    "original_id": sachgebiet_id ,
+                    "canonical_id": resolved_id,
+                },
+            )
+        return resolved_id

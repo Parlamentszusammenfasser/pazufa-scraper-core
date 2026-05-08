@@ -19,6 +19,7 @@ from pazufa_corelib.normalization import (
     normalize_volltext,
 )
 from pazufa_corelib.normalization.names import normalize_autor
+from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 from pazufa_corelib.normalization.text import _paragraph_quality_score
 
 # ---------------------------------------------------------------------------
@@ -682,10 +683,9 @@ class TestAuthorResolver:
         # "Scholz, Olaf" token-sorts to the same key as canonical "Olaf Scholz"
         assert resolver.check_author("Scholz, Olaf") is True
 
-    def test_check_author_distinct_alias_no_hit(self, resolver: AuthorResolver) -> None:
-        # "Brandt" is an alias; its key ("brandt") differs from the canonical
-        # key ("brandt willy") — must not match check_author
-        assert resolver.check_author("Brandt") is False
+    def test_check_author_alias_hit(self, resolver: AuthorResolver) -> None:
+        # "Brandt" is a registered alias — check_author now includes aliases
+        assert resolver.check_author("Brandt") is True
 
     def test_check_author_unknown(self, resolver: AuthorResolver) -> None:
         assert resolver.check_author("Max Mustermann") is False
@@ -710,7 +710,7 @@ class TestAuthorResolver:
     ) -> None:
         names = resolver.canonicalize_authors(["Olaf Scholz", "Max Mustermann"])
         assert names[0] == "Olaf Scholz"
-        assert names[1] == normalize_name("Max Mustermann")  # normalised fallback
+        assert names[1] == "Max Mustermann"  # raw query returned for unmatched
 
     def test_canonicalize_authors_strict_drops_unmatched(
         self, resolver: AuthorResolver
@@ -741,7 +741,7 @@ class TestAuthorResolver:
 
     # fuzzy_cutoff
     def test_fuzzy_cutoff_high_rejects_fuzzy_match(self) -> None:
-        strict_resolver = AuthorResolver(fuzzy_cutoff=100.0)
+        strict_resolver = AuthorResolver(match_threshold=100.0)
         # "Helmut Schmitt" is a typo that fuzzy-matches but not exact-matches
         r = strict_resolver.resolve("Helmut Schmitt")
         assert not r.matched
@@ -751,6 +751,55 @@ class TestAuthorResolver:
         r = default_resolver.resolve("Helmut Schmitt")
         assert r.matched
         assert r.resolved_id == "schmidt-helmut"
+
+    # explain ---------------------------------------------------------------
+    def test_explain_exact_hit_returns_single_top_match(
+        self, resolver: AuthorResolver
+    ) -> None:
+        trace = resolver.explain("Olaf Scholz")
+        assert trace["query"] == "Olaf Scholz"
+        assert trace["exact_hit"] is True
+        assert len(trace["top_k"]) == 1
+        assert trace["top_k"][0]["id"] == "scholz-olaf"
+        assert trace["top_k"][0]["score"] == 100.0
+
+    def test_explain_fuzzy_hit_ranks_candidates(
+        self, resolver: AuthorResolver
+    ) -> None:
+        trace = resolver.explain("Helmut Schmitt", k=3)
+        assert trace["exact_hit"] is False
+        assert len(trace["top_k"]) == 3
+        assert trace["top_k"][0]["id"] == "schmidt-helmut"
+        scores = [c["score"] for c in trace["top_k"]]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_explain_empty_query_returns_empty_top_k(
+        self, resolver: AuthorResolver
+    ) -> None:
+        trace = resolver.explain("")
+        assert trace["normalized_key"] == ""
+        assert trace["exact_hit"] is False
+        assert trace["top_k"] == []
+
+    def test_explain_includes_thresholds(self, resolver: AuthorResolver) -> None:
+        trace = resolver.explain("Olaf Scholz")
+        assert trace["threshold"] == 90.0
+        assert trace["near_tie_epsilon"] == 1.0
+
+    def test_explain_k_caps_top_k_length(self, resolver: AuthorResolver) -> None:
+        trace = resolver.explain("Helmut Schmitt", k=2)
+        assert len(trace["top_k"]) == 2
+
+    def test_explain_empty_resolver_returns_empty_top_k(
+        self, tmp_path: Path
+    ) -> None:
+        empty = tmp_path / "empty_authors.yaml"
+        empty.write_text("names: []\n")
+        with patch("pazufa_corelib.normalization.names.AUTHORS_FILES", [empty]):
+            resolver = AuthorResolver()
+        trace = resolver.explain("Olaf Scholz")
+        assert trace["top_k"] == []
+        assert trace["exact_hit"] is False
 
     # debug logging (line 216)
     def test_init_emits_debug_log(self, caplog: pytest.LogCaptureFixture) -> None:
@@ -861,11 +910,11 @@ class TestOrganisationResolver:
             is True
         )
 
-    def test_check_organisation_alias_no_hit(
+    def test_check_organisation_alias_hit(
         self, resolver: OrganizationResolver
     ) -> None:
-        # "SPD" is an alias/acronym, not a canonical name
-        assert resolver.check_organization("SPD") is False
+        # "SPD" is a registered alias — check_organization now includes aliases
+        assert resolver.check_organization("SPD") is True
 
     def test_check_organisation_miss(self, resolver: OrganizationResolver) -> None:
         assert resolver.check_organization("Piratenpartei") is False
@@ -1065,17 +1114,13 @@ class TestOrganisationResolver:
         assert any("Near-tie" in r.message for r in caplog.records)
 
     # get_organization_by_id ------------------------------------------------
-    def test_get_organization_by_id_hit(
-        self, resolver: OrganizationResolver
-    ) -> None:
+    def test_get_organization_by_id_hit(self, resolver: OrganizationResolver) -> None:
         org = resolver.get_organization_by_id("spd")
         assert org is not None
         assert org.id == "spd"
         assert org.canonical_name == "Sozialdemokratische Partei Deutschlands"
 
-    def test_get_organization_by_id_miss(
-        self, resolver: OrganizationResolver
-    ) -> None:
+    def test_get_organization_by_id_miss(self, resolver: OrganizationResolver) -> None:
         assert resolver.get_organization_by_id("does-not-exist") is None
 
     # explain ---------------------------------------------------------------
@@ -1109,17 +1154,13 @@ class TestOrganisationResolver:
         assert trace["exact_hit"] is False
         assert trace["top_k"] == []
 
-    def test_explain_includes_thresholds(
-        self, resolver: OrganizationResolver
-    ) -> None:
+    def test_explain_includes_thresholds(self, resolver: OrganizationResolver) -> None:
         trace = resolver.explain("SPD")
         # default constructor uses module-level constants
         assert trace["threshold"] == 80.0
         assert trace["near_tie_epsilon"] == 2.0
 
-    def test_explain_k_caps_top_k_length(
-        self, resolver: OrganizationResolver
-    ) -> None:
+    def test_explain_k_caps_top_k_length(self, resolver: OrganizationResolver) -> None:
         trace = resolver.explain("Sozialdemokratische Partei", k=2)
         assert len(trace["top_k"]) == 2
 
@@ -1130,9 +1171,9 @@ class TestOrganisationResolver:
         assert default.matched
         assert default.score < 100.0
         # …but raising the threshold above its score rejects it.
-        strict = OrganizationResolver(
-            match_threshold=default.score + 1.0
-        ).resolve("Sozialdemokratische Partei")
+        strict = OrganizationResolver(match_threshold=default.score + 1.0).resolve(
+            "Sozialdemokratische Partei"
+        )
         assert not strict.matched
         assert strict.score == 0.0
 
@@ -1463,8 +1504,9 @@ class TestNormalizeAutor:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         item = Autor(organisation="Piratenpartei")
-        with pytest.warns(DeprecationWarning), caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        with (
+            pytest.warns(DeprecationWarning),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("organization not resolvable" in r.message for r in caplog.records)
@@ -1476,8 +1518,9 @@ class TestNormalizeAutor:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         item = Autor(organisation="SPD", person=None)
-        with pytest.warns(DeprecationWarning), caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        with (
+            pytest.warns(DeprecationWarning),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("author person empty" in r.message for r in caplog.records)
@@ -1489,8 +1532,80 @@ class TestNormalizeAutor:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         item = Autor(organisation="SPD", person="Max Mustermann")
-        with pytest.warns(DeprecationWarning), caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+        with (
+            pytest.warns(DeprecationWarning),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("author not resolvable" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# SchlagwortResolver
+# ---------------------------------------------------------------------------
+
+
+class TestSchlagwortResolver:
+    @pytest.fixture(scope="class")
+    def resolver(self) -> SchlagwortResolver:
+        return SchlagwortResolver()
+
+    # explain ---------------------------------------------------------------
+    def test_explain_exact_hit_returns_single_top_match(
+        self, resolver: SchlagwortResolver
+    ) -> None:
+        trace = resolver.explain("Digitalisierung")
+        assert trace["query"] == "Digitalisierung"
+        assert trace["exact_hit"] is True
+        assert len(trace["top_k"]) == 1
+        assert trace["top_k"][0]["id"] == "Digitalisierung"
+        assert trace["top_k"][0]["score"] == 100.0
+
+    def test_explain_fuzzy_hit_ranks_candidates(
+        self, resolver: SchlagwortResolver
+    ) -> None:
+        trace = resolver.explain("Digitalisierumg", k=3)
+        assert trace["exact_hit"] is False
+        assert len(trace["top_k"]) == 3
+        assert trace["top_k"][0]["id"] == "Digitalisierung"
+        scores = [c["score"] for c in trace["top_k"]]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_explain_empty_query_returns_empty_top_k(
+        self, resolver: SchlagwortResolver
+    ) -> None:
+        trace = resolver.explain("")
+        assert trace["processed_query"] == ""
+        assert trace["exact_hit"] is False
+        assert trace["top_k"] == []
+
+    def test_explain_includes_thresholds(self, resolver: SchlagwortResolver) -> None:
+        trace = resolver.explain("Digitalisierung")
+        assert trace["threshold"] == 90.0
+        assert trace["near_tie_epsilon"] == 1.0
+
+    def test_explain_k_caps_top_k_length(self, resolver: SchlagwortResolver) -> None:
+        trace = resolver.explain("Digitalisierumg", k=2)
+        assert len(trace["top_k"]) == 2
+
+    def test_explain_empty_resolver_returns_empty_top_k(
+        self, tmp_path: Path
+    ) -> None:
+        empty_tags = tmp_path / "empty_tags.yaml"
+        empty_sachgebiete = tmp_path / "empty_sachgebiete.yaml"
+        empty_tags.write_text("tags: []\n")
+        empty_sachgebiete.write_text("tags: []\n")
+        with (
+            patch(
+                "pazufa_corelib.normalization.schlagworte.GLOBAL_TAGS_FILES",
+                [empty_tags],
+            ),
+            patch(
+                "pazufa_corelib.normalization.schlagworte.SACHGEBIETE_FILES",
+                [empty_sachgebiete],
+            ),
+        ):
+            resolver = SchlagwortResolver()
+        trace = resolver.explain("Digitalisierung")
+        assert trace["top_k"] == []
+        assert trace["exact_hit"] is False

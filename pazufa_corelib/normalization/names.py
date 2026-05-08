@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from rapidfuzz import fuzz
+from rapidfuzz import fuzz, process
 
 from pazufa_corelib.api_model import Autor
 from pazufa_corelib.names_model import (
@@ -34,6 +34,8 @@ ORGANIZATIONS_FILES: list[Path] = [
 ]
 """Canonical list of paths to the global organization files."""
 
+# Sentinel score for exact matches — not a tunable cutoff. Lets callers
+# distinguish exact from fuzzy results by score (100.0 == index hit).
 _EXACT_MATCH_THRESHOLD: float = 100.0
 _FUZZY_MATCH_THRESHOLD: float = 90.0
 _NEAR_TIE_EPSILON: float = 1.0
@@ -191,7 +193,7 @@ class AuthorResolver:
         extra_files: Optional additional author YAML files merged on top
             of the global mapping. Later files override earlier entries
             on ID collision.
-        fuzzy_cutoff: Minimum ``WRatio`` score for a fuzzy match to be
+        match_threshold: Minimum ``WRatio`` score for a fuzzy match to be
             accepted. Scores below this threshold are treated as no match.
             Defaults to :data:`_FUZZY_MATCH_THRESHOLD`.
     """
@@ -199,9 +201,9 @@ class AuthorResolver:
     def __init__(
         self,
         extra_files: list[Path] | None = None,
-        fuzzy_cutoff: float = _FUZZY_MATCH_THRESHOLD,
+        match_threshold: float = _FUZZY_MATCH_THRESHOLD,
     ) -> None:
-        self._fuzzy_cutoff = fuzzy_cutoff
+        self._match_threshold = match_threshold
         self._authors: list[Author] = _load_authors(extra_files)
 
         # normalized key → (id, canonical_name)
@@ -216,6 +218,7 @@ class AuthorResolver:
             k for a in self._authors if (k := normalize_name(a.canonical_name))
         }
         self._canonical_keys: list[str] = list(self._key_to_author)
+        self._id_to_Author: dict[str, Author] = {a.id: a for a in self._authors}
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(
@@ -226,6 +229,7 @@ class AuthorResolver:
                     "canonical_key_count": len(self._canonical_keys),
                     "key_to_author_bytes": sys.getsizeof(self._key_to_author),
                     "canonical_keys_bytes": sys.getsizeof(self._canonical_keys),
+                    "id_to_author_bytes": sys.getsizeof(self._id_to_Author)
                 },
             )
 
@@ -234,22 +238,21 @@ class AuthorResolver:
     # =====================================================================
 
     def check_author(self, query: str) -> bool:
-        """Check whether a query string exactly matches a known canonical author name.
-
-        Aliases are not considered; only canonical names are checked.
+        """Check whether a query string exactly matches a known author name or alias.
 
         Args:
             query: Raw name string to check.
 
         Returns:
-            ``True`` if the normalized query matches a known canonical author name.
+            ``True`` if the normalized query matches a known canonical author
+            name or any registered alias.
         """
-        return normalize_name(query) in self._canonical_name_keys
+        return normalize_name(query) in self._key_to_author
 
     def fuzzy_check_author(self, query: str) -> bool:
         """Fuzzy-match a name string against the known author vocabulary.
 
-        Uses :func:`_canonicalize_names` to find the best fuzzy match.
+        Uses :meth:`resolve` to find the best match.
 
         Args:
             query: Raw name string to check.
@@ -258,12 +261,7 @@ class AuthorResolver:
             ``True`` if the name matched a known author above the fuzzy
             cutoff, ``False`` otherwise.
         """
-        result = _canonicalize_names(
-            [normalize_name(query)],
-            self._canonical_keys,
-            self._key_to_author,
-            cutoff=self._fuzzy_cutoff,
-        )[0]
+        result = self.resolve(query)
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(
                 "Fuzzy author check for %r",
@@ -276,21 +274,38 @@ class AuthorResolver:
             )
         return result.matched
 
+    def get_author_by_id(self, author_id: str) -> Author | None:
+        """
+        Retrieves an author by their unique identifier.
+
+        This method searches for and retrieves an `Author` object associated with the
+        given `author_id`. If no author is found for the provided identifier, the method
+        returns `None`.
+
+        Args:
+            author_id (str): The unique identifier of the author to retrieve.
+
+        Returns:
+            Author | None: The `Author` object if found, or `None` if no author
+            matches the provided `author_id`.
+        """
+        return self._id_to_Author.get(author_id)
+
+
     def canonicalize_authors(
         self, queries: list[str], strict: bool = False
     ) -> list[str]:
         """Canonicalize a list of raw name strings to canonical author names.
 
         More performant than calling :meth:`canonicalize_author` in a loop
-        because the underlying fuzzy match runs as a single batch.
+        because the underlying fuzzy match runs as a single batch via
+        :meth:`resolve_batch`.
 
         Args:
             queries: Raw name strings to resolve.
             strict: If ``True``, unmatched names are dropped from the
-                result. If ``False``, the normalized form of each unmatched
-                query is kept in place (note: this is the *normalized*
-                fallback, not the raw query — :meth:`canonicalize_author`
-                returns the raw query instead).
+                result. If ``False``, the original raw query is kept in
+                place for each unmatched name.
 
         Returns:
             List of resolved canonical author names, in the same order as
@@ -299,44 +314,20 @@ class AuthorResolver:
         if not queries:
             return []
 
-        output: list[str | None] = [None] * len(queries)
-        fuzzy_idxs: list[int] = []
-        fuzzy_keys: list[str] = []
-
-        for i, query in enumerate(queries):
-            key = normalize_name(query)
-            if key in self._key_to_author:
-                _, canonical_name = self._key_to_author[key]
-                output[i] = canonical_name
-            else:
-                fuzzy_idxs.append(i)
-                fuzzy_keys.append(key)
-
-        if fuzzy_keys:
-            resolved = _canonicalize_names(
-                fuzzy_keys,
-                self._canonical_keys,
-                self._key_to_author,
-                strict=False,  # handle strict below so we can count dropped
-                cutoff=self._fuzzy_cutoff,
-            )
-            for j, i in enumerate(fuzzy_idxs):
-                r = resolved[j]
-                if r.matched or not strict:
-                    output[i] = r.canonical_name
-                # strict + unmatched: output[i] stays None → dropped
+        resolved = self.resolve_batch(queries)
 
         if strict:
-            result = [v for v in output if v is not None]
-            dropped = output.count(None)
+            matched = [r for r in resolved if r.matched]
+            dropped = len(resolved) - len(matched)
             if dropped:
                 LOGGER.warning(
                     "Dropped %d unresolved author names (strict=True)",
                     dropped,
                     extra={"strict": True, "query_count": len(queries)},
                 )
-            return result
-        return output  # type: ignore[return-value]  # all slots filled in non-strict
+            return [r.canonical_name for r in matched]
+
+        return [r.canonical_name for r in resolved]
 
     def canonicalize_author(self, query: str, strict: bool = False) -> str:
         """Resolve a raw author name to its canonical form.
@@ -386,18 +377,11 @@ class AuthorResolver:
     def resolve(self, query: str) -> AuthorIDResolution:
         """Resolve a single raw author name to a canonical entry.
 
-        Returns the full :class:`AuthorIDResolution` (ID, score, canonical
-        name, ``matched``/``changed`` flags). For most callers the higher-
-        level :meth:`canonicalize_author` is sufficient; use ``resolve``
-        when the score or ID is needed.
-
-        Resolution order:
-
-        1. normalize the query with :func:`normalize_name`.
-        2. Exact lookup in the normalized-key index.
-        3. Fuzzy match via :func:`_canonicalize_names`.
-        4. Return unresolved (score ``0.0``) if nothing clears
-           ``_FUZZY_MATCH_THRESHOLD``.
+        Delegates to :meth:`resolve_batch`. Returns the full
+        :class:`AuthorIDResolution` (ID, score, canonical name,
+        ``matched``/``changed`` flags). For most callers the higher-level
+        :meth:`canonicalize_author` is sufficient; use ``resolve`` when
+        the score or ID is needed.
 
         Args:
             query: Raw author name string.
@@ -407,41 +391,164 @@ class AuthorResolver:
             the best match found, or an unresolved result when no match
             cleared the threshold.
         """
-        query_key = normalize_name(query)
+        return self.resolve_batch([query])[0]
 
-        if not query_key:
-            return AuthorIDResolution(
-                original_name=query,
-                resolved_id="",
-                canonical_name=query,
-                score=0.0,
-            )
+    def resolve_batch(self, queries: list[str]) -> list[AuthorIDResolution]:
+        """Resolve a batch of raw author names in a single fuzzy-match pass.
 
-        # --- exact match ------------------------------------------------
-        if query_key in self._key_to_author:
-            author_id, canonical_name = self._key_to_author[query_key]
-            return AuthorIDResolution(
-                original_name=query,
-                resolved_id=author_id,
-                canonical_name=canonical_name,
-                score=_EXACT_MATCH_THRESHOLD,
-            )
+        More efficient than calling :meth:`resolve` in a loop because all
+        fuzzy queries are processed in a single :func:`_canonicalize_names`
+        call.
 
-        # --- fuzzy match ------------------------------------------------
+        Resolution order for each query:
+
+        1. Normalize with :func:`normalize_name`.
+        2. Exact lookup in the normalized-key index.
+        3. Fuzzy match via :func:`_canonicalize_names` (batched across all
+           non-exact queries).
+        4. Return unresolved (score ``0.0``) if nothing clears the
+           configured ``fuzzy_cutoff``.
+
+        Args:
+            queries: Raw author name strings.
+
+        Returns:
+            List of :class:`~pazufa_corelib.names_model.AuthorIDResolution`
+            in the same order as *queries*.
+        """
+        if not queries:
+            return []
+
+        results: list[AuthorIDResolution | None] = [None] * len(queries)
+        fuzzy_idxs: list[int] = []
+        fuzzy_keys: list[str] = []
+
+        for i, query in enumerate(queries):
+            query_key = normalize_name(query)
+
+            if not query_key:
+                results[i] = AuthorIDResolution(
+                    original_name=query,
+                    resolved_id="",
+                    canonical_name=query,
+                    score=0.0,
+                )
+                continue
+
+            if query_key in self._key_to_author:
+                author_id, canonical_name = self._key_to_author[query_key]
+                results[i] = AuthorIDResolution(
+                    original_name=query,
+                    resolved_id=author_id,
+                    canonical_name=canonical_name,
+                    score=_EXACT_MATCH_THRESHOLD,
+                )
+                continue
+
+            fuzzy_idxs.append(i)
+            fuzzy_keys.append(query_key)
+
+        if fuzzy_idxs:
+            if not self._canonical_keys:
+                for i in fuzzy_idxs:
+                    results[i] = AuthorIDResolution(
+                        original_name=queries[i],
+                        resolved_id="",
+                        canonical_name=queries[i],
+                        score=0.0,
+                    )
+            else:
+                resolved = _canonicalize_names(
+                    fuzzy_keys,
+                    self._canonical_keys,
+                    self._key_to_author,
+                    cutoff=self._match_threshold,
+                )
+                for j, i in enumerate(fuzzy_idxs):
+                    r = resolved[j]
+                    if r.matched:
+                        results[i] = AuthorIDResolution(
+                            original_name=queries[i],
+                            resolved_id=r.resolved_id,
+                            canonical_name=r.canonical_name,
+                            score=r.score,
+                        )
+                    else:
+                        results[i] = AuthorIDResolution(
+                            original_name=queries[i],
+                            resolved_id="",
+                            canonical_name=queries[i],
+                            score=0.0,
+                        )
+
+        return results  # type: ignore[return-value]  # all slots filled by construction
+
+    def explain(self, query: str, k: int = 5) -> dict[str, Any]:
+        """Trace the resolution path of a query for diagnostics.
+
+        Walks the same steps as :meth:`resolve` but returns the full trace
+        (normalized key, exact-match status, top-K fuzzy candidates,
+        configured threshold) instead of a single resolution. Intended
+        for debugging and audit output; the returned dict shape is
+        informational and may evolve.
+
+        Args:
+            query: Raw author name string.
+            k: Maximum number of fuzzy candidates to include in ``top_k``.
+
+        Returns:
+            Dict with keys ``query``, ``normalized_key``, ``exact_hit``,
+            ``threshold``, ``near_tie_epsilon``, and ``top_k`` (a list of
+            ``{canonical_name, id, score}`` dicts ordered by descending score).
+        """
+        normalized_key = normalize_name(query)
+        trace: dict[str, Any] = {
+            "query": query,
+            "normalized_key": normalized_key,
+            "exact_hit": False,
+            "threshold": self._match_threshold,
+            "near_tie_epsilon": _NEAR_TIE_EPSILON,
+            "top_k": [],
+        }
+
+        if not normalized_key:
+            return trace
+
+        if normalized_key in self._key_to_author:
+            author_id, canonical_name = self._key_to_author[normalized_key]
+            trace["exact_hit"] = True
+            trace["top_k"] = [
+                {
+                    "canonical_name": canonical_name,
+                    "id": author_id,
+                    "score": _EXACT_MATCH_THRESHOLD,
+                }
+            ]
+            return trace
+
         if not self._canonical_keys:
-            return AuthorIDResolution(
-                original_name=query,
-                resolved_id="",
-                canonical_name=query,
-                score=0.0,
-            )
+            return trace
 
-        return _canonicalize_names(
-            [query_key],
+        top_n = min(k, len(self._canonical_keys))
+        candidates = process.extract(  # type: ignore[call-overload]
+            normalized_key,
             self._canonical_keys,
-            self._key_to_author,
-            cutoff=self._fuzzy_cutoff,
-        )[0]
+            scorer=fuzz.WRatio,
+            processor=None,
+            limit=top_n,
+        )
+        top_k: list[dict[str, Any]] = []
+        for match, score, _ in candidates:
+            author_id, canonical_name = self._key_to_author[match]
+            top_k.append(
+                {
+                    "canonical_name": canonical_name,
+                    "id": author_id,
+                    "score": score,
+                }
+            )
+        trace["top_k"] = top_k
+        return trace
 
 
 # =====================================================================
@@ -644,18 +751,16 @@ class OrganizationResolver:
     # =====================================================================
 
     def check_organization(self, query: str) -> bool:
-        """Check if a query exactly matches a known canonical organization name.
-
-        Aliases are not considered; only canonical names are checked.
+        """Check if a query exactly matches a known organization name or alias.
 
         Args:
             query: Raw organization name string to check.
 
         Returns:
-            ``True`` if the normalized query matches a known canonical organization
-            name.
+            ``True`` if the normalized query matches a known canonical
+            organization name or any registered alias.
         """
-        return normalize_name(query) in self._canonical_name_keys
+        return normalize_name(query) in self._key_to_org
 
     def get_organization_by_id(self, org_id: str) -> Organization | None:
         """Look up the full Organization record by its canonical ID.
