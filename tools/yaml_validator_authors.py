@@ -101,7 +101,8 @@ def yaml_validator_authors(
         # --- check 1b: canonical_name exact collision ---
         if author_resolver.check_author(author.canonical_name):
             errors.append(
-                f"canonical_name '{author.canonical_name}' collides with an existing entry"
+                f"canonical_name '{author.canonical_name}' "
+                "collides with an existing entry"
             )
             entry_has_error = True
 
@@ -128,7 +129,8 @@ def yaml_validator_authors(
         canonical_names = [author.canonical_name for author in test_authors]
         resolutions = intra_resolver.resolve_batch(canonical_names)
         for author, resolution in zip(test_authors, resolutions):
-            if resolution.matched and resolution.canonical_name != author.canonical_name:
+            different = resolution.canonical_name != author.canonical_name
+            if resolution.matched and different:
                 warnings.append(
                     f"'{author.canonical_name}' fuzzy-matches another new entry "
                     f"'{resolution.canonical_name}' (score: {resolution.score:.1f}) — "

@@ -229,7 +229,7 @@ class AuthorResolver:
                     "canonical_key_count": len(self._canonical_keys),
                     "key_to_author_bytes": sys.getsizeof(self._key_to_author),
                     "canonical_keys_bytes": sys.getsizeof(self._canonical_keys),
-                    "id_to_author_bytes": sys.getsizeof(self._id_to_Author)
+                    "id_to_author_bytes": sys.getsizeof(self._id_to_Author),
                 },
             )
 
@@ -275,8 +275,7 @@ class AuthorResolver:
         return result.matched
 
     def get_author_by_id(self, author_id: str) -> Author | None:
-        """
-        Retrieves an author by their unique identifier.
+        """Retrieves an author by their unique identifier.
 
         This method searches for and retrieves an `Author` object associated with the
         given `author_id`. If no author is found for the provided identifier, the method
@@ -290,7 +289,6 @@ class AuthorResolver:
             matches the provided `author_id`.
         """
         return self._id_to_Author.get(author_id)
-
 
     def canonicalize_authors(
         self, queries: list[str], strict: bool = False

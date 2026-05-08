@@ -341,11 +341,15 @@ class SchlagwortResolver:
         Returns:
             True if the ID matched a known tag above the fuzzy cutoff, False otherwise.
         """
-        check_id = _canonicalise_ids([tag_id], self._tag_ids_list, cutoff=self._match_threshold, near_tie_epsilon=self._near_tie_epsilon)[0]
+        check_id = _canonicalise_ids(
+            [tag_id],
+            self._tag_ids_list,
+            cutoff=self._match_threshold,
+            near_tie_epsilon=self._near_tie_epsilon,
+        )[0]
         LOGGER.debug("Fuzzy check returned: %s", check_id)
         # explicitly typed for mypy
         return bool(check_id.matched)
-
 
     def canonicalise_tags(self, tag_ids: list[str], strict: bool = False) -> list[str]:
         """Canonicalize a list of tag IDs against the known vocabulary.
@@ -358,14 +362,17 @@ class SchlagwortResolver:
         Returns:
             List of resolved canonical tag IDs.
         """
-        resolved_ids = _canonicalise_ids(tag_ids, self._tag_ids_list, strict, cutoff=self._match_threshold, near_tie_epsilon=self._near_tie_epsilon)
+        resolved_ids = _canonicalise_ids(
+            tag_ids,
+            self._tag_ids_list,
+            strict,
+            cutoff=self._match_threshold,
+            near_tie_epsilon=self._near_tie_epsilon,
+        )
         return [r.resolved_id for r in resolved_ids]
 
     def canonicalise_tag(self, tag_id: str, strict: bool = False) -> str:
-        """
-        Canonicalizes a tag ID to its resolved canonical form. This method ensures that
-        the provided tag ID is transformed into its standardized or normalized version.
-        It also optionally supports strict validation during the canonicalization process.
+        """Canonicalize a single tag ID to its resolved canonical form.
 
         Args:
             tag_id: The tag ID to be canonicalized.
@@ -373,7 +380,7 @@ class SchlagwortResolver:
                 Defaults to False.
 
         Returns:
-            str: The resolved canonical form of the given tag ID.
+            The resolved canonical form of the given tag ID.
         """
         resolved_id: str = self.canonicalise_tags([tag_id], strict=strict)[0]
 
@@ -383,7 +390,7 @@ class SchlagwortResolver:
                 tag_id,
                 resolved_id,
                 extra={
-                    "original_id": tag_id ,
+                    "original_id": tag_id,
                     "canonical_id": resolved_id,
                 },
             )
@@ -436,7 +443,9 @@ class SchlagwortResolver:
             processor=_processor_ids,
             limit=top_n,
         )
-        trace["top_k"] = [{"id": match, "score": score} for match, score, _ in candidates]
+        trace["top_k"] = [
+            {"id": match, "score": score} for match, score, _ in candidates
+        ]
         return trace
 
     # =====================================================================
@@ -527,7 +536,11 @@ class SchlagwortResolver:
             List of resolved canonical Sachgebiet IDs.
         """
         resolved_ids = _canonicalise_ids(
-            sachgebiet_ids, self._sachgebiete_ids_list, True, cutoff=self._match_threshold, near_tie_epsilon=self._near_tie_epsilon
+            sachgebiet_ids,
+            self._sachgebiete_ids_list,
+            True,
+            cutoff=self._match_threshold,
+            near_tie_epsilon=self._near_tie_epsilon,
         )
         return [r.resolved_id for r in resolved_ids]
 
@@ -553,7 +566,7 @@ class SchlagwortResolver:
                 sachgebiet_id,
                 resolved_id,
                 extra={
-                    "original_id": sachgebiet_id ,
+                    "original_id": sachgebiet_id,
                     "canonical_id": resolved_id,
                 },
             )

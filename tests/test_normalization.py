@@ -763,9 +763,7 @@ class TestAuthorResolver:
         assert trace["top_k"][0]["id"] == "scholz-olaf"
         assert trace["top_k"][0]["score"] == 100.0
 
-    def test_explain_fuzzy_hit_ranks_candidates(
-        self, resolver: AuthorResolver
-    ) -> None:
+    def test_explain_fuzzy_hit_ranks_candidates(self, resolver: AuthorResolver) -> None:
         trace = resolver.explain("Helmut Schmitt", k=3)
         assert trace["exact_hit"] is False
         assert len(trace["top_k"]) == 3
@@ -790,9 +788,7 @@ class TestAuthorResolver:
         trace = resolver.explain("Helmut Schmitt", k=2)
         assert len(trace["top_k"]) == 2
 
-    def test_explain_empty_resolver_returns_empty_top_k(
-        self, tmp_path: Path
-    ) -> None:
+    def test_explain_empty_resolver_returns_empty_top_k(self, tmp_path: Path) -> None:
         empty = tmp_path / "empty_authors.yaml"
         empty.write_text("names: []\n")
         with patch("pazufa_corelib.normalization.names.AUTHORS_FILES", [empty]):
@@ -910,9 +906,7 @@ class TestOrganisationResolver:
             is True
         )
 
-    def test_check_organisation_alias_hit(
-        self, resolver: OrganizationResolver
-    ) -> None:
+    def test_check_organisation_alias_hit(self, resolver: OrganizationResolver) -> None:
         # "SPD" is a registered alias — check_organization now includes aliases
         assert resolver.check_organization("SPD") is True
 
@@ -1588,9 +1582,7 @@ class TestSchlagwortResolver:
         trace = resolver.explain("Digitalisierumg", k=2)
         assert len(trace["top_k"]) == 2
 
-    def test_explain_empty_resolver_returns_empty_top_k(
-        self, tmp_path: Path
-    ) -> None:
+    def test_explain_empty_resolver_returns_empty_top_k(self, tmp_path: Path) -> None:
         empty_tags = tmp_path / "empty_tags.yaml"
         empty_sachgebiete = tmp_path / "empty_sachgebiete.yaml"
         empty_tags.write_text("tags: []\n")

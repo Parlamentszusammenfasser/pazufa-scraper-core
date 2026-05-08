@@ -584,9 +584,7 @@ class TestSchlagwortResolverNearTieEpsilon:
         Custom epsilon=10.0: delta ≤ epsilon → warning fires.
         """
         two_tags = tmp_path / "two_tags.yaml"
-        two_tags.write_text(
-            "tags:\n  - id: AB\n  - id: ABCDE\n", encoding="utf-8"
-        )
+        two_tags.write_text("tags:\n  - id: AB\n  - id: ABCDE\n", encoding="utf-8")
         monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [two_tags])
         monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [])
 
@@ -692,7 +690,9 @@ class TestCanonicaliseIdsNearTieWarning:
         raw = ["Umweltschutz C"]
         # Both calls should behave identically — no assertion needed beyond no error
         result_default = _canonicalise_ids(raw, canonical)
-        result_explicit = _canonicalise_ids(raw, canonical, near_tie_epsilon=_NEAR_TIE_EPSILON)
+        result_explicit = _canonicalise_ids(
+            raw, canonical, near_tie_epsilon=_NEAR_TIE_EPSILON
+        )
         assert result_default[0].resolved_id == result_explicit[0].resolved_id
         assert result_default[0].score == result_explicit[0].score
 

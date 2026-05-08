@@ -114,7 +114,11 @@ def yaml_validator_tags(
     # --- check 3: intra-file fuzzy collisions ---
     # Load the new entries into a resolver and check each against the rest
     if len(test_tags) > 1:
-        intra_resolver = SchlagwortResolver(local_tags=[yaml_testfile], match_threshold=match_threshold, near_tie_epsilon=near_tie_epsilon)
+        intra_resolver = SchlagwortResolver(
+            local_tags=[yaml_testfile],
+            match_threshold=match_threshold,
+            near_tie_epsilon=near_tie_epsilon,
+        )
         new_ids = {tag.id for tag in test_tags}
         reported: set[frozenset[str]] = set()
         for tag in test_tags:
@@ -131,7 +135,8 @@ def yaml_validator_tags(
                     warnings.append(
                         f"'{tag.id}' fuzzy-matches another new entry "
                         f"'{candidate['id']}' (score: {candidate['score']:.1f}) — "
-                        "the two entries may be confused with each other by the resolver"
+                        "the two entries may be confused with each other "
+                        "by the resolver"
                     )
                     break
 
