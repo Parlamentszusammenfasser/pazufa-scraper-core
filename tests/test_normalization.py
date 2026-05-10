@@ -712,13 +712,13 @@ class TestAuthorResolver:
         assert names[0] == "Olaf Scholz"
         assert names[1] == "Max Mustermann"  # raw query returned for unmatched
 
-    def test_canonicalize_authors_strict_drops_unmatched(
+    def test_canonicalize_authors_strict_sets_unmatched_to_none(
         self, resolver: AuthorResolver
     ) -> None:
         names = resolver.canonicalize_authors(
             ["Olaf Scholz", "Max Mustermann"], strict=True
         )
-        assert names == ["Olaf Scholz"]
+        assert names == ["Olaf Scholz", None]
 
     # canonicalize_author
     def test_canonicalize_author_resolved(self, resolver: AuthorResolver) -> None:
@@ -732,7 +732,7 @@ class TestAuthorResolver:
     def test_canonicalize_author_unresolved_strict(
         self, resolver: AuthorResolver
     ) -> None:
-        assert resolver.canonicalize_author("Max Mustermann", strict=True) == ""
+        assert resolver.canonicalize_author("Max Mustermann", strict=True) is None
 
     def test_canonicalize_author_honorific_stripped(
         self, resolver: AuthorResolver
@@ -994,7 +994,7 @@ class TestOrganisationResolver:
     def test_canonicalize_organisation_unresolved_strict(
         self, resolver: OrganizationResolver
     ) -> None:
-        assert resolver.canonicalize_organization("Piratenpartei", strict=True) == ""
+        assert resolver.canonicalize_organization("Piratenpartei", strict=True) is None
 
     # fuzzy_match_acronym
     def test_fuzzy_match_acronym_known(self, resolver: OrganizationResolver) -> None:

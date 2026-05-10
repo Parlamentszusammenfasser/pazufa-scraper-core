@@ -371,7 +371,7 @@ class SchlagwortResolver:
         )
         return [r.resolved_id for r in resolved_ids]
 
-    def canonicalise_tag(self, tag_id: str, strict: bool = False) -> str:
+    def canonicalise_tag(self, tag_id: str, strict: bool = False) -> str | None:
         """Canonicalize a single tag ID to its resolved canonical form.
 
         Args:
@@ -382,17 +382,25 @@ class SchlagwortResolver:
         Returns:
             The resolved canonical form of the given tag ID.
         """
-        resolved_id: str = self.canonicalise_tags([tag_id], strict=strict)[0]
+        resolved = self.canonicalise_tags([tag_id], strict=strict)
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        resolved_id = resolved[0] if resolved else None
+
+        if resolved_id is not None and not resolved_id.strip():
+            resolved_id = None
+
+        if resolved_id is None:
+            LOGGER.warning(
+                "Tag %r not found in vocabulary",
+                tag_id,
+                extra={"original_id": tag_id},
+            )
+        elif LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(
-                "Resolved organization %r → %r",
+                "Resolved Sachgebiet %r → %r",
                 tag_id,
                 resolved_id,
-                extra={
-                    "original_id": tag_id,
-                    "canonical_id": resolved_id,
-                },
+                extra={"original_id": tag_id, "canonical_id": resolved_id},
             )
         return resolved_id
 
@@ -524,7 +532,7 @@ class SchlagwortResolver:
         """
         return sachgebiet_nummer in self._sachgebiete_number_to_id
 
-    def canonicalise_sachgebiete(self, sachgebiet_ids: list[str]) -> list[str]:
+    def canonicalise_sachgebiete(self, sachgebiet_ids: list[str]) -> list[str] | None:
         """Canonicalise a list of Sachgebiet IDs against the known vocabulary.
 
         Unmatched IDs are dropped (strict mode).
@@ -542,32 +550,43 @@ class SchlagwortResolver:
             cutoff=self._match_threshold,
             near_tie_epsilon=self._near_tie_epsilon,
         )
+
+
+
+
+
         return [r.resolved_id for r in resolved_ids]
 
-    def canonicalise_sachgebiet(self, sachgebiet_id: str) -> str:
-        """Canonicalizes a given sachgebiet identifier to its standard form.
+    def canonicalise_sachgebiet(self, sachgebiet_id: str) -> str | None:
+        """Canonicalize a single Sachgebiet identifier.
 
-        This method resolves a single sachgebiet ID to its canonical form by utilizing
-        the `canonicalise_sachgebiete` method. Debug logging is performed to capture the
-        resolution process, including the original and canonicalized identifiers.
-        Unmatched IDs are dropped (strict mode).
+        Resolves a single sachgebiet ID to its canonical form via
+        `canonicalise_sachgebiete`. Returns None if no match is found
+        or if the resolved value is blank.
 
         Args:
-            sachgebiet_id (str): The sachgebiet identifier to canonicalize.
+            sachgebiet_id: The sachgebiet identifier to canonicalize.
 
         Returns:
-            str: The canonicalized sachgebiet identifier.
+            The canonical sachgebiet identifier, or None if unresolved
+            or blank.
         """
-        resolved_id: str = self.canonicalise_sachgebiete([sachgebiet_id])[0]
+        resolved = self.canonicalise_sachgebiete([sachgebiet_id])
+        resolved_id = resolved[0] if resolved else None
+        if resolved_id is not None and not resolved_id.strip():
+            resolved_id = None
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        if resolved_id is None:
+            LOGGER.warning(
+                "Sachgebiet %r not found in vocabulary",
+                sachgebiet_id,
+                extra={"original_id": sachgebiet_id},
+            )
+        elif LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(
-                "Resolved organization %r → %r",
+                "Resolved Sachgebiet %r → %r",
                 sachgebiet_id,
                 resolved_id,
-                extra={
-                    "original_id": sachgebiet_id,
-                    "canonical_id": resolved_id,
-                },
+                extra={"original_id": sachgebiet_id, "canonical_id": resolved_id},
             )
         return resolved_id

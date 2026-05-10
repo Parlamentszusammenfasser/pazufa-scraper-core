@@ -723,3 +723,91 @@ class TestDuplicateSachgebietNumbers:
         monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [file_a, file_b])
         with pytest.raises(ValueError, match="Duplicate Sachgebiet number 100"):
             SchlagwortResolver()
+
+
+# =====================================================================
+# SchlagwortResolver — canonicalise_tag
+# =====================================================================
+
+
+class TestCanonicaliseTag:
+    def test_known_tag_returns_canonical_id(
+        self, patched_resolver: SchlagwortResolver
+    ) -> None:
+        assert patched_resolver.canonicalise_tag("Digitalisierung") == "Digitalisierung"
+
+    def test_fuzzy_match_returns_canonical_id(
+        self, patched_resolver: SchlagwortResolver
+    ) -> None:
+        assert patched_resolver.canonicalise_tag("Digitalisierungs") == "Digitalisierung"
+
+    def test_unknown_tag_non_strict_returns_original(
+        self, patched_resolver: SchlagwortResolver
+    ) -> None:
+        assert patched_resolver.canonicalise_tag("NichtVorhanden") == "NichtVorhanden"
+
+    def test_unknown_tag_strict_returns_none(
+        self, patched_resolver: SchlagwortResolver
+    ) -> None:
+        assert patched_resolver.canonicalise_tag("NichtVorhanden", strict=True) is None
+
+    def test_unknown_tag_strict_logs_warning(
+        self,
+        patched_resolver: SchlagwortResolver,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        with caplog.at_level(
+            logging.WARNING, logger="pazufa_corelib.normalization.schlagworte"
+        ):
+            patched_resolver.canonicalise_tag("NichtVorhanden", strict=True)
+        assert any("not found in vocabulary" in r.message for r in caplog.records)
+
+    def test_known_tag_logs_debug(
+        self,
+        patched_resolver: SchlagwortResolver,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.schlagworte"
+        ):
+            patched_resolver.canonicalise_tag("Digitalisierung")
+        assert any("Resolved Sachgebiet" in r.message for r in caplog.records)
+
+
+# =====================================================================
+# SchlagwortResolver — canonicalise_sachgebiet
+# =====================================================================
+
+
+class TestCanonicaliseSachgebiet:
+    def test_known_sachgebiet_returns_canonical_id(
+        self, patched_resolver: SchlagwortResolver
+    ) -> None:
+        assert patched_resolver.canonicalise_sachgebiet("Umwelt") == "Umwelt"
+
+    def test_unknown_sachgebiet_returns_none(
+        self, patched_resolver: SchlagwortResolver
+    ) -> None:
+        assert patched_resolver.canonicalise_sachgebiet("NichtVorhanden") is None
+
+    def test_unknown_sachgebiet_logs_warning(
+        self,
+        patched_resolver: SchlagwortResolver,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        with caplog.at_level(
+            logging.WARNING, logger="pazufa_corelib.normalization.schlagworte"
+        ):
+            patched_resolver.canonicalise_sachgebiet("NichtVorhanden")
+        assert any("not found in vocabulary" in r.message for r in caplog.records)
+
+    def test_known_sachgebiet_logs_debug(
+        self,
+        patched_resolver: SchlagwortResolver,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        with caplog.at_level(
+            logging.DEBUG, logger="pazufa_corelib.normalization.schlagworte"
+        ):
+            patched_resolver.canonicalise_sachgebiet("Umwelt")
+        assert any("Resolved Sachgebiet" in r.message for r in caplog.records)
