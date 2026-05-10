@@ -97,6 +97,11 @@ names:
 - `OrganizationResolver` uses character n-gram cosine similarity, which is robust to word-order differences and long compound names. Aliases primarily help exact lookup; fuzzy matching works without them for close variants.
 - The acronym is not used for matching — list it as an alias if it should be resolvable.
 
+> **Footgun — what an alias actually becomes:** Write aliases as plain human-readable strings; do not try to pre-format them to match the internal lookup key. Every alias passes through `normalize_name_key` (NFKC → strip invisibles → lowercase → umlaut fold `ü→ue` `ö→oe` `ä→ae` `ß→ss` → strip punctuation → collapse whitespace) and is then token-sorted before comparison. So an alias `Fraktion GRÜNE` does **not** become `fraktiongrüne` — it becomes `fraktion gruene` (lower-cased, umlaut-folded, with the inter-token space preserved). Two implications:
+>
+> - Do not write `fraktiongruene` or `Fraktion Gruene` thinking you are "helping" the resolver; the original `Fraktion GRÜNE` already collapses to the same key.
+> - Umlaut and casing variants (`Grüne` ↔ `GRUENE` ↔ `gruene`) are folded automatically — adding all three as aliases is redundant.
+
 ### Using extra organization files
 
 ```python

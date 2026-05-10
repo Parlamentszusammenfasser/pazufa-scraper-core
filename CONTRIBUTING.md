@@ -25,15 +25,18 @@ make check
 
 ## Tooling
 
-| Tool                | Purpose                       | Make target      |
-|---------------------|-------------------------------|------------------|
-| `ruff check`        | Linting                       | `make lint`      |
-| `ruff format`       | Formatting check              | `make lint`      |
-| `mypy`              | Static type checking          | `make typecheck` |
-| `pytest`            | Tests                         | `make test`      |
-| `pytest --cov`      | Tests with coverage report    | `make coverage`  |
-| `pip-audit`         | Dependency vulnerability scan | `make security`  |
-| `datamodel-codegen` | Regenerate API models/client  | `make generate`  |
+| Tool                | Purpose                               | Make target             |
+|---------------------|---------------------------------------|-------------------------|
+| `ruff check`        | Linting                               | `make lint`             |
+| `ruff format`       | Formatting check                      | `make lint`             |
+| `mypy`              | Static type checking                  | `make typecheck`        |
+| `pytest`            | Tests                                 | `make test`             |
+| `pytest --cov`      | Tests with coverage report            | `make coverage`         |
+| `pip-audit`         | Dependency vulnerability scan         | `make security`         |
+| `datamodel-codegen` | Regenerate API models/client          | `make generate`         |
+| `detect-secrets`    | Scan for secrets against baseline     | `make secrets-scan`     |
+| `detect-secrets`    | Create or update `.secrets.baseline`  | `make secrets-update`   |
+| `detect-secrets`    | Interactively audit baseline findings | `make secrets-audit`    |
 
 Run `make` with no target to list all available targets.
 
