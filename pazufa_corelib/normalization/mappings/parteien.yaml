@@ -6,8 +6,6 @@ names:
       - CDU
       - CDU/CSU
       - Christdemokraten
-      - CDU-Fraktion
-      - CDU/CSU-Fraktion
 
   - id: csu
     canonical_name: Christlich-Soziale Union in Bayern
@@ -22,7 +20,6 @@ names:
     aliases:
       - SPD
       - Sozialdemokraten
-      - SPD-Fraktion
 
   - id: gruene
     canonical_name: Bündnis 90/Die Grünen
@@ -32,8 +29,6 @@ names:
       - Die Grünen
       - Bündnis 90
       - B90/Grüne
-      - Grünen-Fraktion
-      - Fraktion Bündnis 90/Die Grünen
 
   - id: bsw
     canonical_name: Bündnis Sahra Wagenknecht
@@ -41,7 +36,6 @@ names:
     aliases:
       - BSW
       - Bündnis Sahra Wagenknecht – Vernunft und Gerechtigkeit
-      - BSW-Fraktion
 
   - id: linke
     canonical_name: Die Linke
@@ -49,8 +43,6 @@ names:
     aliases:
       - Linke
       - Die Linke.
-      - Linken-Fraktion
-      - Fraktion Die Linke
 
   - id: fdp
     canonical_name: Freie Demokratische Partei
@@ -59,7 +51,6 @@ names:
       - FDP
       - Freie Demokraten
       - Liberale
-      - FDP-Fraktion
 
   - id: fw
     canonical_name: Freie Wähler
@@ -67,7 +58,6 @@ names:
     aliases:
       - FW
       - FREIE WÄHLER
-      - Freie-Wähler-Fraktion
 
   - id: afd
     canonical_name: Alternative für Deutschland
@@ -75,7 +65,6 @@ names:
     aliases:
       - AfD
       - Alternative fuer Deutschland
-      - AfD-Fraktion
 
   - id: volt
     canonical_name: Volt Deutschland
@@ -83,7 +72,6 @@ names:
     aliases:
       - Volt
       - VOLT
-      - Volt-Fraktion
 
   - id: ssw
     canonical_name: Südschleswigscher Wählerverband
