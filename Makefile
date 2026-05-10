@@ -1,21 +1,25 @@
 POETRY := poetry run
 
-.PHONY: help check lint typecheck security test coverage format generate clean install
+.PHONY: help check lint typecheck security test coverage format generate clean install \
+        secrets-scan secrets-update secrets-audit
 
 help:
 	@echo "Available targets:"
-	@echo "  check      Run all checks (lint, typecheck, poetry, tests)"
-	@echo "  lint       Run ruff linter and formatter check"
-	@echo "  typecheck  Run mypy"
-	@echo "  security   Run pip-audit"
-	@echo "  test       Run pytest"
-	@echo "  coverage   Run pytest with coverage report"
-	@echo "  format     Auto-fix lint issues and reformat"
-	@echo "  generate   Regenerate API models and client"
-	@echo "  clean      Remove build artifacts and caches"
-	@echo "  install    Install dev dependencies"
+	@echo "  check          Run all checks (lint, typecheck, poetry, tests)"
+	@echo "  lint           Run ruff linter and formatter check"
+	@echo "  typecheck      Run mypy"
+	@echo "  security       Run pip-audit"
+	@echo "  test           Run pytest"
+	@echo "  coverage       Run pytest with coverage report"
+	@echo "  format         Auto-fix lint issues and reformat"
+	@echo "  generate       Regenerate API models and client"
+	@echo "  clean          Remove build artifacts and caches"
+	@echo "  install        Install dev dependencies"
+	@echo "  secrets-scan   Scan for secrets using baseline (non-zero exit if new secrets found)"
+	@echo "  secrets-update Create or update the .secrets.baseline file"
+	@echo "  secrets-audit  Interactively audit the .secrets.baseline file"
 
-check: lint typecheck security
+check: lint typecheck secrets-scan security
 	poetry check
 	$(POETRY) pytest -v
 
@@ -54,3 +58,13 @@ clean:
 
 install:
 	poetry install --with dev
+
+secrets-scan:
+	$(POETRY) detect-secrets scan --baseline .secrets.baseline
+
+secrets-update:
+	$(POETRY) detect-secrets scan --update .secrets.baseline || \
+	  $(POETRY) detect-secrets scan > .secrets.baseline
+
+secrets-audit:
+	$(POETRY) detect-secrets audit .secrets.baseline
