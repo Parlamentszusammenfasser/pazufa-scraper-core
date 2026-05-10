@@ -14,7 +14,9 @@ _RE_LATIN_EXT_B = re.compile(r"[\u0180-\u024f]")
 _RE_C1_CONTROLS = re.compile(r"[\x80-\x9f]")
 
 # Zero-width and invisible characters: soft hyphen, BOM, ZWJ, ZWNJ, ZWSP
-_RE_INVISIBLE = re.compile(r"[\u00ad\u200b\u200c\u200d\ufeff]")
+_RE_INVISIBLE = re.compile(
+    r"[\x00-\x08\x0b\x0c\x0e-\x1f\u00ad\u200b\u200c\u200d\ufeff\ufffd]"
+)
 
 # Hyphenated line breaks: word-char, hyphen, newline, word-char
 _RE_HYPHEN_BREAK = re.compile(r"(\w)-\n(\w)")

@@ -123,10 +123,10 @@ def _canonicalize_names(
     key_to_author: dict[str, tuple[str, str]],
     cutoff: float = _FUZZY_MATCH_THRESHOLD,
 ) -> list[AuthorIDResolution]:
-    """
-    Canonicalizes a list of raw names by matching them against a list of canonical keys
-    using fuzzy string matching. Associates each resolved name with an author ID and
-    canonical name from a provided mapping.
+    """Canonicalize raw names using fuzzy matching against canonical keys.
+
+    Associates each resolved name with an author ID and canonical name
+    from a provided mapping.
 
     Args:
         raw_names: A list of strings representing the raw names to be resolved.
@@ -134,7 +134,7 @@ def _canonicalize_names(
         key_to_author: A dictionary mapping canonical keys to a tuple containing
             the associated author ID and canonical name.
         cutoff: A float threshold for fuzzy matching scores, below which matches
-            are considered invalid. Default value is determined by _FUZZY_MATCH_THRESHOLD.
+            are considered invalid. Defaults to _FUZZY_MATCH_THRESHOLD.
 
     Returns:
         A list of AuthorIDResolution objects, each representing the resolution of a
@@ -287,8 +287,7 @@ class AuthorResolver:
     def canonicalize_authors(
         self, queries: list[str], strict: bool = False
     ) -> list[str | None]:
-        """
-        Canonicalizes a list of author names to their standardized forms.
+        """Canonicalizes a list of author names to their standardized forms.
 
         This function resolves the provided list of author names into their
         canonical forms. It supports a strict matching mode, where unresolved
@@ -316,10 +315,10 @@ class AuthorResolver:
         if strict:
             result: list[str | None] = [
                 r.canonical_name if r.matched else None for r in resolved
-        ]
+            ]
             unresolved: int = sum(1 for r in result if r is None)
 
-            if unresolved > 0 :
+            if unresolved > 0:
                 LOGGER.warning(
                     "Set %d unresolved author names to None (strict=True)",
                     unresolved,
@@ -330,25 +329,20 @@ class AuthorResolver:
         return [r.canonical_name for r in resolved]
 
     def canonicalize_author(self, query: str, strict: bool = False) -> str | None:
-        """
-        Resolves and returns the canonical name of an author based on the input query.
+        """Resolve and return the canonical name of an author based on the query.
 
-        This method attempts to resolve an author's name to a canonical form using an internal
-        resolver. If a match is found, the resolved canonical name is returned. If no match is
-        found, the behavior depends on the `strict` parameter. If `strict` is True, the method
-        returns `None`. If `strict` is False, the original name provided in the `query` is
-        returned.
+        Attempts to resolve the author's name to a canonical form. Returns the
+        canonical name if found. If unresolved, returns None when strict=True,
+        otherwise returns the original query.
 
         Args:
             query (str): The name of the author to resolve.
-            strict (bool, optional): Controls the behavior when the author cannot be resolved.
-                If True, the method returns `None` for unresolved authors. If False, the
-                original name is returned. Defaults to False.
+            strict (bool, optional): If True, returns None for unresolved authors.
+                Defaults to False.
 
         Returns:
-            str | None: The canonical name of the author if resolution is successful. Returns
-            `None` if the author cannot be resolved and `strict` is True. Otherwise, returns
-            the original input `query`.
+            str | None: Canonical name if resolved; None if unresolved and
+            strict=True; original query otherwise.
         """
         resolved = self.resolve(query)
 
@@ -903,11 +897,11 @@ class OrganizationResolver:
         return [r.canonical_name for r in resolved]
 
     def canonicalize_organization(self, query: str, strict: bool = False) -> str | None:
-        """
-        Canonicalizes the given organization name by attempting to resolve it to a
-        standard canonical name. If the organization is unresolved and strict mode
-        is enabled, returns None. Otherwise, returns either the canonical name or
-        the original name if unresolved.
+        """Canonicalize the given organization name to its standard form.
+
+        Attempts to resolve to a canonical name. Returns None if unresolved
+        and strict mode is enabled, otherwise returns the canonical name or
+        the original name.
 
         Args:
             query (str): The name of the organization to be resolved.

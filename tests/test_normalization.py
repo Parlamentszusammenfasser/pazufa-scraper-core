@@ -934,7 +934,7 @@ class TestOrganisationResolver:
         assert not results[1].matched
 
     def test_changed_flag(self, resolver: OrganizationResolver) -> None:
-        r = resolver.resolve("SPD-Fraktion")
+        r = resolver.resolve("SPD")
         assert r.matched
         assert r.changed
 

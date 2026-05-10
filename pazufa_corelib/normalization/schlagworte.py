@@ -532,7 +532,7 @@ class SchlagwortResolver:
         """
         return sachgebiet_nummer in self._sachgebiete_number_to_id
 
-    def canonicalise_sachgebiete(self, sachgebiet_ids: list[str]) -> list[str] | None:
+    def canonicalise_sachgebiete(self, sachgebiet_ids: list[str]) -> list[str]:
         """Canonicalise a list of Sachgebiet IDs against the known vocabulary.
 
         Unmatched IDs are dropped (strict mode).
@@ -550,10 +550,6 @@ class SchlagwortResolver:
             cutoff=self._match_threshold,
             near_tie_epsilon=self._near_tie_epsilon,
         )
-
-
-
-
 
         return [r.resolved_id for r in resolved_ids]
 

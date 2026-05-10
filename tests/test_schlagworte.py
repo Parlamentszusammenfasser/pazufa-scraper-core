@@ -739,7 +739,9 @@ class TestCanonicaliseTag:
     def test_fuzzy_match_returns_canonical_id(
         self, patched_resolver: SchlagwortResolver
     ) -> None:
-        assert patched_resolver.canonicalise_tag("Digitalisierungs") == "Digitalisierung"
+        assert (
+            patched_resolver.canonicalise_tag("Digitalisierungs") == "Digitalisierung"
+        )
 
     def test_unknown_tag_non_strict_returns_original(
         self, patched_resolver: SchlagwortResolver
