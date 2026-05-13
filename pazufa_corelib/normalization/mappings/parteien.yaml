@@ -1,131 +1,93 @@
 names:
   - id: cdu
-    canonical_name: Christlich Demokratische Union Deutschlands
+    canonical_name: CDU
     acronym: CDU
     aliases:
-      - CDU
+      - Christlich Demokratische Union Deutschlands
       - CDU/CSU
       - Christdemokraten
 
   - id: csu
-    canonical_name: Christlich-Soziale Union in Bayern
+    canonical_name: CSU
     acronym: CSU
     aliases:
       - CSU
       - Christlich-Soziale Union
 
   - id: spd
-    canonical_name: Sozialdemokratische Partei Deutschlands
+    canonical_name: SPD
     acronym: SPD
     aliases:
       - SPD
       - Sozialdemokraten
+      - Sozialdemokratische Partei Deutschlands
 
   - id: gruene
-    canonical_name: Bündnis 90/Die Grünen
+    canonical_name: GRÜNE
     acronym: GRÜNE
     aliases:
-      - Grüne
       - Die Grünen
       - Bündnis 90
       - B90/Grüne
+      - Bündnis 90/Die Grünen
 
   - id: bsw
-    canonical_name: Bündnis Sahra Wagenknecht
+    canonical_name: BSW
     acronym: BSW
     aliases:
       - BSW
+      - Bündnis Sahra Wagenknecht
       - Bündnis Sahra Wagenknecht – Vernunft und Gerechtigkeit
 
   - id: linke
-    canonical_name: Die Linke
+    canonical_name: LINKE
     acronym: LINKE
     aliases:
       - Linke
       - Die Linke.
 
   - id: fdp
-    canonical_name: Freie Demokratische Partei
+    canonical_name: FDP
     acronym: FDP
     aliases:
       - FDP
       - Freie Demokraten
       - Liberale
+      - Freie Demokratische Partei
 
   - id: fw
-    canonical_name: Freie Wähler
-    acronym: FW
+    canonical_name: FREIE WÄHLER
+    acronym: FREIE WÄHLER
     aliases:
       - FW
-      - FREIE WÄHLER
+      - Freie Wähler
 
   - id: afd
-    canonical_name: Alternative für Deutschland
+    canonical_name: AFD
     acronym: AfD
     aliases:
       - AfD
-      - Alternative fuer Deutschland
-
-  - id: volt
-    canonical_name: Volt Deutschland
-    acronym: Volt
-    aliases:
-      - Volt
-      - VOLT
+      - Alternative für Deutschland
 
   - id: ssw
-    canonical_name: Südschleswigscher Wählerverband
+    canonical_name: SSW
     acronym: SSW
     aliases:
       - SSW
       - Südschleswigscher Wählerverband
 
-  - id: die-partei
-    canonical_name: Partei für Arbeit, Rechtsstaat, Tierschutz, Elitenförderung und basisdemokratische Initiative
-    acronym: PARTEI
-    aliases:
-      - Die PARTEI
-      - PARTEI
-
-  - id: familien-partei
-    canonical_name: Familien-Partei Deutschlands
-    acronym: FAMILIE
-    aliases:
-      - FAMILIE
-      - Familienpartei
-      - Familien-Partei
-
-  - id: oedp
-    canonical_name: Ökologisch-Demokratische Partei
-    acronym: ÖDP
-    aliases:
-      - ÖDP
-      - OeDP
-      - Öko-Demokraten
-
-  - id: pdf
-    canonical_name: Partei des Fortschritts
-    acronym: PDF
-    aliases:
-      - PDF
-
-  - id: tierschutzpartei
-    canonical_name: Partei Mensch Umwelt Tierschutz
-    acronym: Tierschutzpartei
-    aliases:
-      - Tierschutzpartei
-      - PMUT
 
   - id: buendnis-deutschland
-    canonical_name: Bündnis Deutschland
+    canonical_name: BÜNDNIS DEUTSCHLAND
     acronym: BÜNDNIS DEUTSCHLAND
     aliases:
       - Bündnis Deutschland
       - BÜNDNIS DEUTSCHLAND
 
   - id: werteunion
-    canonical_name: Werteunion
+    canonical_name: WU
     acronym: WU
     aliases:
       - WU
       - Werte Union
+      - Werteunion
