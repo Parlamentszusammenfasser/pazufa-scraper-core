@@ -17,16 +17,18 @@ import sys
 from pathlib import Path
 
 from pazufa_corelib.names_model import Organization, OrganizationFile
+from pazufa_corelib.normalization import AUTHORS_FILES
 from pazufa_corelib.normalization.names import (
     _COSINE_MATCH_THRESHOLD,
     _COSINE_NEAR_TIE_EPSILON,
     OrganizationResolver,
+    ORGANIZATIONS_FILES,
 )
 
 
 def yaml_validator_organizations(
     yaml_testfile: Path,
-    extra_files: list[Path] | None = None,
+    files: list[Path] | None = None,
     match_threshold: float = _COSINE_MATCH_THRESHOLD,
     near_tie_epsilon: float = _COSINE_NEAR_TIE_EPSILON,
 ) -> None:
@@ -49,14 +51,14 @@ def yaml_validator_organizations(
     Checks 1 and 2 are hard errors that raise ``ValueError``. Check 3 produces
     a warning; the caller decides whether the similarity is acceptable.
 
-    If *yaml_testfile* appears in *extra_files* it is removed automatically to
+    If *yaml_testfile* appears in *files* it is removed automatically to
     prevent the new entries from matching against themselves.
 
     Args:
         yaml_testfile: Path to the YAML file to validate. Must follow the
             ``OrganizationFile`` schema (``names:`` list with ``id``,
             ``canonical_name``, optional ``acronym`` and ``aliases``).
-        extra_files: Additional YAML files passed to ``OrganizationResolver``
+        files: Additional YAML files passed to ``OrganizationResolver``
             on top of the global mappings. Useful when the new file depends on
             entries not yet in the global vocabulary.
         match_threshold: Cosine similarity threshold (0–100) forwarded to
@@ -74,14 +76,14 @@ def yaml_validator_organizations(
     warnings: list[str] = []
 
     # Copy to avoid mutating the caller's list; remove yaml_testfile if present
-    if extra_files and yaml_testfile in extra_files:
+    if files and yaml_testfile in files:
         print(
-            f"  ! '{yaml_testfile}' removed from extra_files to prevent false positives"
+            f"  ! '{yaml_testfile}' removed from files to prevent false positives"
         )
-    extra_files = [f for f in (extra_files or []) if f != yaml_testfile]
+    files = [f for f in (files or []) if f != yaml_testfile]
 
     org_resolver = OrganizationResolver(
-        extra_files=extra_files if extra_files else None,
+        files=files if files else ORGANIZATIONS_FILES,
         match_threshold=match_threshold,
         near_tie_epsilon=near_tie_epsilon,
     )
@@ -129,7 +131,7 @@ def yaml_validator_organizations(
     # Build a resolver from only the new entries and check each against the rest
     if len(test_organisations) > 1:
         intra_resolver = OrganizationResolver(
-            extra_files=[yaml_testfile],
+            files=[yaml_testfile],
             match_threshold=match_threshold,
             near_tie_epsilon=near_tie_epsilon,
         )
@@ -163,7 +165,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("yaml_testfile", type=Path, help="YAML file to validate")
     parser.add_argument(
-        "extra_files",
+        "files",
         type=Path,
         nargs="*",
         help="Additional YAML files merged into the resolver before validation",
@@ -188,7 +190,7 @@ if __name__ == "__main__":
     try:
         yaml_validator_organizations(
             args.yaml_testfile,
-            extra_files=args.extra_files or None,
+            files=args.files or None,
             match_threshold=args.match_threshold,
             near_tie_epsilon=args.near_tie_epsilon,
         )

@@ -20,12 +20,13 @@ from pazufa_corelib.names_model import Author, AuthorFile
 from pazufa_corelib.normalization.names import (
     _FUZZY_MATCH_THRESHOLD,
     AuthorResolver,
+    AUTHORS_FILES,
 )
 
 
 def yaml_validator_authors(
     yaml_testfile: Path,
-    extra_files: list[Path] | None = None,
+    files: list[Path] | None = None,
     match_threshold: float = _FUZZY_MATCH_THRESHOLD,
 ) -> None:
     """Validate a candidate author YAML file against the existing vocabulary.
@@ -47,14 +48,14 @@ def yaml_validator_authors(
     Checks 1 and 2 are hard errors that raise ``ValueError``. Check 3 produces
     a warning; the caller decides whether the similarity is acceptable.
 
-    If *yaml_testfile* appears in *extra_files* it is removed automatically to
+    If *yaml_testfile* appears in *files* it is removed automatically to
     prevent the new entries from matching against themselves.
 
     Args:
         yaml_testfile: Path to the YAML file to validate. Must follow the
             ``AuthorFile`` schema (``names:`` list with ``id``,
             ``canonical_name``, optional ``aliases``).
-        extra_files: Additional YAML files passed to ``AuthorResolver``
+        files: Additional YAML files passed to ``AuthorResolver``
             on top of the global mappings. Useful when the new file depends on
             entries not yet in the global vocabulary.
         match_threshold: Fuzzy similarity threshold (0–100) forwarded to
@@ -70,14 +71,14 @@ def yaml_validator_authors(
     warnings: list[str] = []
 
     # Copy to avoid mutating the caller's list; remove yaml_testfile if present
-    if extra_files and yaml_testfile in extra_files:
+    if files and yaml_testfile in files:
         print(
-            f"  ! '{yaml_testfile}' removed from extra_files to prevent false positives"
+            f"  ! '{yaml_testfile}' removed from files to prevent false positives"
         )
-    extra_files = [f for f in (extra_files or []) if f != yaml_testfile]
+    files = [f for f in (files or []) if f != yaml_testfile]
 
     author_resolver = AuthorResolver(
-        extra_files=extra_files if extra_files else None,
+        files=files if files else AUTHORS_FILES,
         match_threshold=match_threshold,
     )
     print("AuthorResolver initialized")
@@ -123,7 +124,7 @@ def yaml_validator_authors(
     # Build a resolver from only the new entries and check each against the rest
     if len(test_authors) > 1:
         intra_resolver = AuthorResolver(
-            extra_files=[yaml_testfile],
+            files=[yaml_testfile],
             match_threshold=match_threshold,
         )
         canonical_names = [author.canonical_name for author in test_authors]
@@ -157,7 +158,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("yaml_testfile", type=Path, help="YAML file to validate")
     parser.add_argument(
-        "extra_files",
+        "files",
         type=Path,
         nargs="*",
         help="Additional YAML files merged into the resolver before validation",
@@ -175,7 +176,7 @@ if __name__ == "__main__":
     try:
         yaml_validator_authors(
             args.yaml_testfile,
-            extra_files=args.extra_files or None,
+            files=args.files or None,
             match_threshold=args.match_threshold,
         )
     except (ValueError, FileNotFoundError) as exc:
