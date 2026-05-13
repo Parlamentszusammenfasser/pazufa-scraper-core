@@ -6,6 +6,7 @@ from typing import Optional, Self, Sequence
 import yaml
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     FilePath,
     ValidationError,
@@ -59,14 +60,13 @@ class BaseName(BaseModel):
 class Author(BaseName):
     """Model for a single author (person) entry."""
 
-    pass
+    model_config = ConfigDict(extra="forbid")
 
 
 class Organization(BaseName):
     """Model for a single organization entry."""
 
     acronym: Optional[str] = Field(
-        default=None,
         description="Optional short-form abbreviation, e.g. 'BMF'",
     )
 

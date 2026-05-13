@@ -25,7 +25,7 @@ import random
 from collections.abc import Callable
 
 from pazufa_corelib.normalization.schlagworte import (
-    SACHGEBIETE_FILES,
+    _SACHGEBIETE_FILES,
     SchlagwortResolver,
 )
 from pazufa_corelib.schlagworte_model import SachgebietFile
@@ -171,7 +171,7 @@ def _make_big_errors(rng: random.Random) -> list[Perturbation]:
 def load_sachgebiet_ids() -> list[str]:
     """Load all Sachgebiet IDs from ``SACHGEBIETE_FILES``."""
     ids: list[str] = []
-    for path in SACHGEBIETE_FILES:
+    for path in _SACHGEBIETE_FILES:
         ids.extend(s.id for s in SachgebietFile.from_path(path).tags)
     return ids
 

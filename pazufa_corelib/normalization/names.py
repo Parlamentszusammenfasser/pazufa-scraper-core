@@ -25,13 +25,13 @@ from pazufa_corelib.normalization.text import normalize_name_key
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
 
-AUTHORS_FILES: list[Path] = [MAPPINGS_DIR / "authors.yaml"]
+AUTHORS_FILES: tuple[Path, ...] = (MAPPINGS_DIR / "authors.yaml",)
 """Canonical list of paths to the global author files."""
 
-ORGANIZATIONS_FILES: list[Path] = [
+ORGANIZATIONS_FILES: tuple[Path, ...] = (
     MAPPINGS_DIR / "parteien.yaml",
     MAPPINGS_DIR / "organizations.yaml",
-]
+)
 """Canonical list of paths to the global organization files."""
 
 # Sentinel score for exact matches — not a tunable cutoff. Lets callers
@@ -95,21 +95,21 @@ def normalize_name(raw: str) -> str:
     return " ".join(tokens)
 
 
-def _load_authors(extra_files: list[Path] | None = None) -> list[Author]:
-    """Load and merge authors from the global file and any extra files.
+def _load_authors(files: list[Path] | tuple[Path, ...] = AUTHORS_FILES) -> list[Author]:
+    """Loads authors from the specified files and returns a list of unique authors.
 
-    Files are merged in order; later entries override earlier ones on
-    ID collision.
+    Parses the provided files to retrieve author information, consolidates them into
+    unique entries based on their IDs, and returns a list of `Author` objects.
 
     Args:
-        extra_files: Optional additional YAML files merged on top of the
-            global author mapping.
+        files (list[Path] | tuple[Path, ...], optional): A list or tuple of file
+            paths to be parsed for author information. Defaults to
+            `AUTHORS_FILES`.
 
     Returns:
-        Deduplicated list of :class:`~pazufa_corelib.names_model.Author`
-        objects keyed by ``id``.
+        list[Author]: A list of unique `Author` objects extracted from the
+        provided files.
     """
-    files = AUTHORS_FILES + (extra_files or [])
     author_map: dict[str, Author] = {}
     for path in files:
         for author in AuthorFile.from_path(path).names:
@@ -122,6 +122,7 @@ def _canonicalize_names(
     canonical_keys: list[str],
     key_to_author: dict[str, tuple[str, str]],
     cutoff: float = _FUZZY_MATCH_THRESHOLD,
+    near_tie_epsilon: float = _NEAR_TIE_EPSILON,
 ) -> list[AuthorIDResolution]:
     """Canonicalize raw names using fuzzy matching against canonical keys.
 
@@ -148,7 +149,7 @@ def _canonicalize_names(
         processor=None,  # callers pre-normalize; avoid double work
         cutoff=cutoff,
         strict=False,
-        near_tie_epsilon=_NEAR_TIE_EPSILON,
+        near_tie_epsilon=near_tie_epsilon,
     )
     result: list[AuthorIDResolution] = []
     for original, resolved_key, score in pairs:
@@ -180,28 +181,35 @@ def _canonicalize_names(
 
 
 class AuthorResolver:
-    """Resolves raw author name strings to canonical author information.
-
-    Loads the global author YAML and any caller-supplied extra files,
-    builds a normalized-key lookup, and resolves queries via exact match
-    first, then rapidfuzz ``WRatio`` fuzzy matching.
-
-    Args:
-        extra_files: Optional additional author YAML files merged on top
-            of the global mapping. Later files override earlier entries
-            on ID collision.
-        match_threshold: Minimum ``WRatio`` score for a fuzzy match to be
-            accepted. Scores below this threshold are treated as no match.
-            Defaults to :data:`_FUZZY_MATCH_THRESHOLD`.
     """
+    This class provides functionality to resolve author names to their canonical forms.
+    It supports both exact and fuzzy matching to determine if a provided author name
+    or alias exists, and can retrieve or canonicalize author data.
 
+    The `AuthorResolver` is initialized with a predefined list of author records
+    loaded from files. It uses these records to normalize and standardize author
+    names, enabling flexible queries and efficient lookups.
+
+    Attributes:
+        files (list[Path] | tuple[Path, ...]): List of file paths from which author
+            data is loaded, defaulting to `AUTHORS_FILES`. Later loaded files override
+            previous ones in ID collision.
+        match_threshold (float): The cutoff score used to determine when a fuzzy match
+            is considered acceptable for resolving author names.
+    """
     def __init__(
         self,
-        extra_files: list[Path] | None = None,
+        files: list[Path]| tuple[Path,...] = AUTHORS_FILES,
         match_threshold: float = _FUZZY_MATCH_THRESHOLD,
+        near_tie_epsilon: float = _NEAR_TIE_EPSILON,
     ) -> None:
+
+        if not files:
+            raise ValueError("No vocabulary files specified for AuthorResolver")
+
         self._match_threshold = match_threshold
-        self._authors: list[Author] = _load_authors(extra_files)
+        self._authors: list[Author] = _load_authors(files)
+        self._near_tie_epsilon = near_tie_epsilon
 
         # normalized key → (id, canonical_name)
         self._key_to_author: dict[str, tuple[str, str]] = {}
@@ -218,7 +226,7 @@ class AuthorResolver:
             LOGGER.debug(
                 "AuthorResolver initialised",
                 extra={
-                    "extra_file_count": len(extra_files) if extra_files else 0,
+                    "extra_file_count": len(files),
                     "author_count": len(self._authors),
                     "canonical_key_count": len(self._canonical_keys),
                     "key_to_author_bytes": sys.getsizeof(self._key_to_author),
@@ -464,7 +472,8 @@ class AuthorResolver:
                     fuzzy_keys,
                     self._canonical_keys,
                     self._key_to_author,
-                    cutoff=self._match_threshold,
+                    self._match_threshold,
+                    self._near_tie_epsilon,
                 )
                 for j, i in enumerate(fuzzy_idxs):
                     r = resolved[j]
@@ -509,7 +518,7 @@ class AuthorResolver:
             "normalized_key": normalized_key,
             "exact_hit": False,
             "threshold": self._match_threshold,
-            "near_tie_epsilon": _NEAR_TIE_EPSILON,
+            "near_tie_epsilon": self._near_tie_epsilon,
             "top_k": [],
         }
 
@@ -641,7 +650,9 @@ def _build_matrix(
 # =====================================================================
 
 
-def _load_organizations(extra_files: list[Path] | None = None) -> list[Organization]:
+def _load_organizations(
+        files: list[Path] | tuple[Path, ...] = ORGANIZATIONS_FILES
+) -> list[Organization]:
     """Load and merge organizations from the global file and any extra files.
 
     Files are merged in order; later entries override earlier ones on
@@ -655,7 +666,6 @@ def _load_organizations(extra_files: list[Path] | None = None) -> list[Organizat
         Deduplicated list of :class:`~pazufa_corelib.names_model.Organization`
         objects keyed by ``id``.
     """
-    files = ORGANIZATIONS_FILES + (extra_files or [])
     org_map: dict[str, Organization] = {}
     for path in files:
         for org in OrganizationFile.from_path(path).names:
@@ -676,7 +686,7 @@ class OrganizationResolver:
     single-query and batch resolution.
 
     Args:
-        extra_files: Optional additional organization YAML files merged on
+        files: Optional additional organization YAML files merged on
             top of the global mapping. Later files override earlier entries
             on ID collision.
         match_threshold: Minimum cosine score (0–100 scale) a fuzzy match
@@ -689,11 +699,16 @@ class OrganizationResolver:
 
     def __init__(
         self,
-        extra_files: list[Path] | None = None,
+        files: list[Path] | tuple[Path, ...] = ORGANIZATIONS_FILES,
         match_threshold: float = _COSINE_MATCH_THRESHOLD,
         near_tie_epsilon: float = _COSINE_NEAR_TIE_EPSILON,
     ) -> None:
-        self._organizations: list[Organization] = _load_organizations(extra_files)
+        if not files:
+            raise ValueError("No vocabulary files specified for OrganizationResolver")
+
+
+        # Attribut declaration from parameters
+        self._organizations: list[Organization] = _load_organizations(files)
         self._match_threshold: float = match_threshold
         self._near_tie_epsilon: float = near_tie_epsilon
 
@@ -726,7 +741,7 @@ class OrganizationResolver:
             LOGGER.debug(
                 "OrganizationResolver initialised",
                 extra={
-                    "extra_file_count": len(extra_files) if extra_files else 0,
+                    "extra_file_count": len(files) if files else 0,
                     "organization_count": len(self._organizations),
                     "canonical_key_count": len(self._canonical_keys),
                     "vocab_size": len(self._vocab),

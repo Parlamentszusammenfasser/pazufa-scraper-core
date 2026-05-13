@@ -33,10 +33,10 @@ from pazufa_corelib.schlagworte_model import (
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
 
-GLOBAL_TAGS_FILES: list[Path] = [MAPPINGS_DIR.joinpath("global_tags.yaml")]
-"""Constant list of the paths to the global tag files."""
-SACHGEBIETE_FILES: list[Path] = [MAPPINGS_DIR.joinpath("sachgebiete.yaml")]
-"""Constant list of the paths to the sachgebiet files."""
+_GLOBAL_TAGS_FILES: tuple[Path,...] = (MAPPINGS_DIR.joinpath("global_tags.yaml"),)
+"""Constant tuple of the paths to the global tag files."""
+_SACHGEBIETE_FILES: tuple[Path,...] = (MAPPINGS_DIR.joinpath("sachgebiete.yaml"),)
+"""Constant tuple of the paths to the sachgebiet files."""
 
 LOGGER = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ _RE_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 def _load_global_tag_ids() -> set[str]:
     """Load the canonical tag IDs from all global tag files."""
     return {
-        tag.id for path in GLOBAL_TAGS_FILES for tag in TagFile.from_path(path).tags
+        tag.id for path in _GLOBAL_TAGS_FILES for tag in TagFile.from_path(path).tags
     }
 
 
@@ -156,11 +156,11 @@ def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
                 description=tag.description,
             )
 
-    for path in GLOBAL_TAGS_FILES:
+    for path in _GLOBAL_TAGS_FILES:
         for tag in TagFile.from_path(path).tags:
             tag_list[tag.id] = tag
 
-    for path in SACHGEBIETE_FILES:  # last-write-wins
+    for path in _SACHGEBIETE_FILES:  # last-write-wins
         for sachgebiet in SachgebietFile.from_path(path).tags:
             tag_list[sachgebiet.id] = Tag.model_construct(
                 id=sachgebiet.id,
@@ -179,7 +179,7 @@ def _load_sachgebiete() -> list[Sachgebiet]:
     sachgebiet_list: dict[str, Sachgebiet] = {}
     number_index: dict[int, tuple[str, Path]] = {}  # number -> (id, source path)
 
-    for path in SACHGEBIETE_FILES:
+    for path in _SACHGEBIETE_FILES:
         sachgebiet_file = SachgebietFile.from_path(path)
         for sachgebiet in sachgebiet_file.tags:
             if sachgebiet.number in number_index:

@@ -4,7 +4,6 @@ names:
     acronym: CDU
     aliases:
       - Christlich Demokratische Union Deutschlands
-      - CDU/CSU
       - Christdemokraten
 
   - id: csu
@@ -13,6 +12,12 @@ names:
     aliases:
       - CSU
       - Christlich-Soziale Union
+
+  - id: cdu-csu
+    canonical_name: CDU/CSU
+    acronym: CDU/CSU
+    aliases:
+      - Unionsparteien
 
   - id: spd
     canonical_name: SPD

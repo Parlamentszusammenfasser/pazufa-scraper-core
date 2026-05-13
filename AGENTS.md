@@ -127,8 +127,14 @@ Exceptions — no docstring required for:
 `AuthorResolver` and `OrganizationResolver` both normalize via `normalize_name` (honorific stripping + umlaut fold + token sort) before matching. Both support:
 
 - **Exact lookup** (normalized key index) before falling back to fuzzy/cosine matching
-- **Constructor cutoff params**: `AuthorResolver(fuzzy_cutoff=…)`, `OrganizationResolver(match_threshold=…, near_tie_epsilon=…)`
+- **Constructor params**: `AuthorResolver(files=[…], match_threshold=…)`, `OrganizationResolver(files=[…], match_threshold=…, near_tie_epsilon=…)`
 - Use `OrganizationResolver.explain(query, k=5)` to trace resolution candidates for debugging
+
+### Organization file structure
+
+`Organization.acronym` is a required field (never has a default). Every entry in an org YAML must declare it — use `acronym:` (bare key) for entries without an abbreviation. `Author` rejects extra fields (`extra="forbid"`). Together these make loading the wrong file type a hard `ValidationError` rather than a silent no-op.
+
+Party entries in `parteien.yaml` use the short acronym as `canonical_name` (e.g. `CDU`, `SPD`). CDU, CSU, and the CDU/CSU Fraktion are three distinct entries (`cdu`, `csu`, `cdu-csu`).
 
 ### Experimental functions
 

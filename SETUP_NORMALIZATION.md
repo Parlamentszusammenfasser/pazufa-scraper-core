@@ -55,7 +55,7 @@ names:
 from pathlib import Path
 from pazufa_corelib.normalization import AuthorResolver
 
-resolver = AuthorResolver(extra_files=[Path("my_authors.yaml")])
+resolver = AuthorResolver(files=[Path("my_authors.yaml")])
 ```
 
 Later files override earlier ones when IDs collide, so you can use an extra file to override a built-in entry.
@@ -65,6 +65,8 @@ Later files override earlier ones when IDs collide, so you can use an extra file
 ## Organisationen
 
 Organizations are split across two built-in files (`parteien.yaml` for political parties, `organizations.yaml` for everything else) and merged in that order. Extra files are appended after both.
+
+**Built-in party entries** (`parteien.yaml`) use the short acronym as both `canonical_name` and `acronym`. CDU, CSU, and the parliamentary CDU/CSU Fraktion are separate entries (`cdu`, `csu`, `cdu-csu`).
 
 ### YAML format
 
@@ -84,13 +86,20 @@ names:
     aliases:
       - LBBW
       - Landesbank BW
+
+  - id: some-org-without-acronym
+    canonical_name: Irgendeine Organisation
+    acronym:
+    aliases: []
 ```
+
+> **`acronym` is required** — every entry must declare it. Use `acronym:` (bare key, YAML null) for entries without an abbreviation. Omitting the key entirely raises a validation error at load time.
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Unique slug — same rules as for authors. |
 | `canonical_name` | yes | Display name used as the resolved output. |
-| `acronym` | no | Short-form abbreviation (e.g. `BMF`). Returned in resolution results and by `fuzzy_match_acronym`. Use `acronym:` (no value) or omit the field to leave it empty. |
+| `acronym` | yes | Short-form abbreviation (e.g. `BMF`), or `null` if none. Must always be present — write `acronym:` or `acronym: null` for entries without one. |
 | `aliases` | no | Alternative names and spellings. |
 
 **Matching notes:**
@@ -108,7 +117,7 @@ names:
 from pathlib import Path
 from pazufa_corelib.normalization import OrganizationResolver
 
-resolver = OrganizationResolver(extra_files=[Path("my_orgs.yaml")])
+resolver = OrganizationResolver(files=[Path("my_orgs.yaml")])
 ```
 
 ---
@@ -249,11 +258,11 @@ For manual spot-checks after loading, use `resolve` / `explain`:
 from pathlib import Path
 from pazufa_corelib.normalization import AuthorResolver, OrganizationResolver
 
-author_resolver = AuthorResolver(extra_files=[Path("my_authors.yaml")])
+author_resolver = AuthorResolver(files=[Path("my_authors.yaml")])
 r = author_resolver.resolve("Dr. Maria Müller")
 print(r.resolved_id, r.canonical_name, r.score)
 
-org_resolver = OrganizationResolver(extra_files=[Path("my_orgs.yaml")])
+org_resolver = OrganizationResolver(files=[Path("my_orgs.yaml")])
 print(org_resolver.explain("Finanzministerium", k=3))
 ```
 
