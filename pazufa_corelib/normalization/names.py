@@ -7,6 +7,7 @@ import warnings
 from pathlib import Path
 from typing import Any
 
+
 import numpy as np
 from rapidfuzz import fuzz, process
 
@@ -173,6 +174,40 @@ def _canonicalize_names(
                 )
             )
     return result
+
+# =====================================================================
+# File Configuration helpers
+# =====================================================================
+
+def default_author_files() -> dict[str, Path]:
+    """
+    Generates a dict of default author filenames and their corresponding file paths.
+
+    This function iterates through a collection of author-related files
+    and creates a mapping where the keys are the stem of each file (the
+    filename without its extension) and the values are the full file paths.
+
+    Returns:
+        dict[str, Path]: A dictionary where keys are file stems and values
+        are corresponding file paths.
+    """
+    return {p.stem: p for p in AUTHORS_FILES}
+
+def default_organization_files() -> dict[str, Path]:
+    """
+    Generates a dict of default organization filenames and their corresponding file paths.
+
+    This function iterates through a collection of author-related files
+    and creates a mapping where the keys are the stem of each file (the
+    filename without its extension) and the values are the full file paths.
+
+    Returns:
+        dict[str, Path]: A dictionary where keys are file stems and values
+        are corresponding file paths.
+    """
+    return {p.stem: p for p in ORGANIZATIONS_FILES}
+
+
 
 
 # =====================================================================
@@ -1227,3 +1262,4 @@ def normalize_autor(
                     "author not resolvable",
                     extra={"raw": item.person, "score": person_resolution.score},
                 )
+
