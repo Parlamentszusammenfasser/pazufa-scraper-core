@@ -639,7 +639,9 @@ class TestAuthorResolver:
 
     def test_custom_near_tie_epsilon_stored(self) -> None:
         assert (
-            AuthorResolver(near_tie_epsilon=5.0).explain("Olaf Scholz")["near_tie_epsilon"]
+            AuthorResolver(near_tie_epsilon=5.0).explain("Olaf Scholz")[
+                "near_tie_epsilon"
+            ]
             == 5.0
         )
 
@@ -691,7 +693,9 @@ class TestAuthorResolver:
         assert r.matched
 
     def test_high_threshold_rejects_fuzzy(self) -> None:
-        assert not AuthorResolver(match_threshold=100.0).resolve("Helmut Schmitt").matched
+        assert (
+            not AuthorResolver(match_threshold=100.0).resolve("Helmut Schmitt").matched
+        )
 
     def test_default_threshold_accepts_fuzzy(self, resolver: AuthorResolver) -> None:
         r = resolver.resolve("Helmut Schmitt")
@@ -941,7 +945,9 @@ class TestOrganisationResolver:
 
     def test_custom_near_tie_epsilon_stored(self) -> None:
         assert (
-            OrganizationResolver(near_tie_epsilon=10.0).explain("SPD")["near_tie_epsilon"]
+            OrganizationResolver(near_tie_epsilon=10.0).explain("SPD")[
+                "near_tie_epsilon"
+            ]
             == 10.0
         )
 
@@ -967,7 +973,9 @@ class TestOrganisationResolver:
         assert r.resolved_id == "spd"
         assert r.score == 100.0
 
-    def test_exact_via_slash_normalisation(self, resolver: OrganizationResolver) -> None:
+    def test_exact_via_slash_normalisation(
+        self, resolver: OrganizationResolver
+    ) -> None:
         r = resolver.resolve("Bündnis 90 Die Grünen")
         assert r.resolved_id == "gruene"
         assert r.score == 100.0
@@ -1011,9 +1019,9 @@ class TestOrganisationResolver:
     def test_high_threshold_rejects_borderline(self) -> None:
         default = OrganizationResolver().resolve("Sozialdemokratische Partei")
         assert default.matched
-        strict = OrganizationResolver(
-            match_threshold=default.score + 1.0
-        ).resolve("Sozialdemokratische Partei")
+        strict = OrganizationResolver(match_threshold=default.score + 1.0).resolve(
+            "Sozialdemokratische Partei"
+        )
         assert not strict.matched
         assert strict.score == 0.0
 
@@ -1049,7 +1057,9 @@ class TestOrganisationResolver:
     # --- acronym on resolution result -------------------------------------
 
     def test_acronym_on_matched(self, resolver: OrganizationResolver) -> None:
-        assert resolver.resolve("Sozialdemokratische Partei Deutschlands").acronym == "SPD"
+        assert (
+            resolver.resolve("Sozialdemokratische Partei Deutschlands").acronym == "SPD"
+        )
 
     def test_acronym_none_on_unresolved(self, resolver: OrganizationResolver) -> None:
         assert resolver.resolve("Piratenpartei").acronym is None

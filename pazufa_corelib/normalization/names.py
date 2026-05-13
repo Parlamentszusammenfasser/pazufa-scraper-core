@@ -7,7 +7,6 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-
 import numpy as np
 from rapidfuzz import fuzz, process
 
@@ -137,6 +136,8 @@ def _canonicalize_names(
             the associated author ID and canonical name.
         cutoff: A float threshold for fuzzy matching scores, below which matches
             are considered invalid. Defaults to _FUZZY_MATCH_THRESHOLD.
+        near_tie_epsilon: Maximum score gap between best and second-best match that
+            triggers a near-tie warning. Defaults to _NEAR_TIE_EPSILON.
 
     Returns:
         A list of AuthorIDResolution objects, each representing the resolution of a
@@ -175,13 +176,14 @@ def _canonicalize_names(
             )
     return result
 
+
 # =====================================================================
 # File Configuration helpers
 # =====================================================================
 
+
 def default_author_files() -> dict[str, Path]:
-    """
-    Generates a dict of default author filenames and their corresponding file paths.
+    """Generates a dict of default author filenames and their corresponding file paths.
 
     This function iterates through a collection of author-related files
     and creates a mapping where the keys are the stem of each file (the
@@ -193,11 +195,11 @@ def default_author_files() -> dict[str, Path]:
     """
     return {p.stem: p for p in AUTHORS_FILES}
 
-def default_organization_files() -> dict[str, Path]:
-    """
-    Generates a dict of default organization filenames and their corresponding file paths.
 
-    This function iterates through a collection of author-related files
+def default_organization_files() -> dict[str, Path]:
+    """Generate a dict of default organization filenames and their file paths.
+
+    This function iterates through a collection of organization-related files
     and creates a mapping where the keys are the stem of each file (the
     filename without its extension) and the values are the full file paths.
 
@@ -208,33 +210,29 @@ def default_organization_files() -> dict[str, Path]:
     return {p.stem: p for p in ORGANIZATIONS_FILES}
 
 
-
-
 # =====================================================================
 # AuthorResolver
 # =====================================================================
 
 
 class AuthorResolver:
-    """
-    This class provides functionality to resolve author names to their canonical forms.
-    It supports both exact and fuzzy matching to determine if a provided author name
-    or alias exists, and can retrieve or canonicalize author data.
+    """Resolve raw author name strings to canonical author IDs.
 
-    The `AuthorResolver` is initialized with a predefined list of author records
-    loaded from files. It uses these records to normalize and standardize author
-    names, enabling flexible queries and efficient lookups.
+    Supports exact lookup (normalized key index) and fuzzy matching via
+    rapidfuzz WRatio. Both exact and fuzzy matches return the same
+    :class:`~pazufa_corelib.names_model.AuthorIDResolution` result type.
 
     Attributes:
         files (list[Path] | tuple[Path, ...]): List of file paths from which author
-            data is loaded, defaulting to `AUTHORS_FILES`. Later loaded files override
-            previous ones in ID collision.
-        match_threshold (float): The cutoff score used to determine when a fuzzy match
-            is considered acceptable for resolving author names.
+            data is loaded, defaulting to ``AUTHORS_FILES``. Later files override
+            earlier ones on ID collision.
+        match_threshold (float): Minimum fuzzy score a match must reach to be
+            returned as resolved.
     """
+
     def __init__(
         self,
-        files: list[Path]| tuple[Path,...] = AUTHORS_FILES,
+        files: list[Path] | tuple[Path, ...] = AUTHORS_FILES,
         match_threshold: float = _FUZZY_MATCH_THRESHOLD,
         near_tie_epsilon: float = _NEAR_TIE_EPSILON,
     ) -> None:
@@ -686,7 +684,7 @@ def _build_matrix(
 
 
 def _load_organizations(
-        files: list[Path] | tuple[Path, ...] = ORGANIZATIONS_FILES
+    files: list[Path] | tuple[Path, ...] = ORGANIZATIONS_FILES,
 ) -> list[Organization]:
     """Load and merge organizations from the global file and any extra files.
 
@@ -694,8 +692,8 @@ def _load_organizations(
     ID collision.
 
     Args:
-        extra_files: Optional additional YAML files merged on top of the
-            global organization mapping.
+        files: YAML files to load. Files are merged in order; later entries
+            override earlier ones on ID collision.
 
     Returns:
         Deduplicated list of :class:`~pazufa_corelib.names_model.Organization`
@@ -740,7 +738,6 @@ class OrganizationResolver:
     ) -> None:
         if not files:
             raise ValueError("No vocabulary files specified for OrganizationResolver")
-
 
         # Attribut declaration from parameters
         self._organizations: list[Organization] = _load_organizations(files)
@@ -1262,4 +1259,3 @@ def normalize_autor(
                     "author not resolvable",
                     extra={"raw": item.person, "score": person_resolution.score},
                 )
-

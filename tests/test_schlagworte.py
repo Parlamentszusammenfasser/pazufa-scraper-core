@@ -77,8 +77,8 @@ def patched_resolver(
     sachgebiete_yaml: Path,
 ) -> SchlagwortResolver:
     """A SchlagwortResolver backed by minimal fixture files instead of real mappings."""
-    monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-    monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+    monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+    monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
     return SchlagwortResolver()
 
 
@@ -417,8 +417,8 @@ class TestLocalTags:
         sachgebiete_yaml: Path,
         local_tags_yaml: Path,
     ) -> None:
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
         resolver = SchlagwortResolver(local_tags=[local_tags_yaml])
         assert resolver.check_tag("Lokales Thema")
 
@@ -435,8 +435,8 @@ class TestLocalTags:
             "tags:\n  - id: digitalisierung\n    description: lowercase variant\n",
             encoding="utf-8",
         )
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
         resolver = SchlagwortResolver(local_tags=[local])
         assert resolver.check_tag("Digitalisierung")
         assert not resolver.check_tag("digitalisierung")
@@ -458,8 +458,8 @@ class TestLocalTags:
             "tags:\n  - id: Thema\n    description: Local description\n",
             encoding="utf-8",
         )
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [global_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [global_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
         resolver = SchlagwortResolver(local_tags=[local_yaml])
         tag = next(t for t in resolver._tags if t.id == "Thema")
         assert tag.description == "Global description"
@@ -483,8 +483,8 @@ class TestLocalTags:
             "    description: Sachgebiet description\n",
             encoding="utf-8",
         )
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [global_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [global_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete])
         resolver = SchlagwortResolver()
         tag = next(t for t in resolver._tags if t.id == "Umwelt")
         assert tag.description == "Sachgebiet description"
@@ -504,8 +504,8 @@ class TestSchlagwortResolverMatchThreshold:
         tags_yaml: Path,
         sachgebiete_yaml: Path,
     ) -> None:
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
         resolver = SchlagwortResolver(match_threshold=75.0)
         trace = resolver.explain("Digitalisierung")
         assert trace["threshold"] == 75.0
@@ -517,8 +517,8 @@ class TestSchlagwortResolverMatchThreshold:
         sachgebiete_yaml: Path,
     ) -> None:
         """Threshold of 100 requires a post-normalization exact match."""
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
         resolver = SchlagwortResolver(match_threshold=100)
         # "Digitalisierungs" scores ~97 against "Digitalisierung" — below 100
         assert not resolver.fuzzy_check_tag("Digitalisierungs")
@@ -530,8 +530,8 @@ class TestSchlagwortResolverMatchThreshold:
         sachgebiete_yaml: Path,
     ) -> None:
         """Default threshold of 90 accepts a high-scoring near-match."""
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
         resolver = SchlagwortResolver()
         # "Digitalisierungs" scores ~97 against "Digitalisierung" — above 90
         assert resolver.fuzzy_check_tag("Digitalisierungs")
@@ -543,8 +543,8 @@ class TestSchlagwortResolverMatchThreshold:
         sachgebiete_yaml: Path,
     ) -> None:
         """Custom threshold also affects canonicalise_tags."""
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
         strict_resolver = SchlagwortResolver(match_threshold=100)
         # Non-exact input stays unchanged (unmatched, strict=False)
         result = strict_resolver.canonicalise_tags(["Digitalisierungs"])
@@ -564,8 +564,8 @@ class TestSchlagwortResolverNearTieEpsilon:
         tags_yaml: Path,
         sachgebiete_yaml: Path,
     ) -> None:
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [sachgebiete_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [sachgebiete_yaml])
         resolver = SchlagwortResolver(near_tie_epsilon=5.0)
         trace = resolver.explain("Digitalisierung")
         assert trace["near_tie_epsilon"] == 5.0
@@ -585,8 +585,8 @@ class TestSchlagwortResolverNearTieEpsilon:
         """
         two_tags = tmp_path / "two_tags.yaml"
         two_tags.write_text("tags:\n  - id: AB\n  - id: ABCDE\n", encoding="utf-8")
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [two_tags])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [two_tags])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [])
 
         resolver_default = SchlagwortResolver(match_threshold=70)
         with caplog.at_level(logging.WARNING):
@@ -719,8 +719,8 @@ class TestDuplicateSachgebietNumbers:
             "tags:\n  - id: Beta\n    number: 100\n    description: B\n",
             encoding="utf-8",
         )
-        monkeypatch.setattr(schlagworte_mod, "GLOBAL_TAGS_FILES", [tags_yaml])
-        monkeypatch.setattr(schlagworte_mod, "SACHGEBIETE_FILES", [file_a, file_b])
+        monkeypatch.setattr(schlagworte_mod, "_GLOBAL_TAGS_FILES", [tags_yaml])
+        monkeypatch.setattr(schlagworte_mod, "_SACHGEBIETE_FILES", [file_a, file_b])
         with pytest.raises(ValueError, match="Duplicate Sachgebiet number 100"):
             SchlagwortResolver()
 

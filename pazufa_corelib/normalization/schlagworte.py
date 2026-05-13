@@ -33,9 +33,9 @@ from pazufa_corelib.schlagworte_model import (
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
 
-_GLOBAL_TAGS_FILES: tuple[Path,...] = (MAPPINGS_DIR.joinpath("global_tags.yaml"),)
+_GLOBAL_TAGS_FILES: tuple[Path, ...] = (MAPPINGS_DIR.joinpath("global_tags.yaml"),)
 """Constant tuple of the paths to the global tag files."""
-_SACHGEBIETE_FILES: tuple[Path,...] = (MAPPINGS_DIR.joinpath("sachgebiete.yaml"),)
+_SACHGEBIETE_FILES: tuple[Path, ...] = (MAPPINGS_DIR.joinpath("sachgebiete.yaml"),)
 """Constant tuple of the paths to the sachgebiet files."""
 
 LOGGER = logging.getLogger(__name__)
