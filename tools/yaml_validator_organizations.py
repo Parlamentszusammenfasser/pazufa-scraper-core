@@ -17,12 +17,11 @@ import sys
 from pathlib import Path
 
 from pazufa_corelib.names_model import Organization, OrganizationFile
-from pazufa_corelib.normalization import AUTHORS_FILES
 from pazufa_corelib.normalization.names import (
     _COSINE_MATCH_THRESHOLD,
     _COSINE_NEAR_TIE_EPSILON,
-    OrganizationResolver,
     ORGANIZATIONS_FILES,
+    OrganizationResolver,
 )
 
 
@@ -77,9 +76,7 @@ def yaml_validator_organizations(
 
     # Copy to avoid mutating the caller's list; remove yaml_testfile if present
     if files and yaml_testfile in files:
-        print(
-            f"  ! '{yaml_testfile}' removed from files to prevent false positives"
-        )
+        print(f"  ! '{yaml_testfile}' removed from files to prevent false positives")
     files = [f for f in (files or []) if f != yaml_testfile]
 
     org_resolver = OrganizationResolver(

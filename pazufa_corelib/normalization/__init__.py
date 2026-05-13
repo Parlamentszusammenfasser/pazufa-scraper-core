@@ -7,7 +7,15 @@ from pazufa_corelib.names_model import (
 )
 
 from .hash import hash_bytes, hash_text
-from .names import AuthorResolver, OrganizationResolver, normalize_name,default_author_files,default_organization_files, AUTHORS_FILES, ORGANIZATIONS_FILES
+from .names import (
+    AUTHORS_FILES,
+    ORGANIZATIONS_FILES,
+    AuthorResolver,
+    OrganizationResolver,
+    default_author_files,
+    default_organization_files,
+    normalize_name,
+)
 from .text import normalize_datum, normalize_name_key, normalize_volltext
 from .urls import normalize_url
 
@@ -27,5 +35,5 @@ __all__ = [
     "normalize_url",
     "normalize_volltext",
     "AUTHORS_FILES",
-    "ORGANIZATIONS_FILES"
+    "ORGANIZATIONS_FILES",
 ]

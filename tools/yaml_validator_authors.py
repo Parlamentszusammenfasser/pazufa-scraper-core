@@ -19,8 +19,8 @@ from pathlib import Path
 from pazufa_corelib.names_model import Author, AuthorFile
 from pazufa_corelib.normalization.names import (
     _FUZZY_MATCH_THRESHOLD,
-    AuthorResolver,
     AUTHORS_FILES,
+    AuthorResolver,
 )
 
 
@@ -72,9 +72,7 @@ def yaml_validator_authors(
 
     # Copy to avoid mutating the caller's list; remove yaml_testfile if present
     if files and yaml_testfile in files:
-        print(
-            f"  ! '{yaml_testfile}' removed from files to prevent false positives"
-        )
+        print(f"  ! '{yaml_testfile}' removed from files to prevent false positives")
     files = [f for f in (files or []) if f != yaml_testfile]
 
     author_resolver = AuthorResolver(
