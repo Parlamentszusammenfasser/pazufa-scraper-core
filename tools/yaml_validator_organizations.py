@@ -79,8 +79,12 @@ def yaml_validator_organizations(
         print(f"  ! '{yaml_testfile}' removed from files to prevent false positives")
     files = [f for f in (files or []) if f != yaml_testfile]
 
+    if files is None:
+        warnings.append("No reference files passed; using default files.")
+        files = ORGANIZATIONS_FILES
+
     org_resolver = OrganizationResolver(
-        files=files if files else ORGANIZATIONS_FILES,
+        files=files,
         match_threshold=match_threshold,
         near_tie_epsilon=near_tie_epsilon,
     )

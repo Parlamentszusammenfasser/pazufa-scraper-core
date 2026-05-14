@@ -75,8 +75,12 @@ def yaml_validator_authors(
         print(f"  ! '{yaml_testfile}' removed from files to prevent false positives")
     files = [f for f in (files or []) if f != yaml_testfile]
 
+    if files is None:
+        warnings.append("No reference files passed; using default files.")
+        files = AUTHORS_FILES
+
     author_resolver = AuthorResolver(
-        files=files if files else AUTHORS_FILES,
+        files=files,
         match_threshold=match_threshold,
     )
     print("AuthorResolver initialized")
