@@ -250,6 +250,29 @@ yaml_validator_organizations(
     files=[Path("already_merged.yaml")],
 )
 
+# Extend the defaults instead of replacing them — use the
+# default_author_files() / default_organization_files() helpers from
+# pazufa_corelib.normalization.names to discover the built-in paths:
+from pazufa_corelib.normalization.names import (
+    default_author_files,
+    default_organization_files,
+)
+
+# Each helper returns a {file-stem: Path} dict of the built-in vocabulary
+# files for that resolver, so you can pick the ones you want by name and
+# concatenate them with your extras.
+yaml_validator_authors(
+    Path("my_authors.yaml"),
+    files=[*default_author_files().values(), Path("already_merged.yaml")],
+)
+yaml_validator_organizations(
+    Path("my_orgs.yaml"),
+    files=[
+        default_organization_files()["parteien"],  # pick a specific built-in
+        Path("already_merged.yaml"),
+    ],
+)
+
 # Tune thresholds the same way as the CLI flags:
 yaml_validator_tags(
     Path("my_tags.yaml"),
