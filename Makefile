@@ -1,6 +1,6 @@
 POETRY := poetry run
 
-.PHONY: help check lint typecheck security test coverage format generate clean install \
+.PHONY: help check lint typecheck security licenses test coverage format generate clean install \
         secrets-scan secrets-update secrets-audit
 
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "  lint           Run ruff linter and formatter check"
 	@echo "  typecheck      Run mypy"
 	@echo "  security       Run pip-audit"
+	@echo "  licenses       Run pylic license compliance check"
 	@echo "  test           Run pytest"
 	@echo "  coverage       Run pytest with coverage report"
 	@echo "  format         Auto-fix lint issues and reformat"
@@ -19,7 +20,7 @@ help:
 	@echo "  secrets-update Create or update the .secrets.baseline file"
 	@echo "  secrets-audit  Interactively audit the .secrets.baseline file"
 
-check: lint typecheck secrets-scan security
+check: lint typecheck secrets-scan security licenses
 	poetry check
 	$(POETRY) pytest -v
 
@@ -35,6 +36,9 @@ security:
 	                      --ignore-vuln CVE-2026-42208 \
 	                      --ignore-vuln CVE-2026-42271 \
 	                      --ignore-vuln CVE-2025-69872
+
+licenses:
+	$(POETRY) pylic check
 
 test:
 	$(POETRY) pytest -v
