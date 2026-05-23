@@ -107,6 +107,7 @@ The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline is de
 | `check-lock`            | Verifies the `poetry.lock` file is consistent with `pyproject.toml` |
 | `format-and-type-check` | Runs `ruff format --check`, `ruff check`, and `mypy`                |
 | `audit`                 | Scans dependencies for known vulnerabilities via `pip-audit`        |
+| `licenses`              | Checks dependency license compliance via `pylic`                    |
 | `test`                  | Runs the test suite via `pytest`                                    |
 
 If `audit` fails, follow the [vulnerability response guide](https://wiki.pazufa.de/books/scraper-core/page/vulnerability-response).
