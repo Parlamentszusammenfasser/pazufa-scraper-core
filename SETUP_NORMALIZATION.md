@@ -230,6 +230,36 @@ poetry run python -m tools.yaml_validator_tags my_tags.yaml \
     --match-threshold 85 --near-tie-epsilon 1.0
 ```
 
+### Calling the validators from Python
+
+The same checks are available as plain functions — useful for pre-commit hooks, custom test suites, or batch validation. Each validator lives in its own module under ``tools``:
+
+```python
+from pathlib import Path
+
+from tools.yaml_validator_authors import yaml_validator_authors
+from tools.yaml_validator_organizations import yaml_validator_organizations
+from tools.yaml_validator_tags import yaml_validator_tags
+
+# Default: check against the built-in vocabulary files for that resolver.
+yaml_validator_authors(Path("my_authors.yaml"))
+
+# Custom reference set (replaces the built-in defaults entirely):
+yaml_validator_organizations(
+    Path("my_orgs.yaml"),
+    files=[Path("already_merged.yaml")],
+)
+
+# Tune thresholds the same way as the CLI flags:
+yaml_validator_tags(
+    Path("my_tags.yaml"),
+    match_threshold=85,
+    near_tie_epsilon=1.0,
+)
+```
+
+Each function raises ``ValueError`` on hard errors (schema problems, ID/name collisions) and ``FileNotFoundError`` if the candidate path is missing. Warnings (fuzzy / intra-file collisions, default-vs-custom reference set) are printed to stdout — the call returns ``None`` on success.
+
 **Notes:**
 - If the file you are validating also appears in the reference `files` list it is silently removed to prevent false self-matches.
 - Positional `files` arguments **replace** the built-in defaults (`AUTHORS_FILES`, `ORGANIZATIONS_FILES`, `TAGS_FILES`). The validator prints a warning indicating which set was used. To extend rather than replace, pass the built-ins explicitly alongside your extras.

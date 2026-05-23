@@ -183,7 +183,10 @@ if __name__ == "__main__":
         "files",
         type=Path,
         nargs="*",
-        help="Reference YAML files for the resolver. Replaces the built-in AUTHORS_FILES when provided.",
+        help=(
+            "Reference YAML files for the resolver. "
+            "Replaces the built-in AUTHORS_FILES when provided."
+        ),
     )
     parser.add_argument(
         "--match-threshold",

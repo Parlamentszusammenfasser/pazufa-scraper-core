@@ -140,6 +140,37 @@ Party entries in `parteien.yaml` use the short acronym as `canonical_name` (e.g.
 
 Functions marked experimental emit a `DeprecationWarning` and may be removed without notice. When calling them in tests, use `pytest.warns(DeprecationWarning)`. Example: `normalize_autor`.
 
+### YAML validator tools
+
+Candidate vocabulary YAML files can be checked for ID, exact-name, and fuzzy collisions before merging. Each validator lives in its own module under `tools/` and can be invoked two ways:
+
+**As a CLI** (positional `files` replace the built-in defaults; warnings are printed, hard errors exit 1):
+
+```bash
+poetry run python -m tools.yaml_validator_authors my_authors.yaml
+poetry run python -m tools.yaml_validator_organizations my_orgs.yaml
+poetry run python -m tools.yaml_validator_tags my_tags.yaml
+```
+
+**As Python functions** — import directly from the validator's own module (not `from tools import …`, since `tools/__init__.py` is intentionally docstring-only to avoid the `python -m` double-load warning):
+
+```python
+from pathlib import Path
+
+from tools.yaml_validator_authors import yaml_validator_authors
+from tools.yaml_validator_organizations import yaml_validator_organizations
+from tools.yaml_validator_tags import yaml_validator_tags
+
+yaml_validator_authors(Path("my_authors.yaml"))
+yaml_validator_organizations(
+    Path("my_orgs.yaml"),
+    files=[Path("already_merged.yaml")],  # replaces built-in ORGANIZATIONS_FILES
+)
+yaml_validator_tags(Path("my_tags.yaml"), match_threshold=85)
+```
+
+Each function raises `ValueError` on collisions / schema problems and `FileNotFoundError` if the candidate path is missing; warnings go to stdout. See `SETUP_NORMALIZATION.md` ("Validating New Files Before Merging") for the full check matrix and threshold defaults.
+
 ## Testing Expectations
 
 - Add or update tests for every behavior change
