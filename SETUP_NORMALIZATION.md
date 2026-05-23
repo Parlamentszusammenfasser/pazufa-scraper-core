@@ -187,6 +187,8 @@ resolver = SchlagwortResolver(local_tags=[Path("my_tags.yaml")])
 ## Validating New Files Before Merging
 
 Before committing a new mapping file, run the appropriate validator tool against it.
+The validator checks the candidate file against whatever reference YAML files you pass on the command line — when none are passed, the built-in vocabulary files for that resolver are used. **Any files you pass replace the defaults**, so include the built-ins explicitly if you want them checked alongside your extras. The validator emits a warning to remind you which mode it ran in.
+
 The validator catches three classes of problems:
 
 | Check | Severity | Description |
@@ -203,7 +205,7 @@ Hard errors exit with code 1. Warnings are printed but do not fail the run — r
 
 ```bash
 poetry run python -m tools.yaml_validator_authors my_authors.yaml
-# with extra context files not yet merged into the global vocabulary:
+# validate against a custom reference set (replaces the built-in AUTHORS_FILES):
 poetry run python -m tools.yaml_validator_authors my_authors.yaml already_merged.yaml
 # tune the fuzzy threshold (0–100, default 90):
 poetry run python -m tools.yaml_validator_authors my_authors.yaml --match-threshold 85
@@ -229,7 +231,8 @@ poetry run python -m tools.yaml_validator_tags my_tags.yaml \
 ```
 
 **Notes:**
-- If the file you are validating appears in the `extra_files` list it is silently removed to prevent false self-matches.
+- If the file you are validating also appears in the reference `files` list it is silently removed to prevent false self-matches.
+- Positional `files` arguments **replace** the built-in defaults (`AUTHORS_FILES`, `ORGANIZATIONS_FILES`, `TAGS_FILES`). The validator prints a warning indicating which set was used. To extend rather than replace, pass the built-ins explicitly alongside your extras.
 - The organization validator uses cosine similarity on character n-grams; the author and tag validators use fuzzy token-sort-ratio. Default `--match-threshold`: **80** for organizations, **90** for authors and tags.
 - Tags are matched on their `id` string directly (not a `canonical_name`), so the fuzzy check compares raw ID strings.
 - As mentioned above, the Sachgebiete vocabulary is not meant to be extended by users therefore, no validation tool exists for related mapping files.

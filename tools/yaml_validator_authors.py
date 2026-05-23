@@ -51,13 +51,18 @@ def yaml_validator_authors(
     If *yaml_testfile* appears in *files* it is removed automatically to
     prevent the new entries from matching against themselves.
 
+    The candidate is checked against whatever YAML files you pass via *files*.
+    When *files* is ``None``, the built-in ``AUTHORS_FILES`` are used. When
+    *files* is provided it **replaces** the defaults — pass any built-in files
+    you still want to check against explicitly alongside your extras.
+
     Args:
         yaml_testfile: Path to the YAML file to validate. Must follow the
             ``AuthorFile`` schema (``names:`` list with ``id``,
             ``canonical_name``, optional ``aliases``).
-        files: Additional YAML files passed to ``AuthorResolver``
-            on top of the global mappings. Useful when the new file depends on
-            entries not yet in the global vocabulary.
+        files: Full set of reference YAML files for ``AuthorResolver``. When
+            omitted, defaults to the global ``AUTHORS_FILES``. When provided,
+            overrides the defaults entirely.
         match_threshold: Fuzzy similarity threshold (0–100) forwarded to
             ``AuthorResolver``. Defaults to the module-level constant.
 
@@ -70,14 +75,29 @@ def yaml_validator_authors(
     errors: list[str] = []
     warnings: list[str] = []
 
-    # Copy to avoid mutating the caller's list; remove yaml_testfile if present
-    if files and yaml_testfile in files:
-        print(f"  ! '{yaml_testfile}' removed from files to prevent false positives")
-    files = [f for f in (files or []) if f != yaml_testfile]
-
     if files is None:
-        warnings.append("No reference files passed; using default files.")
-        files = AUTHORS_FILES
+        warnings.append(
+            f"No reference files passed; using default AUTHORS_FILES "
+            f"({len(AUTHORS_FILES)} file(s))."
+        )
+        files = list(AUTHORS_FILES)
+    else:
+        warnings.append(
+            "Custom 'files' provided; the default AUTHORS_FILES are NOT used. "
+            "Pass any built-in files you still want to validate against explicitly."
+        )
+        # Copy to avoid mutating the caller's list; drop yaml_testfile if present
+        if yaml_testfile in files:
+            print(
+                f"  ! '{yaml_testfile}' removed from files to prevent false positives"
+            )
+        files = [f for f in files if f != yaml_testfile]
+        if not files:
+            warnings.append(
+                "All provided files were filtered out; falling back to default "
+                "AUTHORS_FILES."
+            )
+            files = list(AUTHORS_FILES)
 
     author_resolver = AuthorResolver(
         files=files,
@@ -163,7 +183,7 @@ if __name__ == "__main__":
         "files",
         type=Path,
         nargs="*",
-        help="Additional YAML files merged into the resolver before validation",
+        help="Reference YAML files for the resolver. Replaces the built-in AUTHORS_FILES when provided.",
     )
     parser.add_argument(
         "--match-threshold",
