@@ -5,7 +5,7 @@ import re
 import sys
 import warnings
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from rapidfuzz import fuzz, process
@@ -1068,11 +1068,11 @@ class OrganizationResolver:
 
         # --- second pass: single matmul for all remaining fuzzy queries ----
         if fuzzy_idxs:
-            # guaranteed: fuzzy_idxs only populated when matrix exists
-            assert self._matrix is not None
+            # guaranteed non-None: fuzzy_idxs only populated when matrix exists
+            matrix = cast(np.ndarray, self._matrix)
             q_matrix = _build_matrix(fuzzy_keys, self._vocab)
             # (n_fuzzy, n_canonical)
-            scores_matrix = (q_matrix @ self._matrix.T) * 100.0
+            scores_matrix = (q_matrix @ matrix.T) * 100.0
 
             for j, i in enumerate(fuzzy_idxs):
                 query = queries[i]
