@@ -34,17 +34,26 @@ If a design choice improves short-term convenience but increases long-term maint
 Before finishing work, run all checks:
 
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy .
-poetry run pytest -v
+make check
 ```
+
+This runs linting, type checking, security audit, and the full test suite. Other targets:
+
+| Target           | What it does                              |
+|------------------|-------------------------------------------|
+| `make lint`      | `ruff check` + `ruff format --check`      |
+| `make typecheck` | `mypy pazufa_corelib`                     |
+| `make security`  | `pip-audit`                               |
+| `make test`      | `pytest -v`                               |
+| `make coverage`  | pytest with term + XML coverage report    |
+| `make format`    | auto-fix lint and reformat                |
+| `make generate`  | regenerate API models and client          |
+| `make clean`     | remove caches, `dist/`, `coverage.xml`    |
 
 To regenerate API models and client after OpenAPI changes:
 
 ```bash
-poetry run datamodel-codegen
-poetry run python tools/generate_openapi_client.py
+make generate
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for further detail on tooling and code generation.
@@ -111,6 +120,57 @@ Exceptions — no docstring required for:
 - Public modules and packages
 - `tests/`, `tools/`, and generated files (`api_client/`, `api_model.py`)
 
+## Normalization Module Notes
+
+### Name resolution
+
+`AuthorResolver` and `OrganizationResolver` both normalize via `normalize_name` (honorific stripping + umlaut fold + token sort) before matching. Both support:
+
+- **Exact lookup** (normalized key index) before falling back to fuzzy/cosine matching
+- **Constructor params**: `AuthorResolver(files=[…], match_threshold=…)`, `OrganizationResolver(files=[…], match_threshold=…, near_tie_epsilon=…)`
+- Use `OrganizationResolver.explain(query, k=5)` to trace resolution candidates for debugging
+
+### Organization file structure
+
+`Organization.acronym` is a required field (never has a default). Every entry in an org YAML must declare it — use `acronym:` (bare key) for entries without an abbreviation. `Author` rejects extra fields (`extra="forbid"`). Together these make loading the wrong file type a hard `ValidationError` rather than a silent no-op.
+
+Party entries in `parteien.yaml` use the short acronym as `canonical_name` (e.g. `CDU`, `SPD`). CDU, CSU, and the CDU/CSU Fraktion are three distinct entries (`cdu`, `csu`, `cdu-csu`).
+
+### Experimental functions
+
+Functions marked experimental emit a `DeprecationWarning` and may be removed without notice. When calling them in tests, use `pytest.warns(DeprecationWarning)`. Example: `normalize_autor`.
+
+### YAML validator tools
+
+Candidate vocabulary YAML files can be checked for ID, exact-name, and fuzzy collisions before merging. Each validator lives in its own module under `tools/` and can be invoked two ways:
+
+**As a CLI** (positional `files` replace the built-in defaults; warnings are printed, hard errors exit 1):
+
+```bash
+poetry run python -m tools.yaml_validator_authors my_authors.yaml
+poetry run python -m tools.yaml_validator_organizations my_orgs.yaml
+poetry run python -m tools.yaml_validator_tags my_tags.yaml
+```
+
+**As Python functions** — import directly from the validator's own module (not `from tools import …`, since `tools/__init__.py` is intentionally docstring-only to avoid the `python -m` double-load warning):
+
+```python
+from pathlib import Path
+
+from tools.yaml_validator_authors import yaml_validator_authors
+from tools.yaml_validator_organizations import yaml_validator_organizations
+from tools.yaml_validator_tags import yaml_validator_tags
+
+yaml_validator_authors(Path("my_authors.yaml"))
+yaml_validator_organizations(
+    Path("my_orgs.yaml"),
+    files=[Path("already_merged.yaml")],  # replaces built-in ORGANIZATIONS_FILES
+)
+yaml_validator_tags(Path("my_tags.yaml"), match_threshold=85)
+```
+
+Each function raises `ValueError` on collisions / schema problems and `FileNotFoundError` if the candidate path is missing; warnings go to stdout. See `SETUP_NORMALIZATION.md` ("Validating New Files Before Merging") for the full check matrix and threshold defaults.
+
 ## Testing Expectations
 
 - Add or update tests for every behavior change
@@ -118,6 +178,7 @@ Exceptions — no docstring required for:
 - Use `@pytest.mark.asyncio` for async behavior
 - Cover retry, validation, and failure paths when changing connector logic
 - If you change generated API models or clients, verify regeneration and affected tests together
+- To cover `if LOGGER.isEnabledFor(logging.DEBUG):` branches, use `caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names")` in the test
 
 Run a specific test file or function:
 
@@ -157,7 +218,14 @@ Then regenerate and review the diff carefully.
 
 - `pazufa_corelib/__init__.py` - public package exports
 - `pazufa_corelib/llm/` - LLM connector, models, and prompts
-- `pazufa_corelib/normalization/` - text, date, URL, hash, and Schlagworte helpers
+- `pazufa_corelib/normalization/` - text, date, URL, hash, name, and Schlagworte helpers
+  - `names.py` - `normalize_name`, `AuthorResolver`, `OrganizationResolver`; experimental `normalize_autor`
+  - `text.py` - `normalize_name_key`, `normalize_volltext`
+  - `hash.py` - content hashing utilities
+  - `urls.py` - URL normalization
+  - `schlagworte.py` - controlled topic taxonomy helpers
+  - `_fuzzy.py` - shared fuzzy-match internals
+- `pazufa_corelib/names_model.py` - `Author`, `Organization`, `AuthorIDResolution`, `OrganizationIDResolution`
 - `pazufa_corelib/api_model.py` - generated Pydantic models
 - `pazufa_corelib/api_client/` - generated OpenAPI client
 - `tests/` - unit tests

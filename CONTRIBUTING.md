@@ -14,28 +14,31 @@ Install Poetry first if it is not already available:
 ```bash
 git clone https://codeberg.org/PaZuFa/pazufa-scraper-core.git
 cd pazufa-scraper-core
-poetry install --with dev
+make install
 ```
 
 Verify everything passes before opening a PR:
 
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy .
-poetry run pytest -v
-poetry run pip-audit
+make check
 ```
 
 ## Tooling
 
-| Tool          | Purpose                       | Run                          |
-|---------------|-------------------------------|------------------------------|
-| `ruff check`  | Linting                       | `poetry run ruff check .`    |
-| `ruff format` | Formatting                    | `poetry run ruff format .`   |
-| `mypy`        | Static type checking          | `poetry run mypy .`          |
-| `pytest`      | Tests                         | `poetry run pytest -v`       |
-| `pip-audit`   | Dependency vulnerability scan | `poetry run pip-audit`       |
+| Tool                | Purpose                               | Make target             |
+|---------------------|---------------------------------------|-------------------------|
+| `ruff check`        | Linting                               | `make lint`             |
+| `ruff format`       | Formatting check                      | `make lint`             |
+| `mypy`              | Static type checking                  | `make typecheck`        |
+| `pytest`            | Tests                                 | `make test`             |
+| `pytest --cov`      | Tests with coverage report            | `make coverage`         |
+| `pip-audit`         | Dependency vulnerability scan         | `make security`         |
+| `datamodel-codegen` | Regenerate API models/client          | `make generate`         |
+| `detect-secrets`    | Scan for secrets against baseline     | `make secrets-scan`     |
+| `detect-secrets`    | Create or update `.secrets.baseline`  | `make secrets-update`   |
+| `detect-secrets`    | Interactively audit baseline findings | `make secrets-audit`    |
+
+Run `make` with no target to list all available targets.
 
 **mypy** is configured in `pyproject.toml` with strict settings (`disallow_untyped_defs`, `warn_return_any`). All new code must pass type checking. Generated files (`api_model.py`, `api_client/`) are excluded.
 
