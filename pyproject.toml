@@ -73,14 +73,15 @@ line-length = 88
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "D"]
+select = ["E", "F", "I", "D","S","ASYNC","DTZ"]
 ignore = [
     "D100",  # missing docstring in public module
     "D104",  # missing docstring in public package
     "D107",  # missing docstring in __init__
+    "S324", # unsecure hashes are used for deduplication
 ]
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D", "E501"]
+"tests/**" = ["D", "E501","S101"]
 "tools/**" = ["D"]
 "pazufa_corelib/api_client/**" = ["D", "E501"]
 "pazufa_corelib/api_model.py" = ["D", "E501"]
