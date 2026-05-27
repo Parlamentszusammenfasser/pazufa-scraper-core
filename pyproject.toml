@@ -64,6 +64,8 @@ types-pyyaml = "^6.0.12.20260408"
 pip-audit = "^2.9.0"
 twine = "^6.2.0"
 detect-secrets = "^1.5.0"
+pip-licenses = "^5.5.5"
+pylic = "^5.0.1"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -127,3 +129,29 @@ use-double-quotes = true
 use-standard-collections = true
 use-union-operator = true
 wrap-string-literal = true
+
+[tool.pylic]
+safe_licenses = [
+  "MIT",
+  "MIT License",
+  "BSD License",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "Apache-2.0",
+  "Apache License 2.0",
+  "Apache Software License",
+  "Apache-2.0 AND MIT",
+  "ISC License (ISCL)",
+  "PSF-2.0",
+  "Python Software Foundation License",
+  "Mozilla Public License 2.0 (MPL 2.0)",
+  "MPL-2.0 AND MIT",
+  "Public Domain",
+]
+unsafe_packages = [
+  "pazufa_corelib",
+  # tiktoken is MIT-licensed but embeds the full license text in its metadata
+  # License field, so safe_licenses string matching can't catch it.
+  # See: https://github.com/openai/tiktoken/blob/main/LICENSE
+  "tiktoken",
+]
