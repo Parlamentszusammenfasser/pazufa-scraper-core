@@ -2676,24 +2676,6 @@ lint = ["interrogate (>=1.6,<2.0)", "mypy", "ruff (>=0.11)", "types-requests", "
 test = ["pip-audit[cov]", "pretend", "pytest"]
 
 [[package]]
-name = "pip-licenses"
-version = "5.5.5"
-description = "Dump the software license list of Python packages installed with pip."
-optional = false
-python-versions = ">=3.9"
-groups = ["dev"]
-files = [
-    {file = "pip_licenses-5.5.5-py3-none-any.whl", hash = "sha256:f4c4c6d9e6a03612cf59f29f19dc8ab54904d82e055b8e191498f2279a224e14"},
-    {file = "pip_licenses-5.5.5.tar.gz", hash = "sha256:60750c006adf7a0910347b726e8ee9fee3bc8d2e7c8307a5c4ec0776c8e2a276"},
-]
-
-[package.dependencies]
-prettytable = ">=3.12.0"
-
-[package.extras]
-dev = ["docutils (>=0.19)", "mypy", "pip-tools", "pypandoc", "pytest-cov", "pytest-runner", "ruff", "tomli-w", "virtualenv (>=21.1.0)", "wheel"]
-
-[[package]]
 name = "pip-requirements-parser"
 version = "32.0.1"
 description = "pip requirements parser - a mostly correct pip requirements parsing library because it uses pip's own code."
@@ -2740,24 +2722,6 @@ files = [
 [package.extras]
 dev = ["pre-commit", "tox"]
 testing = ["coverage", "pytest", "pytest-benchmark"]
-
-[[package]]
-name = "prettytable"
-version = "3.17.0"
-description = "A simple Python library for easily displaying tabular data in a visually appealing ASCII table format"
-optional = false
-python-versions = ">=3.10"
-groups = ["dev"]
-files = [
-    {file = "prettytable-3.17.0-py3-none-any.whl", hash = "sha256:aad69b294ddbe3e1f95ef8886a060ed1666a0b83018bbf56295f6f226c43d287"},
-    {file = "prettytable-3.17.0.tar.gz", hash = "sha256:59f2590776527f3c9e8cf9fe7b66dd215837cca96a9c39567414cbc632e8ddb0"},
-]
-
-[package.dependencies]
-wcwidth = "*"
-
-[package.extras]
-tests = ["pytest", "pytest-cov", "pytest-lazy-fixtures"]
 
 [[package]]
 name = "propcache"
@@ -4297,18 +4261,6 @@ files = [
 ]
 
 [[package]]
-name = "wcwidth"
-version = "0.7.0"
-description = "Measures the displayed width of unicode strings in a terminal"
-optional = false
-python-versions = ">=3.8"
-groups = ["dev"]
-files = [
-    {file = "wcwidth-0.7.0-py3-none-any.whl", hash = "sha256:5d69154c429a82910e241c738cd0e2976fac8a2dd47a1a805f4afed1c0f136f2"},
-    {file = "wcwidth-0.7.0.tar.gz", hash = "sha256:90e3a7ea092341c44b99562e75d09e4d5160fe7a3974c6fb842a101a95e7eed0"},
-]
-
-[[package]]
 name = "yarl"
 version = "1.23.0"
 description = "Yet another URL library"
@@ -4476,6 +4428,7 @@ lock-version = "2.1"
 python-versions = ">=3.12,<3.15"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 content-hash = "219039b5138b445f5bda03dc9aade699205ea0d4e18d3b65c6c391b75af3b4bc"
 =======
 content-hash = "0c963d1ca7246cc9430f060a72a1e1c988f7d6d53636cf8061c48944971fa742"
@@ -4483,3 +4436,6 @@ content-hash = "0c963d1ca7246cc9430f060a72a1e1c988f7d6d53636cf8061c48944971fa742
 =======
 content-hash = "3d7d88fa2b48cafecd393fe098c479969ceff33c67e05ab8537a8a055f5a2a66"
 >>>>>>> 052a1f0 (chore(compliance): updating lock file)
+=======
+content-hash = "727f818574e56d18c95ebebe1bd6e911af1257254d44350bf366f54951311123"
+>>>>>>> dc19a9d (`chore(dev-tooling): remove pip-licenses and related dependencies`)
