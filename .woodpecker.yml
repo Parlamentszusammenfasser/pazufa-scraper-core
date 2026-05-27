@@ -45,6 +45,12 @@ steps:
       #   GHSA-xqmj-j6mv-4862 (litellm) — see issue #74
       - .venv/bin/pip-audit --ignore-vuln GHSA-xqmj-j6mv-4862 --ignore-vuln CVE-2026-42208 --ignore-vuln CVE-2026-42271 --ignore-vuln CVE-2026-40217
 
+  - name: licenses
+    image: python:3.12-slim
+    depends_on: [ setup ]
+    commands:
+      - .venv/bin/pylic check
+
   - name: test
     image: python:3.12-slim
     depends_on: [setup]
