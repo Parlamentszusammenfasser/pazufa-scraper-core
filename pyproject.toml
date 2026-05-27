@@ -76,6 +76,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "D"]
+
 ignore = [
     "D100",  # missing docstring in public module
     "D104",  # missing docstring in public package
