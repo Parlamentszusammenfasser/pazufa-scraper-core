@@ -16,7 +16,17 @@ The built-in mappings live under `pazufa_corelib/normalization/mappings/`:
 | `global_tags.yaml` | `SchlagwortResolver` |
 | `sachgebiete.yaml` | `SchlagwortResolver` |
 
-All resolvers accept **caller-supplied extra files** that are merged on top of the built-in mappings. You do not need to touch the library's own files.
+All three resolvers accept caller-supplied YAML files, but they differ in **how those files combine with the built-ins**:
+
+| Resolver | Constructor argument | Behaviour when the argument is passed |
+|----------|----------------------|----------------------------------------|
+| `AuthorResolver` | `files=[...]` | **Replaces** the built-in `AUTHORS_FILES`. To keep the built-ins, include them explicitly alongside your own. |
+| `OrganizationResolver` | `files=[...]` | **Replaces** the built-in `ORGANIZATIONS_FILES` (`parteien.yaml` + `organizations.yaml`). To keep the built-ins, include them explicitly. |
+| `SchlagwortResolver` | `local_tags=[...]` | **Merged with** the built-in `global_tags.yaml` — built-ins are always loaded and local tags only extend the vocabulary. On ID collision the built-in global tag **wins** (local is overridden). `sachgebiete.yaml` is loaded separately and cannot be extended. |
+
+In other words: for **Authors / Organizations** the caller-supplied list is the *complete* source of truth (replacement) and later files override earlier ones on collision. For **Tags** the caller-supplied list is an *additive* overlay that loses to the built-ins on collision — see the [Load priority](#using-extra-tag-files-local-tags-only) section for details.
+
+The helpers `default_author_files()` and `default_organization_files()` in `pazufa_corelib.normalization.names` return the built-in paths so you can concatenate them with your extras without hard-coding paths — see [Calling the validators from Python](#calling-the-validators-from-python) for an example.
 
 ---
 
@@ -51,6 +61,10 @@ names:
 
 ### Using extra author files
 
+Passing `files=` **replaces** the built-in `AUTHORS_FILES`. You have two options:
+
+**Replace the built-ins** — only your file is loaded:
+
 ```python
 from pathlib import Path
 from pazufa_corelib.normalization import AuthorResolver
@@ -58,7 +72,19 @@ from pazufa_corelib.normalization import AuthorResolver
 resolver = AuthorResolver(files=[Path("my_authors.yaml")])
 ```
 
-Later files override earlier ones when IDs collide, so you can use an extra file to override a built-in entry.
+**Extend the built-ins** — load the defaults alongside your file. Use `default_author_files()` to discover the built-in paths so you don't have to hard-code them:
+
+```python
+from pathlib import Path
+from pazufa_corelib.normalization import AuthorResolver
+from pazufa_corelib.normalization.names import default_author_files
+
+resolver = AuthorResolver(
+    files=[*default_author_files().values(), Path("my_authors.yaml")],
+)
+```
+
+Later files override earlier ones when IDs collide, so placing `my_authors.yaml` last lets it override built-in entries.
 
 ---
 
@@ -113,12 +139,36 @@ names:
 
 ### Using extra organization files
 
+Passing `files=` **replaces** the built-in `ORGANIZATIONS_FILES` (`parteien.yaml` + `organizations.yaml`). You have two options:
+
+**Replace the built-ins** — only your file is loaded (you lose all built-in parties and organizations):
+
 ```python
 from pathlib import Path
 from pazufa_corelib.normalization import OrganizationResolver
 
 resolver = OrganizationResolver(files=[Path("my_orgs.yaml")])
 ```
+
+**Extend the built-ins** — load the defaults alongside your file. `default_organization_files()` returns a `{stem: Path}` dict, so you can either splat the whole thing or pick individual entries by name:
+
+```python
+from pathlib import Path
+from pazufa_corelib.normalization import OrganizationResolver
+from pazufa_corelib.normalization.names import default_organization_files
+
+# Keep all built-ins:
+resolver = OrganizationResolver(
+    files=[*default_organization_files().values(), Path("my_orgs.yaml")],
+)
+
+# Or keep only a specific built-in (e.g. parties but not other orgs):
+resolver = OrganizationResolver(
+    files=[default_organization_files()["parteien"], Path("my_orgs.yaml")],
+)
+```
+
+Files are merged in list order, so `my_orgs.yaml` placed last can override built-in entries by ID.
 
 ---
 
@@ -285,7 +335,7 @@ Each function raises ``ValueError`` on hard errors (schema problems, ID/name col
 
 **Notes:**
 - If the file you are validating also appears in the reference `files` list it is silently removed to prevent false self-matches.
-- Positional `files` arguments **replace** the built-in defaults (`AUTHORS_FILES`, `ORGANIZATIONS_FILES`, `TAGS_FILES`). The validator prints a warning indicating which set was used. To extend rather than replace, pass the built-ins explicitly alongside your extras.
+- Positional `files` arguments **replace** the built-in defaults for Authors and Organizations (`AUTHORS_FILES`, `ORGANIZATIONS_FILES`). The validator prints a warning indicating which set was used. To extend rather than replace, pass the built-ins explicitly alongside your extras.
 - The organization validator uses cosine similarity on character n-grams; the author and tag validators use fuzzy token-sort-ratio. Default `--match-threshold`: **80** for organizations, **90** for authors and tags.
 - Tags are matched on their `id` string directly (not a `canonical_name`), so the fuzzy check compares raw ID strings.
 - As mentioned above, the Sachgebiete vocabulary is not meant to be extended by users therefore, no validation tool exists for related mapping files.
