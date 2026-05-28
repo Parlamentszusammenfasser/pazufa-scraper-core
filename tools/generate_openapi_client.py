@@ -25,7 +25,7 @@ _UNSUPPORTED_HEADER_FORMATS = {"date-time", "uuid"}
 
 
 def run(cmd: list[str]) -> None:
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True)  # noqa: S603  # dev tool, command list is constructed in-repo
 
 
 def _patch_spec(spec: dict) -> dict:

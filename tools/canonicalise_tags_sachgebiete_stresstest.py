@@ -189,7 +189,7 @@ def build_test_list(
     small-error inputs, and ``None`` for big-error inputs (where the
     expectation is a miss).
     """
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311  # deterministic test data generation, not security
     n_small = int(round(total * small_error_pct))
     n_big = int(round(total * big_error_pct))
     n_clean = total - n_small - n_big
