@@ -3068,6 +3068,23 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pylic"
+version = "5.0.1"
+description = "A Python license checker"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "pylic-5.0.1-py3-none-any.whl", hash = "sha256:ae9a863acec4df949f005c3f30c78045a204ee19a7e4c652fdf791d72b4b8bad"},
+    {file = "pylic-5.0.1.tar.gz", hash = "sha256:2948a64298f3f3b3a1ce8b81e0bfc6ee73eeccb5a9a8785c3c5c362d771d7f6a"},
+]
+
+[package.dependencies]
+license-expression = ">=30.4.1"
+toml = ">=0.10.2"
+typer = ">=0.15.2"
+
+[[package]]
 name = "pyparsing"
 version = "3.3.2"
 description = "pyparsing - Classes and methods to define and execute parsing grammars"
@@ -4015,6 +4032,18 @@ docs = ["setuptools-rust", "sphinx", "sphinx-rtd-theme"]
 testing = ["datasets", "numpy", "pytest", "pytest-asyncio", "requests", "ruff", "ty"]
 
 [[package]]
+name = "toml"
+version = "0.10.2"
+description = "Python Library for Tom's Obvious, Minimal Language"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
+groups = ["dev"]
+files = [
+    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
+    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
+]
+
+[[package]]
 name = "tomli"
 version = "2.4.1"
 description = "A lil' TOML parser"
@@ -4411,4 +4440,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.14"
-content-hash = "915cc8d7da6e52d3c880ec812f0776aed2ac0ca538695357f28092d1b40f3da2"
+content-hash = "6543ff948c7faad958d9e8a69532ba20de36239f74b4941a3dcf05444eefc60b"
