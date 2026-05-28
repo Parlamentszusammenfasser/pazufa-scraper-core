@@ -31,7 +31,8 @@ typecheck:
 	$(POETRY) mypy pazufa_corelib
 
 security:
-	$(POETRY) pip-audit --ignore CVE-2025-69872
+	# Ignored vulnerabilities are tracked as Codeberg issues
+	$(POETRY) pip-audit --ignore-vuln CVE-2025-69872
 
 test:
 	$(POETRY) pytest -v

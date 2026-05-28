@@ -44,8 +44,8 @@ steps:
     image: python:3.12-slim
     depends_on: [setup]
     commands:
-      # Ignored vulnerabilities are tracked as Codeberg issues:
-      - .venv/bin/pip-audit --ignore CVE-2025-69872
+      # Ignored vulnerabilities are tracked as Codeberg issues
+      - .venv/bin/pip-audit --ignore-vuln CVE-2025-69872
 
   - name: test
     image: python:3.12-slim
