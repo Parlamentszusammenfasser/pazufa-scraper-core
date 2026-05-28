@@ -47,6 +47,12 @@ steps:
       # Ignored vulnerabilities are tracked as Codeberg issues
       - .venv/bin/pip-audit --ignore-vuln CVE-2025-69872
 
+  - name: licenses
+    image: python:3.12-slim
+    depends_on: [ setup , check-lock]
+    commands:
+      - .venv/bin/pylic check
+
   - name: test
     image: python:3.12-slim
     depends_on: [setup]
@@ -57,7 +63,7 @@ steps:
 
   - name: check-version
     image: python:3.12-slim
-    depends_on: [check-lock, format-and-type-check, audit, test]
+    depends_on: [check-lock, format-and-type-check, audit, test, licenses]
     when:
       - event: tag
     commands:
