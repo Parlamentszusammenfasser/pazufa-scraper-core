@@ -47,7 +47,7 @@ steps:
 
   - name: licenses
     image: python:3.12-slim
-    depends_on: [ setup ]
+    depends_on: [ setup , check-lock]
     commands:
       - .venv/bin/pylic check
 
@@ -61,7 +61,7 @@ steps:
 
   - name: check-version
     image: python:3.12-slim
-    depends_on: [check-lock, format-and-type-check, audit, test]
+    depends_on: [check-lock, format-and-type-check, audit, test, licenses]
     when:
       - event: tag
     commands:

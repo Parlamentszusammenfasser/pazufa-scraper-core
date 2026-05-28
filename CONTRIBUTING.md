@@ -43,7 +43,7 @@ Run `make` with no target to list all available targets.
 
 **mypy** is configured in `pyproject.toml` with strict settings (`disallow_untyped_defs`, `warn_return_any`). All new code must pass type checking. Generated files (`api_model.py`, `api_client/`) are excluded.
 
-**pylic** enforces dependency license compliance. The allowed license list and any `unsafe_packages` exceptions live under `[tool.pylic]` in `pyproject.toml`. When adding a dependency whose license is not yet in `safe_licenses`, either add the license (if acceptable for the project) or add the package to `unsafe_packages` with a comment explaining why. `pip-licenses` is also installed for ad-hoc inspection (e.g. `poetry run pip-licenses`).
+**pylic** enforces dependency license compliance. The allowed license list and any `unsafe_packages` exceptions live under `[tool.pylic]` in `pyproject.toml`. When adding a dependency whose license is not yet in `safe_licenses`, either add the license (if acceptable for the project) or add the package to `unsafe_packages` with a comment explaining why.
 
 
 
