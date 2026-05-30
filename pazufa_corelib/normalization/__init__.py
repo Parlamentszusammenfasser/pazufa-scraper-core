@@ -18,6 +18,7 @@ from .organizations import (
     OrganizationResolver,
     default_organization_files,
 )
+from .schlagworte import SchlagwortResolver
 from .text import (
     normalize_datum,
     normalize_name,
@@ -34,6 +35,7 @@ __all__ = [
     "NameIDResolution",
     "OrganizationIDResolution",
     "OrganizationResolver",
+    "SchlagwortResolver",
     "hash_bytes",
     "hash_text",
     "normalize_autor",
