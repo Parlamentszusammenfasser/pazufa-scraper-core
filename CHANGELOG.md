@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [0.1.1] - 2026-05-30
 
 ### Added
 
@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`names_model`** (`pazufa_corelib/names_model.py`) — Pydantic models `Author`, `Organization`, `AuthorFile`, `AuthorIDResolution`, and `NameIDResolution` for the author/organization normalization chain.
 - **Global YAML vocabularies** under `pazufa_corelib/normalization/mappings/`: `authors.yaml`, `organizations.yaml`, and `parteien.yaml` (political parties).
 - **`normalize_autor`** — experimental high-level function that combines `AuthorResolver` and `OrganizationResolver` to resolve a raw author string to a canonical name and ID.
+- **`SchlagwortResolver.canonicalise_tag`** — single-value tag canonicalization helper. Returns `str | None`; unresolved or blank results are coerced to `None` and logged as a warning.
+- **`SchlagwortResolver.canonicalise_sachgebiet`** — single-value Sachgebiet canonicalization helper. Returns `str | None` with the same blank-to-`None` coercion and warning behavior.
+- **`SchlagwortResolver.explain`** — diagnostic trace of a tag query (processed query, exact-match flag, threshold, near-tie epsilon, top-K fuzzy candidates).
 - **YAML validator tools** (`tools/`) — three CLI scripts for pre-merge conflict detection:
   - `yaml_validator_authors.py` — checks ID collisions, exact `canonical_name` collisions, and fuzzy near-matches against the global author vocabulary.
   - `yaml_validator_organizations.py` — same checks for organizations using cosine similarity.

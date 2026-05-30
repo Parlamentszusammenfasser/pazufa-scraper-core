@@ -1,7 +1,7 @@
 [project]
 name = "pazufa_corelib"
 license = "GPL-3.0-only"
-version = "0.1.1rc6"
+version = "0.1.1"
 description = "Core library for collecting parliamentary data"
 authors = [{ name = "PaZuFa team" }]
 maintainers = [{ name = "PaZuFa team", email = "pub@pazufa.de" }]
@@ -24,7 +24,6 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Text Processing"
 ]
