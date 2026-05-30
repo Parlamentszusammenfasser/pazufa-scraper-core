@@ -12,6 +12,10 @@ from rapidfuzz.process import cdist
 
 LOGGER = logging.getLogger(__name__)
 
+# Sentinel score for exact matches — not a tunable cutoff. Lets callers
+# distinguish exact from fuzzy results by score (100.0 == index hit).
+_EXACT_MATCH_THRESHOLD: float = 100.0
+
 
 def fuzzy_resolve(
     raw: list[str],

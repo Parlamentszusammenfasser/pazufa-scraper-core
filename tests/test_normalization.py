@@ -18,7 +18,7 @@ from pazufa_corelib.normalization import (
     normalize_name_key,
     normalize_volltext,
 )
-from pazufa_corelib.normalization.names import normalize_autor
+from pazufa_corelib.normalization.authors import normalize_autor
 from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 from pazufa_corelib.normalization.text import _paragraph_quality_score
 
@@ -647,7 +647,7 @@ class TestAuthorResolver:
 
     def test_init_emits_debug_log(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.authors"
         ):
             AuthorResolver()
         assert any("AuthorResolver initialised" in r.message for r in caplog.records)
@@ -794,7 +794,7 @@ class TestAuthorResolver:
         self, resolver: AuthorResolver, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.authors"
         ):
             resolver.fuzzy_check_author("Helmut Schmitt")
         assert any("Fuzzy author check" in r.message for r in caplog.records)
@@ -832,7 +832,7 @@ class TestAuthorResolver:
         self, resolver: AuthorResolver, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.authors"
         ):
             resolver.canonicalize_author("Olaf Scholz")
         assert any("Resolved author" in r.message for r in caplog.records)
@@ -841,7 +841,7 @@ class TestAuthorResolver:
         self, resolver: AuthorResolver, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.authors"
         ):
             resolver.canonicalize_author("Max Mustermann")
         assert any("unresolved, keeping original" in r.message for r in caplog.records)
@@ -953,7 +953,7 @@ class TestOrganisationResolver:
 
     def test_init_emits_debug_log(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.organizations"
         ):
             OrganizationResolver()
         assert any(
@@ -1131,7 +1131,7 @@ class TestOrganisationResolver:
         )
         resolver = OrganizationResolver(files=[near_tie_yaml])
         with caplog.at_level(
-            logging.WARNING, logger="pazufa_corelib.normalization.names"
+            logging.WARNING, logger="pazufa_corelib.normalization.organizations"
         ):
             resolver.resolve_batch(["Deutsche Organisation Test"])
         assert any("Near-tie" in r.message for r in caplog.records)
@@ -1153,7 +1153,7 @@ class TestOrganisationResolver:
         )
         resolver = OrganizationResolver(files=[near_tie_yaml], near_tie_epsilon=0.0)
         with caplog.at_level(
-            logging.WARNING, logger="pazufa_corelib.normalization.names"
+            logging.WARNING, logger="pazufa_corelib.normalization.organizations"
         ):
             resolver.resolve_batch(["Deutsche Organisation Test"])
         assert not any("Near-tie" in r.message for r in caplog.records)
@@ -1191,7 +1191,7 @@ class TestOrganisationResolver:
         self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.organizations"
         ):
             resolver.fuzzy_check_organization("SPD")
         assert any("Fuzzy organization check" in r.message for r in caplog.records)
@@ -1218,7 +1218,7 @@ class TestOrganisationResolver:
         self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.organizations"
         ):
             resolver.fuzzy_match_acronym("SPD")
         assert any("returning acronym" in r.message for r in caplog.records)
@@ -1227,7 +1227,7 @@ class TestOrganisationResolver:
         self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.organizations"
         ):
             resolver.fuzzy_match_acronym("Piratenpartei")
         assert any("unresolved, returning query" in r.message for r in caplog.records)
@@ -1253,7 +1253,7 @@ class TestOrganisationResolver:
         self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.organizations"
         ):
             resolver.canonicalize_organization("SPD")
         assert any("Resolved organization" in r.message for r in caplog.records)
@@ -1262,7 +1262,7 @@ class TestOrganisationResolver:
         self, resolver: OrganizationResolver, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(
-            logging.DEBUG, logger="pazufa_corelib.normalization.names"
+            logging.DEBUG, logger="pazufa_corelib.normalization.organizations"
         ):
             resolver.canonicalize_organization("Piratenpartei")
         assert any("unresolved, keeping original" in r.message for r in caplog.records)
@@ -1586,7 +1586,7 @@ class TestNormalizeAutor:
         item = Autor(organisation="Piratenpartei")
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names"),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.authors"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("organization not resolvable" in r.message for r in caplog.records)
@@ -1600,7 +1600,7 @@ class TestNormalizeAutor:
         item = Autor(organisation="SPD", person=None)
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names"),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.authors"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("author person empty" in r.message for r in caplog.records)
@@ -1614,7 +1614,7 @@ class TestNormalizeAutor:
         item = Autor(organisation="SPD", person="Max Mustermann")
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names"),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.authors"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("author not resolvable" in r.message for r in caplog.records)

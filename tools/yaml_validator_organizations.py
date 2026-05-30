@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 from pazufa_corelib.names_model import Organization, OrganizationFile
-from pazufa_corelib.normalization.names import (
+from pazufa_corelib.normalization.organizations import (
     _COSINE_MATCH_THRESHOLD,
     _COSINE_NEAR_TIE_EPSILON,
     ORGANIZATIONS_FILES,
