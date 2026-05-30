@@ -25,7 +25,7 @@ import random
 from collections.abc import Callable
 
 from pazufa_corelib.normalization.schlagworte import (
-    SACHGEBIETE_FILES,
+    _SACHGEBIETE_FILES,
     SchlagwortResolver,
 )
 from pazufa_corelib.schlagworte_model import SachgebietFile
@@ -171,7 +171,7 @@ def _make_big_errors(rng: random.Random) -> list[Perturbation]:
 def load_sachgebiet_ids() -> list[str]:
     """Load all Sachgebiet IDs from ``SACHGEBIETE_FILES``."""
     ids: list[str] = []
-    for path in SACHGEBIETE_FILES:
+    for path in _SACHGEBIETE_FILES:
         ids.extend(s.id for s in SachgebietFile.from_path(path).tags)
     return ids
 
@@ -189,7 +189,7 @@ def build_test_list(
     small-error inputs, and ``None`` for big-error inputs (where the
     expectation is a miss).
     """
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311  # deterministic test data generation, not security
     n_small = int(round(total * small_error_pct))
     n_big = int(round(total * big_error_pct))
     n_clean = total - n_small - n_big

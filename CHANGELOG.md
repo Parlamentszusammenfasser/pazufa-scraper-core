@@ -6,7 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [0.1.1] - 2026-05-30
+
+### Added
+
+- **`AuthorResolver`** (`pazufa_corelib/normalization/names.py`) — fuzzy author-name resolver backed by a YAML vocabulary. Supports `resolve()`, `resolve_batch()`, `get_author_by_id()`, `check_author()`, `fuzzy_check_author()`, and `explain()` for diagnostics. Configurable `match_threshold`; aliases and umlaut folding handled automatically.
+- **`OrganizationResolver`** — cosine-similarity resolver for organization names, with configurable `match_threshold` and `near_tie_epsilon`. Exposes `resolve()`, `resolve_batch()`, `get_organization_by_id()`, `check_organization()`, and `explain()`.
+- **`names_model`** (`pazufa_corelib/names_model.py`) — Pydantic models `Author`, `Organization`, `AuthorFile`, `AuthorIDResolution`, and `NameIDResolution` for the author/organization normalization chain.
+- **Global YAML vocabularies** under `pazufa_corelib/normalization/mappings/`: `authors.yaml`, `organizations.yaml`, and `parteien.yaml` (political parties).
+- **`normalize_autor`** — experimental high-level function that combines `AuthorResolver` and `OrganizationResolver` to resolve a raw author string to a canonical name and ID.
+- **`SchlagwortResolver.canonicalise_tag`** — single-value tag canonicalization helper. Returns `str | None`; unresolved or blank results are coerced to `None` and logged as a warning.
+- **`SchlagwortResolver.canonicalise_sachgebiet`** — single-value Sachgebiet canonicalization helper. Returns `str | None` with the same blank-to-`None` coercion and warning behavior.
+- **`SchlagwortResolver.explain`** — diagnostic trace of a tag query (processed query, exact-match flag, threshold, near-tie epsilon, top-K fuzzy candidates).
+- **YAML validator tools** (`tools/`) — three CLI scripts for pre-merge conflict detection:
+  - `yaml_validator_authors.py` — checks ID collisions, exact `canonical_name` collisions, and fuzzy near-matches against the global author vocabulary.
+  - `yaml_validator_organizations.py` — same checks for organizations using cosine similarity.
+  - `yaml_validator_tags.py` — checks tag ID collisions and fuzzy ID near-matches against the global tag vocabulary.
+  - All tools accept positional `extra_files` for unreleased context files and support `--match-threshold` / `--near-tie-epsilon` flags.
+- **`SETUP_NORMALIZATION.md`** — step-by-step guide for extending the author, organization, and tag/Sachgebiet vocabularies, including YAML format reference, usage examples, and validator instructions.
+- **`Makefile`** — common development commands (`make check`, `make test`, `make lint`, etc.).
+- **Compliance** — licenses of the packages are now automatically checked in CI.
+
+### Changed
+- **`SchlagwortResolver` — configurable thresholds** — `__init__` now accepts `match_threshold` (default 90) and `near_tie_epsilon` (default 1.0), forwarded to all internal fuzzy operations and reflected in `explain()` traces.
+- **`_canonicalise_ids` — configurable `near_tie_epsilon`** — the private helper now accepts a `near_tie_epsilon` parameter (default `_NEAR_TIE_EPSILON`) instead of always using the module constant.
+- **Supported Python versions** — dropped support for Python 3.14, as the new LiteLLM Versions do not support it.
+
+### Experimental
+- **'normalize_autor'** — Normalize the ``organisation`` and ``person`` fields of an Autor in-place. Resolves each field against the provided resolvers and updates it to the
+    canonical name if a match is found; logs debug information otherwise. (Experimental, due to open decion if such a function should be part of the Corelib or only of the -based Implementations [planned for v0.2])
+
+
+### Fixed
+
+- Bug fixes in author normalization logic and associated tests.
+- Bug fix, python-dateutil now explicitly named as a dependency.
+- Multiple CVEs for LiteLLM.
+
 
 ## [0.1.0] - 2026-04-29
 

@@ -1,0 +1,159 @@
+names:
+  # -----------------------------------------------------------------------
+  # Bundeskanzler
+  # -----------------------------------------------------------------------
+
+  - id: adenauer-konrad
+    canonical_name: Konrad Adenauer
+    aliases:
+      - Adenauer
+      - Adenauer, Konrad
+
+  - id: erhard-ludwig
+    canonical_name: Ludwig Erhard
+    aliases:
+      - Erhard
+      - Erhard, Ludwig
+
+  - id: kiesinger-kurt-georg
+    canonical_name: Kurt Georg Kiesinger
+    aliases:
+      - Kiesinger
+      - Kiesinger, Kurt Georg
+
+  - id: brandt-willy
+    canonical_name: Willy Brandt
+    aliases:
+      - Brandt
+      - Brandt, Willy
+      - Herbert Frahm
+
+  - id: schmidt-helmut
+    canonical_name: Helmut Schmidt
+    aliases:
+      - Schmidt
+      - Schmidt, Helmut
+
+  - id: kohl-helmut
+    canonical_name: Helmut Kohl
+    aliases:
+      - Kohl
+      - Kohl, Helmut
+      - Dr. Helmut Kohl
+
+  - id: schroeder-gerhard
+    canonical_name: Gerhard Schröder
+    aliases:
+      - Schröder
+      - Schroeder
+      - Schröder, Gerhard
+      - Schroeder, Gerhard
+
+  - id: merkel-angela
+    canonical_name: Angela Merkel
+    aliases:
+      - Merkel
+      - Merkel, Angela
+      - Dr. Angela Merkel
+      - Angela Kasner
+
+  - id: scholz-olaf
+    canonical_name: Olaf Scholz
+    aliases:
+      - Scholz
+      - Scholz, Olaf
+
+  - id: merz-friedrich
+    canonical_name: Friedrich Merz
+    aliases:
+      - Merz
+      - Merz, Friedrich
+      - Dr. Friedrich Merz
+
+  # -----------------------------------------------------------------------
+  # Bundespräsidenten
+  # -----------------------------------------------------------------------
+
+  - id: heuss-theodor
+    canonical_name: Theodor Heuss
+    aliases:
+      - Heuss
+      - Heuss, Theodor
+
+  - id: luebke-heinrich
+    canonical_name: Heinrich Lübke
+    aliases:
+      - Lübke
+      - Luebke
+      - Lübke, Heinrich
+
+  - id: heinemann-gustav
+    canonical_name: Gustav Heinemann
+    aliases:
+      - Heinemann
+      - Heinemann, Gustav
+      - Dr. Gustav Heinemann
+
+  - id: scheel-walter
+    canonical_name: Walter Scheel
+    aliases:
+      - Scheel
+      - Scheel, Walter
+
+  - id: carstens-karl
+    canonical_name: Karl Carstens
+    aliases:
+      - Carstens
+      - Carstens, Karl
+      - Prof. Dr. Karl Carstens
+
+  - id: von-weizsaecker-richard
+    canonical_name: Richard von Weizsäcker
+    aliases:
+      - von Weizsäcker
+      - Weizsäcker
+      - Weizsaecker
+      - von Weizsaecker
+      - von Weizsäcker, Richard
+      - Dr. Richard von Weizsäcker
+
+  - id: herzog-roman
+    canonical_name: Roman Herzog
+    aliases:
+      - Herzog
+      - Herzog, Roman
+      - Prof. Dr. Roman Herzog
+
+  - id: rau-johannes
+    canonical_name: Johannes Rau
+    aliases:
+      - Rau
+      - Rau, Johannes
+
+  - id: koehler-horst
+    canonical_name: Horst Köhler
+    aliases:
+      - Köhler
+      - Koehler
+      - Köhler, Horst
+      - Prof. Dr. Horst Köhler
+
+  - id: wulff-christian
+    canonical_name: Christian Wulff
+    aliases:
+      - Wulff
+      - Wulff, Christian
+      - Dr. Christian Wulff
+
+  - id: gauck-joachim
+    canonical_name: Joachim Gauck
+    aliases:
+      - Gauck
+      - Gauck, Joachim
+
+  - id: steinmeier-frank-walter
+    canonical_name: Frank-Walter Steinmeier
+    aliases:
+      - Steinmeier
+      - Steinmeier, Frank-Walter
+      - Dr. Frank-Walter Steinmeier

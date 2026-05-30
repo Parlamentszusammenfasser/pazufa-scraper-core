@@ -45,7 +45,7 @@ def client(captured: list[dict[str, Any]]) -> AuthenticatedClient:
             return httpx.Response(304)
         return httpx.Response(201)
 
-    c = AuthenticatedClient(base_url="http://test", token="dummy")
+    c = AuthenticatedClient(base_url="http://test", token="dummy")  # noqa: S106  # test fixture, not a real credential
     c.set_httpx_client(
         httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
     )
@@ -88,7 +88,7 @@ def test_scraper_id_header_is_sent_on_kal_date_put(
 ) -> None:
     kal_date_put.sync_detailed(
         Parlament.BT,
-        datetime(2024, 1, 1).date(),
+        datetime(2024, 1, 1, tzinfo=timezone.utc).date(),
         client=client,
         body=[],
         x_scraper_id=SCRAPER_ID,

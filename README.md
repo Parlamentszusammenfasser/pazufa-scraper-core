@@ -1,3 +1,13 @@
+[![PyPI](https://img.shields.io/pypi/v/pazufa-corelib)](https://pypi.org/project/pazufa-corelib/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pazufa-corelib)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydantic/pydantic/main/docs/badge/v2.json)](https://docs.pydantic.dev/latest/concepts/pydantic_v2/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
+[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![pytest](https://img.shields.io/badge/tested%20with-pytest-0A9EDC)](https://pytest.org)
+
+
 # Scraper-core
 
 Core library for collectors/scrapers of [PaZuFa](https://codeberg.org/PaZuFa/parlamentszusammenfasser.git), providing shared functionality and base classes.
