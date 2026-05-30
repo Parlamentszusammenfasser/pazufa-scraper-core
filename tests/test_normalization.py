@@ -18,7 +18,7 @@ from pazufa_corelib.normalization import (
     normalize_name_key,
     normalize_volltext,
 )
-from pazufa_corelib.normalization.authors import normalize_autor
+from pazufa_corelib.normalization.experimental import normalize_autor
 from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 from pazufa_corelib.normalization.text import _paragraph_quality_score
 
@@ -1586,7 +1586,7 @@ class TestNormalizeAutor:
         item = Autor(organisation="Piratenpartei")
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.authors"),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.experimental"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("organization not resolvable" in r.message for r in caplog.records)
@@ -1600,7 +1600,7 @@ class TestNormalizeAutor:
         item = Autor(organisation="SPD", person=None)
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.authors"),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.experimental"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("author person empty" in r.message for r in caplog.records)
@@ -1614,7 +1614,7 @@ class TestNormalizeAutor:
         item = Autor(organisation="SPD", person="Max Mustermann")
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.authors"),
+            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.experimental"),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("author not resolvable" in r.message for r in caplog.records)
