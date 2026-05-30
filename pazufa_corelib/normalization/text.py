@@ -145,7 +145,48 @@ def _paragraph_quality_score(paragraph: str) -> float:
     return max(0.0, min(1.0, score))
 
 
+# German academic titles and parliamentary post-nominals.
+# Stripped before key derivation so they don't influence matching.
+_RE_HONORIFICS = re.compile(
+    r"(?<!\w)(?:"
+    r"Dr\.(?:-Ing\.|-rer\.nat\.|-phil\.|-jur\.)?"
+    r"|Prof\.(?:\s+Dr\.)?"
+    r"|Dipl\.-\w+"
+    r"|M\.(?:A|Sc|Ed|B)\."
+    r"|B\.(?:A|Sc|Ed)\."
+    r"|Ph\.D\."
+    r"|MdB|MdL|MdEP"
+    r"|a\.D\."
+    r")(?!\w)",
+    re.IGNORECASE,
+)
+
+
 # --- Public Functions ---------------------------------------------------------------
+
+
+def normalize_name(raw: str) -> str:
+    """Normalize a person or organization name to a stable comparison key.
+
+    Pipeline:
+
+    1. Strip honorifics and post-nominals (``Dr.``, ``Prof.``, ``MdB``, …)
+    2. Apply :func:`normalize_name_key` (NFKC, umlaut fold, lowercase,
+       strip punctuation, collapse whitespace)
+    3. Token-sort — ``"Maria Müller"`` and ``"Müller, Maria"`` produce the
+       same key
+
+    Args:
+        raw: Raw name string, e.g., from scraped parliamentary data.
+
+    Returns:
+        Lowercase, umlaut-folded, honorific-stripped, token-sorted key.
+    """
+    text = _RE_HONORIFICS.sub(" ", raw)
+    text = normalize_name_key(text)
+    tokens = text.split()
+    tokens.sort()
+    return " ".join(tokens)
 
 
 def normalize_name_key(text: str) -> str:

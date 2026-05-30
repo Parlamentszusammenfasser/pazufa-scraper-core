@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 from pazufa_corelib.names_model import Author, AuthorFile
-from pazufa_corelib.normalization.names import (
+from pazufa_corelib.normalization.authors import (
     _FUZZY_MATCH_THRESHOLD,
     AUTHORS_FILES,
     AuthorResolver,
