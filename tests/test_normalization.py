@@ -1586,7 +1586,9 @@ class TestNormalizeAutor:
         item = Autor(organisation="Piratenpartei")
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.experimental"),
+            caplog.at_level(
+                logging.DEBUG, logger="pazufa_corelib.normalization.experimental"
+            ),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("organization not resolvable" in r.message for r in caplog.records)
@@ -1600,7 +1602,9 @@ class TestNormalizeAutor:
         item = Autor(organisation="SPD", person=None)
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.experimental"),
+            caplog.at_level(
+                logging.DEBUG, logger="pazufa_corelib.normalization.experimental"
+            ),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("author person empty" in r.message for r in caplog.records)
@@ -1614,7 +1618,9 @@ class TestNormalizeAutor:
         item = Autor(organisation="SPD", person="Max Mustermann")
         with (
             pytest.warns(DeprecationWarning),
-            caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.experimental"),
+            caplog.at_level(
+                logging.DEBUG, logger="pazufa_corelib.normalization.experimental"
+            ),
         ):
             normalize_autor(item, author_resolver, org_resolver)
         assert any("author not resolvable" in r.message for r in caplog.records)
