@@ -78,14 +78,41 @@ class TestZusammenfassungResult:
         with pytest.raises(ValidationError):
             ZusammenfassungResult(zusammenfassung=leaked)
 
-    def test_legitimate_summary_not_falsely_rejected(self) -> None:
-        """A normal summary mentioning numbers must not trip the echo guard."""
-        text = (
+    @pytest.mark.parametrize(
+        "text",
+        [
+            # Plain numbers must not trip the echo guard.
             "Der Entwurf sieht vor, dass rund 250 zusätzliche Stellen geschaffen "
-            "werden. Die Kosten trägt das Land, das Gesetz tritt 2027 in Kraft."
-        )
+            "werden. Die Kosten trägt das Land, das Gesetz tritt 2027 in Kraft.",
+            # A genuine 150-250 range without the "Wörter" unit is legitimate
+            # content, not a leaked length hint.
+            "Der Entwurf sieht vor, dass zwischen 150 bis 250 neue Lehrkräfte "
+            "eingestellt werden, um den Unterrichtsausfall spürbar zu senken.",
+            # The meta phrase used mid-sentence in a real summary is fine; only
+            # the leaked variant at the very start is rejected.
+            "Der Bericht enthält eine Zusammenfassung des vorliegenden Gutachtens "
+            "und bewertet dessen Ergebnisse zur Schulpolitik kritisch.",
+        ],
+    )
+    def test_legitimate_summary_not_falsely_rejected(self, text: str) -> None:
+        """Normal summaries must not trip the (now tightened) echo guard."""
         r = ZusammenfassungResult(zusammenfassung=text)
         assert r.zusammenfassung == text
+
+    def test_short_summary_allowed_with_context(self) -> None:
+        """allow_short in the validation context relaxes the length floor."""
+        r = ZusammenfassungResult.model_validate(
+            {"zusammenfassung": "Zu kurz."}, context={"allow_short": True}
+        )
+        assert r.zusammenfassung == "Zu kurz."
+
+    def test_echo_guard_still_applies_with_allow_short(self) -> None:
+        """allow_short relaxes only the length floor, not the echo guard."""
+        with pytest.raises(ValidationError):
+            ZusammenfassungResult.model_validate(
+                {"zusammenfassung": "Du bist ein parlamentarischer Analyst."},
+                context={"allow_short": True},
+            )
 
     def test_serialization(self) -> None:
         r = ZusammenfassungResult(zusammenfassung=self.VALID)

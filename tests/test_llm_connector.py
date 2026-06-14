@@ -387,7 +387,9 @@ class TestSummarize:
         connector = _make_connector()
         captured: list[str] = []
 
-        async def capture(prompt: str, response_model: type) -> ZusammenfassungResult:
+        async def capture(
+            prompt: str, response_model: type, **kwargs: object
+        ) -> ZusammenfassungResult:
             captured.append(prompt)
             return ZusammenfassungResult(
                 zusammenfassung="Eine gültige Zusammenfassung des Quelltextes für den Test."
@@ -397,6 +399,42 @@ class TestSummarize:
             await connector.summarize("Quellentext.", language="   ")
 
         assert "Deutsch" in captured[0]
+
+    @pytest.mark.asyncio
+    async def test_length_limit_relaxes_minimum_via_context(self) -> None:
+        """An explicit count limit forwards allow_short to the validator."""
+        connector = _make_connector()
+        mock_extract = AsyncMock(
+            return_value=ZusammenfassungResult(
+                zusammenfassung=(
+                    "Eine gültige Zusammenfassung des Quelltextes für den Test."
+                )
+            )
+        )
+
+        with patch.object(connector, "extract", mock_extract):
+            await connector.summarize("Quellentext.", word_count=5)
+
+        assert mock_extract.call_args.kwargs["validation_context"] == {
+            "allow_short": True
+        }
+
+    @pytest.mark.asyncio
+    async def test_no_length_limit_keeps_floor(self) -> None:
+        """Without a count limit no allow_short context is sent (floor applies)."""
+        connector = _make_connector()
+        mock_extract = AsyncMock(
+            return_value=ZusammenfassungResult(
+                zusammenfassung=(
+                    "Eine gültige Zusammenfassung des Quelltextes für den Test."
+                )
+            )
+        )
+
+        with patch.object(connector, "extract", mock_extract):
+            await connector.summarize("Quellentext.")
+
+        assert mock_extract.call_args.kwargs["validation_context"] is None
 
     @pytest.mark.asyncio
     async def test_validation_error_propagates(self) -> None:

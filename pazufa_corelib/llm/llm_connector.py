@@ -421,6 +421,8 @@ class LLMConnector:
             Count parameters are handled tolerant:
             - positive `float` values are truncated via `int(...)`
             - invalid values are ignored
+            When any count limit is given, the summary's minimum-length floor is
+            relaxed so that legitimately short summaries are accepted.
         """
         source_text = self._require_non_empty_text(text, field_name="text")
 
@@ -469,7 +471,19 @@ class LLMConnector:
             + source_text
         )
 
-        extraction_result = await self.extract(prompt, ZusammenfassungResult)
+        # An explicit size limit means the caller owns the length contract, so
+        # relax the ZusammenfassungResult minimum-length floor for this call.
+        explicit_length_limit = any(
+            count is not None
+            for count in (sentences_count, word_count, character_count)
+        )
+        validation_context: dict[str, object] | None = (
+            {"allow_short": True} if explicit_length_limit else None
+        )
+
+        extraction_result = await self.extract(
+            prompt, ZusammenfassungResult, validation_context=validation_context
+        )
         LOGGER.debug(
             "Summarization completed (output_chars=%s)",
             len(extraction_result.zusammenfassung),
