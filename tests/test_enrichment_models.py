@@ -32,17 +32,64 @@ class TestKurztitelResult:
 
 
 class TestZusammenfassungResult:
+    # A realistic, non-degenerate summary used across the happy-path tests.
+    VALID = (
+        "Das Gesetz stärkt die Rechte der Bezirke und ordnet ihre Finanzierung "
+        "neu. Es regelt, welche Aufgaben künftig auf Bezirksebene erledigt werden."
+    )
+
     def test_valid(self) -> None:
-        r = ZusammenfassungResult(zusammenfassung="Eine Zusammenfassung.")
-        assert r.zusammenfassung == "Eine Zusammenfassung."
+        r = ZusammenfassungResult(zusammenfassung=self.VALID)
+        assert r.zusammenfassung == self.VALID
 
     def test_empty_zusammenfassung_raises(self) -> None:
         with pytest.raises(ValidationError):
             ZusammenfassungResult(zusammenfassung="")
 
+    def test_too_short_raises(self) -> None:
+        """Truncated/degenerate output below the minimum length is rejected."""
+        with pytest.raises(ValidationError):
+            ZusammenfassungResult(zusammenfassung="Zu kurz.")
+
+    @pytest.mark.parametrize(
+        "leaked",
+        [
+            # Imperative task framing.
+            "Bitte erstelle eine Zusammenfassung des vorliegenden Dokuments zum "
+            "Gesetz zur Stärkung der Bezirke (BeStG).",
+            "Erstelle einen kompakten Fließtext zu diesem parlamentarischen Vorgang "
+            "in allgemeinverständlicher Sprache.",
+            # Analyst persona leaked from the prompt.
+            "Du bist ein parlamentarischer Analyst und fasst das folgende Dokument "
+            "sachlich und verständlich zusammen.",
+            # Summarization instruction echoed verbatim.
+            "Fasse das folgende parlamentarische Dokument in sachlicher und gut "
+            "verständlicher Sprache zusammen.",
+            # Historically observed length hint, dash form.
+            "Eine 150-250 Wörter lange Zusammenfassung des Dokuments in deutscher "
+            "Sprache zum Thema Bezirksstärkung.",
+            # Same hint in "bis" form (defensive: no longer in the prompt).
+            "Strebe einen Umfang von etwa 150 bis 250 Wörtern an und vermeide "
+            "juristische Fachsprache, wo möglich.",
+        ],
+    )
+    def test_prompt_echo_rejected(self, leaked: str) -> None:
+        """Output that parrots the prompt/schema is rejected (issue #104)."""
+        with pytest.raises(ValidationError):
+            ZusammenfassungResult(zusammenfassung=leaked)
+
+    def test_legitimate_summary_not_falsely_rejected(self) -> None:
+        """A normal summary mentioning numbers must not trip the echo guard."""
+        text = (
+            "Der Entwurf sieht vor, dass rund 250 zusätzliche Stellen geschaffen "
+            "werden. Die Kosten trägt das Land, das Gesetz tritt 2027 in Kraft."
+        )
+        r = ZusammenfassungResult(zusammenfassung=text)
+        assert r.zusammenfassung == text
+
     def test_serialization(self) -> None:
-        r = ZusammenfassungResult(zusammenfassung="Text")
-        assert r.model_dump() == {"zusammenfassung": "Text"}
+        r = ZusammenfassungResult(zusammenfassung=self.VALID)
+        assert r.model_dump() == {"zusammenfassung": self.VALID}
 
 
 class TestSchlagworteResult:

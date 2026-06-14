@@ -342,7 +342,10 @@ class TestSummarize:
     @pytest.mark.asyncio
     async def test_returns_zusammenfassung_string(self) -> None:
         connector = _make_connector()
-        expected = "Eine prägnante Zusammenfassung des Textes."
+        expected = (
+            "Eine prägnante Zusammenfassung des Textes über die geplante "
+            "Bildungsreform und ihre wesentlichen Maßnahmen."
+        )
 
         with patch.object(
             connector,
@@ -366,7 +369,11 @@ class TestSummarize:
     async def test_extract_called_with_zusammenfassung_model(self) -> None:
         connector = _make_connector()
         mock_extract = AsyncMock(
-            return_value=ZusammenfassungResult(zusammenfassung="Zusammenfassung.")
+            return_value=ZusammenfassungResult(
+                zusammenfassung=(
+                    "Eine gültige Zusammenfassung des Quelltextes für den Test."
+                )
+            )
         )
 
         with patch.object(connector, "extract", mock_extract):
@@ -382,7 +389,9 @@ class TestSummarize:
 
         async def capture(prompt: str, response_model: type) -> ZusammenfassungResult:
             captured.append(prompt)
-            return ZusammenfassungResult(zusammenfassung="Zusammenfassung.")
+            return ZusammenfassungResult(
+                zusammenfassung="Eine gültige Zusammenfassung des Quelltextes für den Test."
+            )
 
         with patch.object(connector, "extract", side_effect=capture):
             await connector.summarize("Quellentext.", language="   ")
@@ -1008,6 +1017,17 @@ class TestExtractErrorClassification:
 # ---------------------------------------------------------------------------
 
 
+# Valid (>= min length, non-echo) summaries reused by the mock-return tests.
+_SUMMARY_DOKUMENT = (
+    "Eine allgemeine Zusammenfassung des Dokuments mit den wesentlichen "
+    "Aussagen und ihrem Kontext."
+)
+_SUMMARY_GESETZENTWURF = (
+    "Der Gesetzentwurf regelt die Verwaltung der Bezirke neu und legt ihre "
+    "künftigen Aufgaben sowie deren Finanzierung fest."
+)
+
+
 class TestSummarizeDokument:
     """Tests for LLMConnector.summarize_dokument()."""
 
@@ -1018,15 +1038,13 @@ class TestSummarizeDokument:
             connector,
             "extract",
             new=AsyncMock(
-                return_value=ZusammenfassungResult(
-                    zusammenfassung="Eine allgemeine Zusammenfassung."
-                )
+                return_value=ZusammenfassungResult(zusammenfassung=_SUMMARY_DOKUMENT)
             ),
         ):
             result = await connector.summarize_dokument(
                 titel="Stellungnahme", text="Inhalt des Dokuments."
             )
-        assert result == "Eine allgemeine Zusammenfassung."
+        assert result == _SUMMARY_DOKUMENT
 
     @pytest.mark.asyncio
     async def test_empty_titel_raises(self) -> None:
@@ -1049,7 +1067,7 @@ class TestSummarizeDokument:
             prompt: str, response_model: type, **kwargs: object
         ) -> ZusammenfassungResult:
             captured.append(prompt)
-            return ZusammenfassungResult(zusammenfassung="ok")
+            return ZusammenfassungResult(zusammenfassung=_SUMMARY_DOKUMENT)
 
         with patch.object(connector, "extract", new=capture_extract):
             await connector.summarize_dokument(
@@ -1072,14 +1090,14 @@ class TestSummarizeGesetzentwurf:
             "extract",
             new=AsyncMock(
                 return_value=ZusammenfassungResult(
-                    zusammenfassung="Zusammenfassung des Gesetzentwurfs."
+                    zusammenfassung=_SUMMARY_GESETZENTWURF
                 )
             ),
         ):
             result = await connector.summarize_gesetzentwurf(
                 titel="Gesetzentwurf", text="Normtext."
             )
-        assert result == "Zusammenfassung des Gesetzentwurfs."
+        assert result == _SUMMARY_GESETZENTWURF
 
     @pytest.mark.asyncio
     async def test_empty_titel_raises(self) -> None:
@@ -1102,7 +1120,7 @@ class TestSummarizeGesetzentwurf:
             prompt: str, response_model: type, **kwargs: object
         ) -> ZusammenfassungResult:
             captured.append(prompt)
-            return ZusammenfassungResult(zusammenfassung="ok")
+            return ZusammenfassungResult(zusammenfassung=_SUMMARY_DOKUMENT)
 
         with patch.object(connector, "extract", new=capture_extract):
             await connector.summarize_gesetzentwurf(
@@ -1124,13 +1142,13 @@ class TestSummarizeGesetzentwurf:
             prompt: str, response_model: type, **kwargs: object
         ) -> ZusammenfassungResult:
             gesetzentwurf_prompts.append(prompt)
-            return ZusammenfassungResult(zusammenfassung="ok")
+            return ZusammenfassungResult(zusammenfassung=_SUMMARY_DOKUMENT)
 
         async def capture_dokument(
             prompt: str, response_model: type, **kwargs: object
         ) -> ZusammenfassungResult:
             dokument_prompts.append(prompt)
-            return ZusammenfassungResult(zusammenfassung="ok")
+            return ZusammenfassungResult(zusammenfassung=_SUMMARY_DOKUMENT)
 
         with patch.object(connector, "extract", new=capture_gesetzentwurf):
             await connector.summarize_gesetzentwurf(titel="T", text="Text.")

@@ -8,14 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Security
+### Changed
 
-- **Bumped vulnerable transitive dependencies** to their fixed releases so `pip-audit` passes again: `aiohttp` 3.13.5 → 3.14.1 (multiple CVEs), `cryptography` 48.0.0 → 49.0.0 (`GHSA-537c-gmf6-5ccf`), and `pip` 26.1.1 → 26.1.2 (`PYSEC-2026-196`). The remaining `diskcache` advisory (`CVE-2025-69872`) has no upstream fix and stays ignored, tracked in issue #97.
+- **Summarization prompts reframed for the public** — `ZUSAMMENFASSUNG_PROMPT` and `ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT` now state that the summary is shown on a public website that makes parliamentary proceedings accessible to citizens without legal/political background, ask for plain language with brief explanations of technical terms, and instruct the model to output only the summary itself. The explicit word-count target was dropped in favour of structural guidance ("focus on the essentials; as short as possible, as detailed as necessary"), since LLMs follow type/audience framing more reliably than numeric length targets.
 
 ### Fixed
 
 - **`normalize_volltext` now strips C0 control characters and DEL** (`\x00`–`\x1f` except `\t \n \r`, plus `\x7f`). A stray NUL byte (`0x00`) previously survived into the output and caused the backend's PostgreSQL `text` insert to fail with `invalid byte sequence for encoding "UTF8": 0x00` (#101).
+- **Summary prompt/schema leakage** ([#104](https://codeberg.org/PaZuFa/pazufa-scraper-core/issues/104)) — `ZusammenfassungResult` no longer accepts output that merely echoes the task or response schema (e.g. summaries containing the `150-250 Wörter` length hint). A new `field_validator` rejects such prompt-echo output so Instructor re-prompts the model, and the field's minimum length was raised from 1 to 50 characters to drop truncated output. The `150-250 word` instruction was removed from the schema field description (the most-parroted source); a defensive guard against that string remains in the validator.
 
+### Security
+
+- **Bumped vulnerable transitive dependencies** to their fixed releases so `pip-audit` passes again: `aiohttp` 3.13.5 → 3.14.1 (multiple CVEs), `cryptography` 48.0.0 → 49.0.0 (`GHSA-537c-gmf6-5ccf`), and `pip` 26.1.1 → 26.1.2 (`PYSEC-2026-196`). The remaining `diskcache` advisory (`CVE-2025-69872`) has no upstream fix and stays ignored, tracked in issue #97.
 
 ## [0.1.1] - 2026-05-30
 
