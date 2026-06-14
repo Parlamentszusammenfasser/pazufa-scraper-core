@@ -10,6 +10,10 @@ from datetime import date
 # Latin-Extended-B subset (U+0180–U+024F): stricter signal used in paragraph scoring
 _RE_LATIN_EXT_B = re.compile(r"[\u0180-\u024f]")
 
+# C0 control characters and DEL, excluding tab/newline/CR which carry layout:
+# a stray NUL (0x00) in particular cannot be stored in a PostgreSQL text column.
+_RE_C0_CONTROLS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
 # C1 control characters (U+0080–U+009F): injected by ASCII+29 font shift
 _RE_C1_CONTROLS = re.compile(r"[\x80-\x9f]")
 
@@ -143,13 +147,15 @@ def normalize_volltext(text: str) -> str:
     1. HTML entity decoding (``&amp;``, ``&uuml;``, ``&#160;``, …)
     2. NFKC unicode normalisation
     3. Strip invisible/zero-width characters (soft hyphen, BOM, ZWJ, ZWSP)
-    4. Strip C1 control characters (U+0080–U+009F)
-    5. Normalize line endings to ``\\n``
-    6. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` →
+    4. Strip C0 control characters and DEL, except ``\\t \\n \\r`` (incl. NUL,
+       which PostgreSQL ``text`` columns cannot store)
+    5. Strip C1 control characters (U+0080–U+009F)
+    6. Normalize line endings to ``\\n``
+    7. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` →
        ``Landesregierung``)
-    7. Collapse multiple spaces/tabs within a line to a single space
-    8. Remove paragraphs with quality score < 0.5
-    9. Replace ``<`` / ``>`` with guillemets ‹ › to neutralize XSS triggers
+    8. Collapse multiple spaces/tabs within a line to a single space
+    9. Remove paragraphs with quality score < 0.5
+    10. Replace ``<`` / ``>`` with guillemets ‹ › to neutralize XSS triggers
 
     Step 1 is a no-op on plain text containing no entity sequences, so
     applying this function to PDF-extracted text has no side effects.
@@ -165,6 +171,9 @@ def normalize_volltext(text: str) -> str:
     text = html.unescape(text)
     text = unicodedata.normalize("NFKC", text)
     text = _RE_INVISIBLE.sub("", text)
+    # Strip C0 controls (incl. NUL) and DEL but keep \t \n \r; a stray NUL
+    # would otherwise break the backend's PostgreSQL text insert.
+    text = _RE_C0_CONTROLS.sub("", text)
     # C1 controls are not produced by NFKC, so this is a separate stripping pass.
     text = _RE_C1_CONTROLS.sub("", text)
     # Normalize line endings before hyphen-break rejoining, so the pattern
