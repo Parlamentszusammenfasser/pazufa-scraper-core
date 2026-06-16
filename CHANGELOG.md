@@ -36,6 +36,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **'normalize_autor'** — Normalize the ``organisation`` and ``person`` fields of an Autor in-place. Resolves each field against the provided resolvers and updates it to the
     canonical name if a match is found; logs debug information otherwise. (Experimental, due to open decion if such a function should be part of the Corelib or only of the -based Implementations [planned for v0.2])
 
+### Fixed
+
+- **`normalize_volltext` now strips C0 control characters and DEL** (`\x00`–`\x1f` except `\t \n \r`, plus `\x7f`). A stray NUL byte (`0x00`) previously survived into the output and caused the backend's PostgreSQL `text` insert to fail with `invalid byte sequence for encoding "UTF8": 0x00` (#101).
+
 
 ### Fixed
 
