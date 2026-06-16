@@ -30,6 +30,8 @@ class TestPromptFormatting:
         # Generic prompt should not contain Gesetzentwurf-specific structure.
         assert "Geänderte Vorschriften" not in result
         assert "Inkrafttreten" not in result
+        # Public-facing framing for non-expert readers (issue #104).
+        assert "Bürgerinnen und Bürger" in result
 
     def test_zusammenfassung_gesetzentwurf_prompt(self) -> None:
         result = ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT.format(
@@ -40,6 +42,8 @@ class TestPromptFormatting:
         # Gesetzentwurf-specific structure must be present.
         assert "Geänderte Vorschriften" in result
         assert "Inkrafttreten" in result
+        # Public-facing framing for non-expert readers (issue #104).
+        assert "Bürgerinnen und Bürger" in result
 
     def test_schlagworte_prompt(self) -> None:
         result = SCHLAGWORTE_PROMPT.format(
