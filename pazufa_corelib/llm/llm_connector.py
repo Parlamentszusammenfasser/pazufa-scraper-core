@@ -8,7 +8,7 @@ Example — structured extraction:
     ```python
     import asyncio
     from pydantic import BaseModel
-    from corelib.llm import LLMConnector
+    from pazufa_corelib.llm import LLMConnector
 
 
     class Keywords(BaseModel):
@@ -1361,7 +1361,7 @@ class LLMConnector:
         """
         delay = RETRY_BASE_DELAY_SECONDS * (2**attempt)
         capped_delay = float(min(delay, RETRY_MAX_DELAY_SECONDS))
-        jitter = random.uniform(RETRY_JITTER_MIN_SECONDS, RETRY_JITTER_MAX_SECONDS)
+        jitter = random.uniform(RETRY_JITTER_MIN_SECONDS, RETRY_JITTER_MAX_SECONDS)  # noqa: S311  # retry backoff jitter, not security-sensitive
         total_delay = capped_delay + jitter
         LOGGER.debug(
             "Computed retry delay (attempt=%s, capped_delay=%.2fs, jitter=%.2fs, "

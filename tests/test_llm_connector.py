@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     from instructor.core import InstructorRetryException
 
-from corelib.llm.llm_connector import (
+from pazufa_corelib.llm.llm_connector import (
     TOKEN_ESTIMATE_OUTPUT_BUFFER,
     LLMAuthenticationError,
     LLMConnector,
@@ -264,7 +264,10 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch("corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "pazufa_corelib.llm.llm_connector.asyncio.sleep",
+            new_callable=AsyncMock,
+        ):
             result = await connector.extract(prompt="test", response_model=Keywords)
 
         assert result.sachgebiete == ["Justiz"]
@@ -302,7 +305,10 @@ class TestExtractNetworkRetry:
         )
         connector._instructor_client = mock_client
 
-        with patch("corelib.llm.llm_connector.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "pazufa_corelib.llm.llm_connector.asyncio.sleep",
+            new_callable=AsyncMock,
+        ):
             with pytest.raises(LLMTemporaryProviderError):
                 await connector.extract(prompt="test", response_model=Keywords)
 
@@ -327,7 +333,7 @@ class TestExtractInstructorInit:
 # ---------------------------------------------------------------------------
 
 
-from corelib.llm.models import ZusammenfassungResult  # noqa: E402
+from pazufa_corelib.llm.models import ZusammenfassungResult  # noqa: E402
 
 
 class TestSummarize:
@@ -614,7 +620,7 @@ class TestEstimateRequestTokens:
         ]
 
         with patch(
-            "corelib.llm.llm_connector.litellm.token_counter",
+            "pazufa_corelib.llm.llm_connector.litellm.token_counter",
             side_effect=lambda model, text: len(text.split()),
         ):
             result = connector._estimate_request_tokens(messages)
@@ -632,7 +638,7 @@ class TestEstimateRequestTokens:
         messages = [{"role": "user", "content": "Hello"}]
 
         with patch(
-            "corelib.llm.llm_connector.litellm.token_counter",
+            "pazufa_corelib.llm.llm_connector.litellm.token_counter",
             side_effect=Exception("unsupported model"),
         ):
             result = connector._estimate_request_tokens(messages)
@@ -651,7 +657,7 @@ class TestEstimateRequestTokens:
         ]
 
         with patch(
-            "corelib.llm.llm_connector.litellm.token_counter",
+            "pazufa_corelib.llm.llm_connector.litellm.token_counter",
             side_effect=lambda model, text: len(text.split()) if text else 0,
         ):
             result = connector._estimate_request_tokens(messages)
@@ -672,10 +678,12 @@ class TestEstimateRequestTokens:
         messages = [{"role": "user", "content": "Hello"}]
 
         with patch(
-            "corelib.llm.llm_connector.litellm.token_counter",
+            "pazufa_corelib.llm.llm_connector.litellm.token_counter",
             side_effect=Exception("unsupported model"),
         ):
-            with caplog.at_level(logging.ERROR, logger="corelib.llm.llm_connector"):
+            with caplog.at_level(
+                logging.ERROR, logger="pazufa_corelib.llm.llm_connector"
+            ):
                 result = connector._estimate_request_tokens(messages)
 
         assert result == 0

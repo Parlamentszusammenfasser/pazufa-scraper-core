@@ -2,7 +2,7 @@
 sachgebiet-derived inputs.
 
 Reads all Sachgebiet IDs from
-``corelib/normalization/mappings/sachgebiete.yaml`` (via the resolver's
+``pazufa_corelib/normalization/mappings/sachgebiete.yaml`` (via the resolver's
 own loader) and builds a test list where:
 
  - 40% are exact (clean) hits
@@ -24,11 +24,11 @@ from __future__ import annotations
 import random
 from collections.abc import Callable
 
-from corelib.normalization.schlagworte import (
-    SACHGEBIETE_FILES,
+from pazufa_corelib.normalization.schlagworte import (
+    _SACHGEBIETE_FILES,
     SchlagwortResolver,
 )
-from corelib.schlagworte_model import SachgebietFile
+from pazufa_corelib.schlagworte_model import SachgebietFile
 
 Perturbation = Callable[[str], str]
 
@@ -171,7 +171,7 @@ def _make_big_errors(rng: random.Random) -> list[Perturbation]:
 def load_sachgebiet_ids() -> list[str]:
     """Load all Sachgebiet IDs from ``SACHGEBIETE_FILES``."""
     ids: list[str] = []
-    for path in SACHGEBIETE_FILES:
+    for path in _SACHGEBIETE_FILES:
         ids.extend(s.id for s in SachgebietFile.from_path(path).tags)
     return ids
 
@@ -189,7 +189,7 @@ def build_test_list(
     small-error inputs, and ``None`` for big-error inputs (where the
     expectation is a miss).
     """
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311  # deterministic test data generation, not security
     n_small = int(round(total * small_error_pct))
     n_big = int(round(total * big_error_pct))
     n_clean = total - n_small - n_big

@@ -2,7 +2,7 @@
 
 import json
 
-from corelib.llm.prompts import (
+from pazufa_corelib.llm.prompts import (
     EXPERTEN_PROMPT,
     KURZTITEL_PROMPT,
     MEINUNG_PROMPT,
@@ -12,7 +12,7 @@ from corelib.llm.prompts import (
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
 )
-from corelib.normalization.schlagworte import SchlagwortResolver
+from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 
 
 class TestPromptFormatting:

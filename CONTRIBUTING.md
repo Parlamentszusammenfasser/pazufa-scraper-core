@@ -14,30 +14,36 @@ Install Poetry first if it is not already available:
 ```bash
 git clone https://codeberg.org/PaZuFa/pazufa-scraper-core.git
 cd pazufa-scraper-core
-poetry install --with dev
+make install
 ```
 
 Verify everything passes before opening a PR:
 
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy .
-poetry run pytest -v
-poetry run pip-audit
+make check
 ```
 
 ## Tooling
 
-| Tool          | Purpose                       | Run                          |
-|---------------|-------------------------------|------------------------------|
-| `ruff check`  | Linting                       | `poetry run ruff check .`    |
-| `ruff format` | Formatting                    | `poetry run ruff format .`   |
-| `mypy`        | Static type checking          | `poetry run mypy .`          |
-| `pytest`      | Tests                         | `poetry run pytest -v`       |
-| `pip-audit`   | Dependency vulnerability scan | `poetry run pip-audit`       |
+| Tool                | Purpose                               | Make target             |
+|---------------------|---------------------------------------|-------------------------|
+| `ruff check`        | Linting                               | `make lint`             |
+| `ruff format`       | Formatting check                      | `make lint`             |
+| `mypy`              | Static type checking                  | `make typecheck`        |
+| `pytest`            | Tests                                 | `make test`             |
+| `pytest --cov`      | Tests with coverage report            | `make coverage`         |
+| `pip-audit`         | Dependency vulnerability scan         | `make security`         |
+| `pylic`             | Dependency license compliance check   | `make licenses`         |
+| `datamodel-codegen` | Regenerate API models/client          | `make generate`         |
+| `detect-secrets`    | Scan for secrets against baseline     | `make secrets-scan`     |
+| `detect-secrets`    | Create or update `.secrets.baseline`  | `make secrets-update`   |
+| `detect-secrets`    | Interactively audit baseline findings | `make secrets-audit`    |
+
+Run `make` with no target to list all available targets.
 
 **mypy** is configured in `pyproject.toml` with strict settings (`disallow_untyped_defs`, `warn_return_any`). All new code must pass type checking. Generated files (`api_model.py`, `api_client/`) are excluded.
+
+**pylic** enforces dependency license compliance. The allowed license list and any `unsafe_packages` exceptions live under `[tool.pylic]` in `pyproject.toml`. When adding a dependency whose license is not yet in `safe_licenses`, either add the license (if acceptable for the project) or add the package to `unsafe_packages` with a comment explaining why.
 
 
 
@@ -49,7 +55,7 @@ Documentation for this repository is split between the repo itself and the proje
 
 ### Docstrings
 
-Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `corelib/` require a docstring. Example:
+Docstrings are enforced by ruff (pydocstyle rules) using the **Google convention**. All public functions, methods, and classes in `pazufa_corelib/` require a docstring. Example:
 
 ```python
 def my_function(arg: str) -> int:
@@ -118,8 +124,8 @@ for a later API revision, usually with a larger time lag.
 
 Some files are generated and should usually not be edited by hand:
 
-- [corelib/api_model.py](corelib/api_model.py) from `datamodel-codegen`
-- [corelib/api_client/](corelib/api_client/) from `openapi-python-client`
+- [pazufa_corelib/api_model.py](pazufa_corelib/api_model.py) from `datamodel-codegen`
+- [pazufa_corelib/api_client/](pazufa_corelib/api_client/) from `openapi-python-client`
 
 If you change API-related behavior, prefer updating the OpenAPI source or generator configuration and then regenerate:
 

@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from corelib.llm.models import (
+from pazufa_corelib.llm.models import (
     ExpertenResult,
     ExpertenResultNoLobbyregister,
     ExtractedExpert,
@@ -50,7 +50,7 @@ class TestSchlagworteResult:
 
     def _ctx(self) -> dict[str, object]:
         """Build a validation context with a SchlagwortResolver."""
-        from corelib.normalization.schlagworte import SchlagwortResolver
+        from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 
         return {"resolver": SchlagwortResolver()}
 

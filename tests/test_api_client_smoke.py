@@ -14,13 +14,13 @@ from uuid import UUID
 import httpx
 import pytest
 
-from corelib import format_if_modified_since
-from corelib.api_client.api.sitzung import kal_date_put
-from corelib.api_client.api.vorgang import vorgang_get_by_id, vorgang_put
-from corelib.api_client.client import AuthenticatedClient
-from corelib.api_client.models.parlament import Parlament
-from corelib.api_client.models.vorgang import Vorgang
-from corelib.api_client.models.vorgangstyp import Vorgangstyp
+from pazufa_corelib import format_if_modified_since
+from pazufa_corelib.api_client.api.sitzung import kal_date_put
+from pazufa_corelib.api_client.api.vorgang import vorgang_get_by_id, vorgang_put
+from pazufa_corelib.api_client.client import AuthenticatedClient
+from pazufa_corelib.api_client.models.parlament import Parlament
+from pazufa_corelib.api_client.models.vorgang import Vorgang
+from pazufa_corelib.api_client.models.vorgangstyp import Vorgangstyp
 
 SCRAPER_ID = "11111111-2222-3333-4444-555555555555"
 VORGANG_ID = UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
@@ -45,7 +45,7 @@ def client(captured: list[dict[str, Any]]) -> AuthenticatedClient:
             return httpx.Response(304)
         return httpx.Response(201)
 
-    c = AuthenticatedClient(base_url="http://test", token="dummy")
+    c = AuthenticatedClient(base_url="http://test", token="dummy")  # noqa: S106  # test fixture, not a real credential
     c.set_httpx_client(
         httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
     )
@@ -88,7 +88,7 @@ def test_scraper_id_header_is_sent_on_kal_date_put(
 ) -> None:
     kal_date_put.sync_detailed(
         Parlament.BT,
-        datetime(2024, 1, 1).date(),
+        datetime(2024, 1, 1, tzinfo=timezone.utc).date(),
         client=client,
         body=[],
         x_scraper_id=SCRAPER_ID,

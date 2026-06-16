@@ -4,7 +4,7 @@ import hashlib
 
 import pytest
 
-from corelib.normalization.hash import (
+from pazufa_corelib.normalization.hash import (
     HASH_ALGORITHM_SHA_1,
     HASH_ALGORITHM_SHA_256,
     HASH_CONNECTOR,
@@ -16,7 +16,7 @@ from corelib.normalization.hash import (
     hash_text,
     hash_text_sha_256,
 )
-from corelib.normalization.text import normalize_volltext
+from pazufa_corelib.normalization.text import normalize_volltext
 
 SHA1_BYTES_VARIANT = HASH_ALGORITHM_SHA_1 + HASH_CONNECTOR + HASH_VARIANT_BYTES
 SHA256_BYTES_VARIANT = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_BYTES
@@ -64,7 +64,7 @@ class TestHashBytesSha1:
 
     def test_hash_is_sha1_hex(self) -> None:
         digest, _ = hash_bytes_sha_1(b"hello")
-        assert digest == hashlib.sha1(b"hello").hexdigest()
+        assert digest == hashlib.sha1(b"hello").hexdigest()  # noqa: S324  # asserting sha1 implementation
 
     def test_variant_is_correct(self) -> None:
         _, variant = hash_bytes_sha_1(b"hello")
@@ -72,7 +72,7 @@ class TestHashBytesSha1:
 
     def test_empty_bytes(self) -> None:
         digest, variant = hash_bytes_sha_1(b"")
-        assert digest == hashlib.sha1(b"").hexdigest()
+        assert digest == hashlib.sha1(b"").hexdigest()  # noqa: S324  # asserting sha1 implementation
         assert variant == SHA1_BYTES_VARIANT
 
     def test_different_inputs_produce_different_hashes(self) -> None:

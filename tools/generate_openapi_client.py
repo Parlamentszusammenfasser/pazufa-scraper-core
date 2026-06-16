@@ -12,8 +12,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 OPENAPI = REPO_ROOT / "openapi.yaml"
 CONFIG = Path(__file__).resolve().parent / "openapi-python-client.yaml"
 
-GEN_PKG_NAME = "corelib_api_client"
-DEST = REPO_ROOT / "corelib" / "api_client"
+GEN_PKG_NAME = "pazufa_corelib_api_client"
+DEST = REPO_ROOT / "pazufa_corelib" / "api_client"
 
 # openapi-python-client emits broken header code for these formats:
 # - "date-time" produces `datetime | Unset` parameters that the client cannot
@@ -25,7 +25,7 @@ _UNSUPPORTED_HEADER_FORMATS = {"date-time", "uuid"}
 
 
 def run(cmd: list[str]) -> None:
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True)  # noqa: S603  # dev tool, command list is constructed in-repo
 
 
 def _patch_spec(spec: dict) -> dict:

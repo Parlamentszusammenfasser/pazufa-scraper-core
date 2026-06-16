@@ -18,12 +18,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
 
-import numpy as np
 from pydantic import AfterValidator, BaseModel
-from rapidfuzz import fuzz
-from rapidfuzz.process import cdist
+from rapidfuzz import fuzz, process
 
-from corelib.schlagworte_model import (
+from pazufa_corelib.normalization._fuzzy import fuzzy_resolve
+from pazufa_corelib.schlagworte_model import (
     Sachgebiet,
     SachgebietFile,
     SchlagwortIDResolution,
@@ -34,10 +33,10 @@ from corelib.schlagworte_model import (
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
 
-GLOBAL_TAGS_FILES: list[Path] = [MAPPINGS_DIR.joinpath("global_tags.yaml")]
-"""Constant list of the paths to the global tag files."""
-SACHGEBIETE_FILES: list[Path] = [MAPPINGS_DIR.joinpath("sachgebiete.yaml")]
-"""Constant list of the paths to the sachgebiet files."""
+_GLOBAL_TAGS_FILES: tuple[Path, ...] = (MAPPINGS_DIR.joinpath("global_tags.yaml"),)
+"""Constant tuple of the paths to the global tag files."""
+_SACHGEBIETE_FILES: tuple[Path, ...] = (MAPPINGS_DIR.joinpath("sachgebiete.yaml"),)
+"""Constant tuple of the paths to the sachgebiet files."""
 
 LOGGER = logging.getLogger(__name__)
 
@@ -55,7 +54,7 @@ _RE_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 def _load_global_tag_ids() -> set[str]:
     """Load the canonical tag IDs from all global tag files."""
     return {
-        tag.id for path in GLOBAL_TAGS_FILES for tag in TagFile.from_path(path).tags
+        tag.id for path in _GLOBAL_TAGS_FILES for tag in TagFile.from_path(path).tags
     }
 
 
@@ -83,6 +82,7 @@ def _canonicalise_ids(
     canonical_ids: list[str],
     strict: bool = False,
     cutoff: float = _FUZZY_MATCH_THRESHOLD,
+    near_tie_epsilon: float = _NEAR_TIE_EPSILON,
 ) -> list[SchlagwortIDResolution]:
     """Fuzzy-match raw IDs against canonical IDs and return resolutions.
 
@@ -95,6 +95,8 @@ def _canonicalise_ids(
         strict: If True, drop raw IDs that fall below the cutoff.
             If False, keep them unchanged.
         cutoff: Minimum fuzzy-match score; scores below are treated as 0.
+        near_tie_epsilon: Score difference within which two candidates are
+            considered a near-tie and logged as a warning.
 
     Returns:
         A list of SchlagwortIDResolution with the original ID, resolved ID,
@@ -103,72 +105,19 @@ def _canonicalise_ids(
     Raises:
         ValueError: If raw_ids or canonical_ids is empty.
     """
-    # Catching possible errors that a Matrix with an empty row or column would create.
-    if not raw_ids or not canonical_ids:
-        raise ValueError(
-            f"raw_ids and canonical_ids must not be empty, "
-            f"got {len(raw_ids)} raw and {len(canonical_ids)} canonical IDs"
-        )
-
-    # C++ Matrix call
-    matrix = cdist(
+    pairs = fuzzy_resolve(
         raw_ids,
         canonical_ids,
         scorer=fuzz.token_sort_ratio,
         processor=_processor_ids,
-        score_cutoff=cutoff,  # scores below cutoff → 0.0
+        cutoff=cutoff,
+        strict=strict,
+        near_tie_epsilon=near_tie_epsilon,
     )
-
-    result: list[SchlagwortIDResolution] = []
-
-    for i, raw_id in enumerate(raw_ids):
-        row = matrix[i]
-        best_idx: int = row.argmax()
-        best_score: float = row[best_idx]
-
-        if best_score == 0:
-            if not strict:
-                result.append(
-                    SchlagwortIDResolution(
-                        original_id=raw_id, resolved_id=raw_id, score=0.0
-                    )
-                )
-
-        else:
-            # Warn when the runner-up score is within _NEAR_TIE_EPSILON of the best.
-            sorted_scores = np.sort(row)[::-1]
-            if len(sorted_scores) >= 2:
-                second_best_score = sorted_scores[1]
-                if (
-                    best_score - second_best_score <= _NEAR_TIE_EPSILON
-                    and second_best_score > 0
-                ):
-                    second_best_idx = int(np.where(row == second_best_score)[0][0])
-                    LOGGER.warning(
-                        "Near-tie for %r: %r (%.2f) vs %r (%.2f),"
-                        " delta=%.2f <= epsilon=%.2f",
-                        raw_id,
-                        canonical_ids[best_idx],
-                        best_score,
-                        canonical_ids[second_best_idx],
-                        second_best_score,
-                        best_score - second_best_score,
-                        _NEAR_TIE_EPSILON,
-                    )
-
-            resolved_id = canonical_ids[best_idx]
-            result.append(
-                SchlagwortIDResolution(
-                    original_id=raw_id, resolved_id=resolved_id, score=best_score
-                )
-            )
-
-    if not result:
-        LOGGER.warning(
-            f"Canonicalization of IDs returned 0 results.. With strict = {strict}"
-        )
-
-    return result
+    return [
+        SchlagwortIDResolution(original_id=o, resolved_id=r, score=s)
+        for o, r, s in pairs
+    ]
 
 
 def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
@@ -207,11 +156,11 @@ def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
                 description=tag.description,
             )
 
-    for path in GLOBAL_TAGS_FILES:
+    for path in _GLOBAL_TAGS_FILES:
         for tag in TagFile.from_path(path).tags:
             tag_list[tag.id] = tag
 
-    for path in SACHGEBIETE_FILES:  # last-write-wins
+    for path in _SACHGEBIETE_FILES:  # last-write-wins
         for sachgebiet in SachgebietFile.from_path(path).tags:
             tag_list[sachgebiet.id] = Tag.model_construct(
                 id=sachgebiet.id,
@@ -230,7 +179,7 @@ def _load_sachgebiete() -> list[Sachgebiet]:
     sachgebiet_list: dict[str, Sachgebiet] = {}
     number_index: dict[int, tuple[str, Path]] = {}  # number -> (id, source path)
 
-    for path in SACHGEBIETE_FILES:
+    for path in _SACHGEBIETE_FILES:
         sachgebiet_file = SachgebietFile.from_path(path)
         for sachgebiet in sachgebiet_file.tags:
             if sachgebiet.number in number_index:
@@ -306,12 +255,19 @@ class SchlagwortResolver:
     to prevent stale tag or sachgebiet lists in the scraper.
     """
 
-    def __init__(self, local_tags: list[Path] | None = None) -> None:
+    def __init__(
+        self,
+        local_tags: list[Path] | None = None,
+        match_threshold: float = _FUZZY_MATCH_THRESHOLD,
+        near_tie_epsilon: float = _NEAR_TIE_EPSILON,
+    ) -> None:
+        self._match_threshold = match_threshold
+        self._near_tie_epsilon = near_tie_epsilon
         # load vocabulary
         self._tags: list[Tag] = _load_tags(local_tags)
         self._sachgebiete: list[Sachgebiet] = _load_sachgebiete()
 
-        # pre-serialise JSON representations
+        # pre-serialize JSON representations
         self._tags_json: str = _build_json(self._tags)
         self._sachgebiete_json: str = _build_json(self._sachgebiete)
         self._sachgebiete_no_numbers_json: str = _build_json_sachgebiete_no_numbers(
@@ -337,6 +293,16 @@ class SchlagwortResolver:
             set(self._sachgebiete_number_to_id), "Invalid Sachgebiet-Nummern"
         )
         self.TagList: Any = _make_validated_list(self._tag_ids, "Invalid Tags")
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "SchlagwortResolver initialised",
+                extra={
+                    "local_tag_files_count": len(local_tags) if local_tags else 0,
+                    "tags_count": len(self._tags),
+                    "sachgebiete_count": len(self._sachgebiete),
+                },
+            )
 
     # =====================================================================
     # Tag actions
@@ -375,13 +341,18 @@ class SchlagwortResolver:
         Returns:
             True if the ID matched a known tag above the fuzzy cutoff, False otherwise.
         """
-        check_id = _canonicalise_ids([tag_id], self._tag_ids_list)[0]
+        check_id = _canonicalise_ids(
+            [tag_id],
+            self._tag_ids_list,
+            cutoff=self._match_threshold,
+            near_tie_epsilon=self._near_tie_epsilon,
+        )[0]
         LOGGER.debug("Fuzzy check returned: %s", check_id)
         # explicitly typed for mypy
         return bool(check_id.matched)
 
     def canonicalise_tags(self, tag_ids: list[str], strict: bool = False) -> list[str]:
-        """Canonicalise a list of tag IDs against the known vocabulary.
+        """Canonicalize a list of tag IDs against the known vocabulary.
 
         Args:
             tag_ids: Raw tag IDs to resolve.
@@ -391,8 +362,99 @@ class SchlagwortResolver:
         Returns:
             List of resolved canonical tag IDs.
         """
-        resolved_ids = _canonicalise_ids(tag_ids, self._tag_ids_list, strict)
+        resolved_ids = _canonicalise_ids(
+            tag_ids,
+            self._tag_ids_list,
+            strict,
+            cutoff=self._match_threshold,
+            near_tie_epsilon=self._near_tie_epsilon,
+        )
         return [r.resolved_id for r in resolved_ids]
+
+    def canonicalise_tag(self, tag_id: str, strict: bool = False) -> str | None:
+        """Canonicalize a single tag ID to its resolved canonical form.
+
+        Args:
+            tag_id: The tag ID to be canonicalized.
+            strict: If True, applies strict validation rules during canonicalization.
+                Defaults to False.
+
+        Returns:
+            The resolved canonical form of the given tag ID.
+        """
+        resolved = self.canonicalise_tags([tag_id], strict=strict)
+
+        resolved_id = resolved[0] if resolved else None
+
+        if resolved_id is not None and not resolved_id.strip():
+            resolved_id = None
+
+        if resolved_id is None:
+            LOGGER.warning(
+                "Tag %r not found in vocabulary",
+                tag_id,
+                extra={"original_id": tag_id},
+            )
+        elif LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Resolved Sachgebiet %r → %r",
+                tag_id,
+                resolved_id,
+                extra={"original_id": tag_id, "canonical_id": resolved_id},
+            )
+        return resolved_id
+
+    def explain(self, query: str, k: int = 5) -> dict[str, Any]:
+        """Trace the resolution path of a tag ID query for diagnostics.
+
+        Walks the same steps as :meth:`fuzzy_check_tag` but returns the full
+        trace (processed query, exact-match status, top-K candidates,
+        configured threshold) instead of a single boolean. Intended for
+        debugging and audit output; the returned dict shape is informational
+        and may evolve.
+
+        Args:
+            query: Raw tag ID string.
+            k: Maximum number of fuzzy candidates to include in ``top_k``.
+
+        Returns:
+            Dict with keys ``query``, ``processed_query``, ``exact_hit``,
+            ``threshold``, ``near_tie_epsilon``, and ``top_k`` (a list of
+            ``{id, score}`` dicts ordered by descending score).
+        """
+        processed_query = _processor_ids(query)
+        trace: dict[str, Any] = {
+            "query": query,
+            "processed_query": processed_query,
+            "exact_hit": False,
+            "threshold": self._match_threshold,
+            "near_tie_epsilon": self._near_tie_epsilon,
+            "top_k": [],
+        }
+
+        if not processed_query:
+            return trace
+
+        if query in self._tag_ids:
+            trace["exact_hit"] = True
+            trace["top_k"] = [{"id": query, "score": _EXACT_MATCH_THRESHOLD}]
+            return trace
+
+        if not self._tag_ids_list:
+            return trace
+
+        top_n = min(k, len(self._tag_ids_list))
+        candidates = process.extract(
+            query,
+            self._tag_ids_list,
+            scorer=fuzz.token_sort_ratio,
+            processor=_processor_ids,
+            limit=top_n,
+        )
+        trace["top_k"] = [
+            {"id": match, "score": score} for match, score, _ in candidates
+        ]
+        return trace
 
     # =====================================================================
     # Sachgebiet actions
@@ -482,6 +544,45 @@ class SchlagwortResolver:
             List of resolved canonical Sachgebiet IDs.
         """
         resolved_ids = _canonicalise_ids(
-            sachgebiet_ids, self._sachgebiete_ids_list, True
+            sachgebiet_ids,
+            self._sachgebiete_ids_list,
+            True,
+            cutoff=self._match_threshold,
+            near_tie_epsilon=self._near_tie_epsilon,
         )
+
         return [r.resolved_id for r in resolved_ids]
+
+    def canonicalise_sachgebiet(self, sachgebiet_id: str) -> str | None:
+        """Canonicalize a single Sachgebiet identifier.
+
+        Resolves a single sachgebiet ID to its canonical form via
+        `canonicalise_sachgebiete`. Returns None if no match is found
+        or if the resolved value is blank.
+
+        Args:
+            sachgebiet_id: The sachgebiet identifier to canonicalize.
+
+        Returns:
+            The canonical sachgebiet identifier, or None if unresolved
+            or blank.
+        """
+        resolved = self.canonicalise_sachgebiete([sachgebiet_id])
+        resolved_id = resolved[0] if resolved else None
+        if resolved_id is not None and not resolved_id.strip():
+            resolved_id = None
+
+        if resolved_id is None:
+            LOGGER.warning(
+                "Sachgebiet %r not found in vocabulary",
+                sachgebiet_id,
+                extra={"original_id": sachgebiet_id},
+            )
+        elif LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Resolved Sachgebiet %r → %r",
+                sachgebiet_id,
+                resolved_id,
+                extra={"original_id": sachgebiet_id, "canonical_id": resolved_id},
+            )
+        return resolved_id

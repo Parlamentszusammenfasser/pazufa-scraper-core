@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from corelib.api_helpers import format_if_modified_since
+from pazufa_corelib.api_helpers import format_if_modified_since
 
 
 def test_formats_utc_datetime_with_offset() -> None:
@@ -24,4 +24,4 @@ def test_drops_microseconds() -> None:
 
 def test_rejects_naive_datetime() -> None:
     with pytest.raises(ValueError):
-        format_if_modified_since(datetime(2024, 1, 1, 0, 0, 0))
+        format_if_modified_since(datetime(2024, 1, 1, 0, 0, 0))  # noqa: DTZ001  # naive datetime is the rejection case under test

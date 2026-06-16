@@ -10,7 +10,7 @@ Run with:
 
 from __future__ import annotations
 
-from corelib.normalization.schlagworte import SchlagwortResolver
+from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 
 # Each entry: (raw input, expected canonical id or None if no match expected).
 # The resolver's fuzzy cutoff is 90.0 on token_sort_ratio, so only fairly
