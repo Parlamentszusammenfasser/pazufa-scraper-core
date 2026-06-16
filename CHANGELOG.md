@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Bumped vulnerable transitive dependencies** to their fixed releases so `pip-audit` passes again: `aiohttp` 3.13.5 → 3.14.1 (multiple CVEs), `cryptography` 48.0.0 → 49.0.0 (`GHSA-537c-gmf6-5ccf`), and `pip` 26.1.1 → 26.1.2 (`PYSEC-2026-196`). The remaining `diskcache` advisory (`CVE-2025-69872`) has no upstream fix and stays ignored, tracked in issue #97.
 
+### Fixed
+
+- **`normalize_volltext` now strips C0 control characters and DEL** (`\x00`–`\x1f` except `\t \n \r`, plus `\x7f`). A stray NUL byte (`0x00`) previously survived into the output and caused the backend's PostgreSQL `text` insert to fail with `invalid byte sequence for encoding "UTF8": 0x00` (#101).
+
 
 ## [0.1.1] - 2026-05-30
 
@@ -42,11 +46,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Experimental
 - **'normalize_autor'** — Normalize the ``organisation`` and ``person`` fields of an Autor in-place. Resolves each field against the provided resolvers and updates it to the
     canonical name if a match is found; logs debug information otherwise. (Experimental, due to open decion if such a function should be part of the Corelib or only of the -based Implementations [planned for v0.2])
-
-### Fixed
-
-- **`normalize_volltext` now strips C0 control characters and DEL** (`\x00`–`\x1f` except `\t \n \r`, plus `\x7f`). A stray NUL byte (`0x00`) previously survived into the output and caused the backend's PostgreSQL `text` insert to fail with `invalid byte sequence for encoding "UTF8": 0x00` (#101).
-
 
 ### Fixed
 
