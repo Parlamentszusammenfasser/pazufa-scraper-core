@@ -90,6 +90,29 @@ class TestnormalizeVolltextC1Controls:
         assert normalize_volltext(c1_only) == ""
 
 
+class TestnormalizeVolltextC0Controls:
+    def test_nul_byte_stripped(self) -> None:
+        # NUL (0x00) cannot be stored in a PostgreSQL text column.
+        result = normalize_volltext("Hallo\x00Welt")
+        assert "\x00" not in result
+        assert "HalloWelt" == result
+
+    def test_other_c0_controls_stripped(self) -> None:
+        result = normalize_volltext("Hallo\x01Welt\x1fhier\x7fda")
+        assert result == "HalloWelthierda"
+
+    def test_all_c0_range_and_del_stripped(self) -> None:
+        # Every C0 byte plus DEL is removed, except \t \n \r.
+        c0 = "".join(chr(c) for c in range(0x00, 0x20) if c not in (0x09, 0x0A, 0x0D))
+        result = normalize_volltext(f"A{c0}\x7fB")
+        assert result == "AB"
+
+    def test_tab_newline_cr_preserved(self) -> None:
+        # \t \n \r carry layout and must survive (CR is normalized to \n).
+        result = normalize_volltext("Eins\tzwei\nDrei\rVier")
+        assert result == "Eins\tzwei\nDrei\nVier"
+
+
 class TestnormalizeVolltextLineEndings:
     def test_crlf_normalized(self) -> None:
         result = normalize_volltext("Zeile eins\r\nZeile zwei\rZeile drei")

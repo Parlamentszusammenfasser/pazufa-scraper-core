@@ -6,6 +6,7 @@ Each model is designed to be used standalone with ``LLMConnector.extract()``.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
@@ -24,12 +25,110 @@ class KurztitelResult(BaseModel):
     )
 
 
+# Minimum length (characters) for a plausible summary.  Kept conservative so
+# legitimately short summaries of brief documents still pass, while empty or
+# truncated output fails fast and triggers an Instructor re-prompt.  The floor
+# is skipped when the caller explicitly requested short output (see
+# ``enforce_minimum_length`` and ``LLMConnector.summarize``).
+_SUMMARY_MIN_LENGTH = 50
+
+# Patterns indicating the model echoed the task/prompt or the response schema
+# instead of producing a summary (issue #104).  Output matching any of these is
+# rejected so Instructor re-prompts the model via its validation-retry path.
+_PROMPT_ECHO_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Imperative task framing ("Bitte erstelle …", "Erstelle eine …").
+    re.compile(r"^\s*(bitte\s+)?erstelle\b", re.IGNORECASE),
+    # The analyst persona that opens the prompt templates.
+    re.compile(r"^\s*du bist ein\b", re.IGNORECASE),
+    # The summarization instruction itself ("Fasse den/das folgende …").
+    re.compile(r"^\s*fasse (den|das) folgende", re.IGNORECASE),
+    # The historically observed length hint ("150-250 Wörter"), in dash or
+    # "bis" form.  The "Wörter" unit is required so that genuine numeric ranges
+    # in a summary (e.g. "150 bis 250 neue Stellen") are not falsely rejected.
+    # Kept as a defensive guard even though the word target has been removed
+    # from both the schema description and the prompt body.
+    re.compile(r"\b150\s*(?:-|–|bis)\s*250\s*W(?:ö|oe)rter", re.IGNORECASE),
+    # Meta task framing echoed at the start of the output ("Zusammenfassung des
+    # vorliegenden/folgenden Dokuments …").  Anchored to the start so the same
+    # phrase used legitimately inside a real summary is not rejected.
+    re.compile(r"^\s*zusammenfassung des (vorliegenden|folgenden)", re.IGNORECASE),
+)
+
+
 class ZusammenfassungResult(BaseModel):
     """Summary of a parliamentary document."""
 
     zusammenfassung: str = Field(
-        min_length=1, description="150-250 word summary of the document in German."
+        min_length=1,
+        description="Der zusammenhängende Zusammenfassungstext in deutscher Sprache.",
     )
+
+    @field_validator("zusammenfassung")
+    @classmethod
+    def enforce_minimum_length(cls, value: str, info: ValidationInfo) -> str:
+        """Reject implausibly short summaries unless short output was requested.
+
+        The document-summary prompts impose no explicit length bound, so very
+        short output signals truncated or degenerate generation and should
+        trigger an Instructor re-prompt (issue #104).  The generic
+        :meth:`LLMConnector.summarize` helper, however, exposes explicit size
+        limits (sentence/word/character counts); when a caller asks for a short
+        summary the floor must not apply.  Such callers set ``allow_short`` in
+        the Pydantic ``validation_context`` to opt out of the length floor.
+
+        Args:
+            value: The candidate summary text.
+            info: Validation context; ``allow_short`` disables the floor.
+
+        Returns:
+            The validated summary text.
+
+        Raises:
+            ValueError: If the text is shorter than ``_SUMMARY_MIN_LENGTH`` and
+                short output was not explicitly requested.
+        """
+        ctx = info.context
+        if ctx and ctx.get("allow_short"):
+            return value
+        if len(value) < _SUMMARY_MIN_LENGTH:
+            raise ValueError(
+                f"Summary is shorter than the minimum of {_SUMMARY_MIN_LENGTH} "
+                "characters; it may be truncated or degenerate."
+            )
+        return value
+
+    @field_validator("zusammenfassung")
+    @classmethod
+    def reject_prompt_echo(cls, value: str) -> str:
+        """Reject output that echoes the prompt/schema instead of summarizing.
+
+        Weaker models occasionally fill the field with a paraphrase of the task
+        (including the length hint and the document title) rather than an actual
+        summary (issue #104).  The only previous guard was ``min_length``, so
+        such leaks were persisted verbatim.  Raising here makes Instructor
+        re-prompt the model through its validation-retry mechanism.
+
+        Args:
+            value: The candidate summary text.
+
+        Returns:
+            The validated summary text.
+
+        Raises:
+            ValueError: If the text matches a known prompt-echo pattern.
+        """
+        for pattern in _PROMPT_ECHO_PATTERNS:
+            if pattern.search(value):
+                LOGGER.warning(
+                    "Rejected summary that echoes the prompt/schema "
+                    "(matched pattern=%r)",
+                    pattern.pattern,
+                )
+                raise ValueError(
+                    "Summary appears to echo the prompt/schema instead of "
+                    "summarizing the document."
+                )
+        return value
 
 
 class SchlagworteResult(BaseModel):
