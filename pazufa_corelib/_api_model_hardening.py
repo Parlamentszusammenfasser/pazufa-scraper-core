@@ -9,9 +9,18 @@ the inverse.
 """
 
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from types import UnionType
+from typing import Annotated, Any, Union, get_args, get_origin
 
-from pydantic import AfterValidator, AnyHttpUrl, BeforeValidator
+from pydantic import (
+    AfterValidator,
+    AnyHttpUrl,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    ValidationInfo,
+    field_validator,
+)
 from pydantic.functional_serializers import PlainSerializer
 
 # ---------------------------------------------------------------------------
@@ -41,19 +50,6 @@ TzDatetime = Annotated[datetime, AfterValidator(_ensure_tz)]
 Ersetzt in `api_model.py` jedes ``AwareDatetime`` der generierten Fassung: Der
 generierte Typ *lehnt* naive Werte ab, dieser *repariert* sie.
 """
-
-
-# ---------------------------------------------------------------------------
-# URLs
-# ---------------------------------------------------------------------------
-
-HttpUrlStr = Annotated[AnyHttpUrl, PlainSerializer(str, return_type=str)]
-"""URL type that is serisabile. 
-
-Important for model_dump() usage. When using model_dump_json() this is not critical.
-
-This is needed when using the default export_feed of the Scrapy framework.
-"""
 # ---------------------------------------------------------------------------
 # Thematic Rules
 # ---------------------------------------------------------------------------
@@ -81,9 +77,101 @@ def check_meinung_scope(meinung: int | None, typ: str) -> None:
         )
 
 
+# ---------------------------------------------------------------------------
+# PaZuFaBaseModel
+# ---------------------------------------------------------------------------
+
+
+def _allows_none(annotation: Any) -> bool:
+    """Report whether a field annotation accepts ``None``.
+
+    Covers both spellings of an optional field, ``str | None`` (``UnionType``)
+    and ``Optional[str]`` (``typing.Union``). ``FieldInfo.annotation`` has the
+    ``Annotated[...]`` metadata already stripped off by pydantic, so the
+    ``Annotated[str | None, Field(...)]`` form used throughout `api_model.py`
+    arrives here as a plain ``str | None``.
+    """
+
+    if get_origin(annotation) in (Union, UnionType) and type(None) in get_args(
+        annotation):
+        return True
+    else:
+        return False
+
+
+class PaZuFaBaseModel(BaseModel):
+    """
+    Child of pydantic BaseModel. With additional hardening for all
+    PaZuFa Models.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _blank_to_none(cls, value: Any, info: ValidationInfo) -> Any:
+        """Turn blank strings into ``None`` on optional fields.
+
+        A field a source leaves empty means "not present", not "empty value".
+        Mapping it to ``None`` lets :meth:`model_dump_json` drop it entirely
+        instead of sending ``""`` to the backend.
+
+        Only optional fields are converted. On a required field the blank string
+        is passed through untouched so that ``str_min_length`` rejects it with
+        ``string_too_short``; converting it would instead produce ``string_type``
+        ("Input should be a valid string"), which points at the wrong cause.
+
+        The raw value arrives here *before* ``str_strip_whitespace`` runs, so
+        whitespace-only input has to be recognised here — hence ``.strip()``
+        rather than a comparison against ``""``.
+
+        Note this sees whole containers, not their items: an empty string inside
+        a ``list[str]`` is left to ``str_min_length``.
+        """
+        if not isinstance(value, str) or value.strip():
+            return value
+        field = cls.model_fields.get(info.field_name or "")
+        return None if field and _allows_none(field.annotation) else value
+
+    def model_dump_json(self, **kw: Any) -> str:
+        """Drop ``None`` fields by default.
+
+        The backend distinguishes ``null`` from an absent key, and rejects the
+        former on fields it considers unset. Keeping this at the call site meant
+        every scraper had to remember ``exclude_none=True``; here it cannot be
+        forgotten. The flag is passed down by pydantic-core through the whole
+        tree, so nested models are covered too.
+        """
+        kw.setdefault("exclude_none", True)
+        return super().model_dump_json(**kw)
+
+    def model_dump(self, **kw: Any) -> dict[str, Any]:
+        """Dump in JSON mode by default, so the result is JSON-serialisable.
+
+        ``mode="json"`` turns ``UUID``, ``AnyHttpUrl`` and ``datetime`` into
+        their string forms. ``exclude_none`` matches :meth:`model_dump_json`,
+        so that ``json.dumps(m.model_dump())`` and ``m.model_dump_json()`` yield
+        the same payload — without it, the former silently keeps the ``null``
+        values the backend rejects.
+
+        This exists because of Scrapy's default feed exporter: its
+        ``ScrapyJSONEncoder`` has no ``UUID`` branch and aborts with
+        ``TypeError: Object of type UUID is not JSON serializable``, and it
+        formats ``datetime`` as ``"%Y-%m-%d %H:%M:%S"`` — dropping the timezone
+        offset that :func:`_ensure_tz` exists to guarantee, without warning.
+
+        Note that this changes the *types* in the returned dict: ``zp_start`` is
+        a ``str``, not a ``datetime``. Callers that need the Python objects pass
+        ``mode="python"`` explicitly.
+        """
+        kw.setdefault("mode", "json")
+        kw.setdefault("exclude_none", True)
+        return super().model_dump(**kw)
+
+
 __all__ = [
     "MEINUNG_ALLOWED_IF",
-    "HttpUrlStr",
+    "PaZuFaBaseModel",
     "TzDatetime",
     "check_meinung_scope",
 ]
