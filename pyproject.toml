@@ -86,8 +86,12 @@ ignore = [
 "tests/**" = ["D", "E501", "S101"]
 "tools/**" = ["D"]
 "pazufa_corelib/api_client/**" = ["D", "E501"]
-"pazufa_corelib/api_model.py" = ["D", "E501"]
-# ^^^ currently auto generated, if switched to handwritten this will be no longer excluded.
+"pazufa_corelib/_api_model_generated.py" = ["D", "E501"]
+"pazufa_corelib/api_model.py" = ["D","E501"]     #docstrings ignored for now
+# E501 is allowed, so that the discriptions fields are truly only different
+# to auto generated ones, when the content chages.
+# This is needed to keep the diff between them clean.
+
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -103,7 +107,7 @@ addopts = "-q --cov=pazufa_corelib --cov-report=term-missing --cov-report=xml:co
 
 [tool.coverage.run]
 omit = [
-    "pazufa_corelib/api_model.py",
+    "pazufa_corelib/api_model_generated.py",
     "pazufa_corelib/api_client/*",
 ]
 

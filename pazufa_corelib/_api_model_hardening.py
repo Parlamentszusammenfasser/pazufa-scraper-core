@@ -1,5 +1,4 @@
-"""
-Additional hardening and expansion for api_model.py.
+"""Additional hardening and expansion for api_model.py.
 
 This file stores functions and classes to help in the Augmentatio of the in
 '_api_model_generated.py' stored automatically generated pydantic models.
@@ -8,20 +7,20 @@ This file stores functions and classes to help in the Augmentatio of the in
 the inverse.
 """
 
+import logging
 from datetime import UTC, datetime
 from types import UnionType
 from typing import Annotated, Any, Union, get_args, get_origin
 
 from pydantic import (
     AfterValidator,
-    AnyHttpUrl,
     BaseModel,
-    BeforeValidator,
     ConfigDict,
     ValidationInfo,
     field_validator,
 )
-from pydantic.functional_serializers import PlainSerializer
+
+LOGGER = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -35,13 +34,29 @@ MEINUNG_ALLOWED_IF: frozenset[str] = frozenset({"stellungnahme", "beschlussempf"
 # ---------------------------------------------------------------------------
 
 
-def _ensure_tz(value: datetime) -> datetime:
+def _ensure_tz(value: datetime, info: ValidationInfo) -> datetime:
+    """Attach UTC to naive datetimes so the offset survives serialisation.
+
+    Logs a warning whenever it has to step in: the repair is silent otherwise,
+    and a source that suddenly stops delivering offsets is worth noticing. The
+    message names the model and field, which pydantic supplies via
+    ``ValidationInfo``.
+
+    Expect volume — for date-only sources every timestamp lands here. Silence it
+    per logger if that is the normal case:
+    ``logging.getLogger("pazufa_corelib._api_model_hardening").setLevel(ERROR)``.
     """
-    Attach UTC to naive datetimes so the offset survives serialisation.
-    """
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value
+    if value.tzinfo is not None:
+        return value
+    model = info.config.get("title", "<unknown>") if info.config else "<unknown>"
+    LOGGER.warning(
+        "Naive datetime on %s.%s (%s); assuming UTC. The backend rejects "
+        "timestamps without an offset.",
+        model,
+        info.field_name,
+        value.isoformat(),
+    )
+    return value.replace(tzinfo=UTC)
 
 
 TzDatetime = Annotated[datetime, AfterValidator(_ensure_tz)]
@@ -69,7 +84,6 @@ def check_meinung_scope(meinung: int | None, typ: str) -> None:
     Raises:
         ValueError: if ``meinung`` is set for an unsuitable type.
     """
-
     if meinung is not None and str(typ) not in MEINUNG_ALLOWED_IF:
         raise ValueError(  # noqa: TRY003
             f"'Meinung' is only meaningful if type is  {sorted(MEINUNG_ALLOWED_IF)} , "
@@ -91,19 +105,16 @@ def _allows_none(annotation: Any) -> bool:
     ``Annotated[str | None, Field(...)]`` form used throughout `api_model.py`
     arrives here as a plain ``str | None``.
     """
-
     if get_origin(annotation) in (Union, UnionType) and type(None) in get_args(
-        annotation):
+        annotation
+    ):
         return True
     else:
         return False
 
 
 class PaZuFaBaseModel(BaseModel):
-    """
-    Child of pydantic BaseModel. With additional hardening for all
-    PaZuFa Models.
-    """
+    """Child of pydantic BaseModel. With additional hardening for all PaZuFa Models."""
 
     model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
 

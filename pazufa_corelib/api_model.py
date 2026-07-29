@@ -1,5 +1,4 @@
-"""
-Pydantic models for the PaZuFa API.
+"""Pydantic models for the PaZuFa API.
 
 Based on automatic generation and augmented with handcrafted additions.
 """
@@ -11,7 +10,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
-from pydantic import AnyHttpUrl, AwareDatetime, Field, RootModel
+from pydantic import AnyHttpUrl, Field, RootModel, model_validator
 
 from pazufa_corelib._api_model_hardening import (
     PaZuFaBaseModel,
@@ -21,8 +20,7 @@ from pazufa_corelib._api_model_hardening import (
 
 
 class ApiKeyScope(StrEnum):
-    """
-    Permission level of an API key.
+    """Permission level of an API key.
     """
 
     admin = "admin"
@@ -32,7 +30,7 @@ class ApiKeyScope(StrEnum):
 
 class ApiKeyStatus(PaZuFaBaseModel):
     expires_at: Annotated[
-        AwareDatetime,
+        TzDatetime,
         Field(
             description="When this key will expire. If `is_being_rotated` is true, this is the date the rotation is complete."
         ),
@@ -55,7 +53,7 @@ class RotationResponse(PaZuFaBaseModel):
         str, Field(description="The newly created API key (shown only once)")
     ]
     rotation_complete_date: Annotated[
-        AwareDatetime,
+        TzDatetime,
         Field(description="Confirmed date when the old key will be invalidated"),
     ]
 
@@ -73,7 +71,7 @@ class Autor(PaZuFaBaseModel):
 
 class CreateApiKey(PaZuFaBaseModel):
     expires_at: Annotated[
-        AwareDatetime | None, Field(description="The expiration date of the API Key")
+        TzDatetime | None, Field(description="The expiration date of the API Key")
     ] = None
     scope: ApiKeyScope
 
@@ -287,19 +285,19 @@ class Dokument(PaZuFaBaseModel):
         str | None, Field(description="Preamble, synopsys or statement of intent")
     ] = None
     zp_erstellt: Annotated[
-        AwareDatetime | None,
+        TzDatetime | None,
         Field(
             description="Protocol of the session on 7.3., *created on 8.3.* modified on 9.3."
         ),
     ] = None
     zp_modifiziert: Annotated[
-        AwareDatetime,
+        TzDatetime,
         Field(
             description="Protocol of the session on 7.3., created on 8.3. *modified on 9.3*."
         ),
     ]
     zp_referenz: Annotated[
-        AwareDatetime,
+        TzDatetime,
         Field(
             description="Protocol of the *session on 7.3.*, created on 8.3. modified on 9.3."
         ),
@@ -307,6 +305,17 @@ class Dokument(PaZuFaBaseModel):
     zusammenfassung: Annotated[
         str | None, Field(description="Summary of the document's contents")
     ] = None
+
+    @model_validator(mode="after")
+    def _check_meinung(self) -> Dokument:
+        """Reject a ``meinung`` on document types where it carries no meaning.
+
+        The rule itself lives in `_api_model_hardening` — it is domain knowledge
+        the specification does not express, and keeping it out of a regenerable
+        file is the point. Only the hook belongs here.
+        """
+        check_meinung_scope(self.meinung, self.typ)
+        return self
 
 
 class DokumentOrApiId(RootModel[Dokument | UUID]):
@@ -374,13 +383,13 @@ class Station(PaZuFaBaseModel):
     ] = None
     typ: Stationstyp
     zp_modifiziert: Annotated[
-        AwareDatetime | None,
+        TzDatetime | None,
         Field(
             description="Date of the last relevant action within this station. i.e.: last session of a committee"
         ),
     ] = None
     zp_start: Annotated[
-        AwareDatetime,
+        TzDatetime,
         Field(
             description="Date of the first action within this station. i.e.: First session of a committee"
         ),
@@ -458,7 +467,7 @@ class Sitzung(PaZuFaBaseModel):
     link: AnyHttpUrl | None = None
     nummer: Annotated[int, Field(ge=0)]
     public: bool
-    termin: AwareDatetime
+    termin: TzDatetime
     titel: Annotated[str | None, Field(description="Title if applicable")] = None
     tops: list[Top]
     touched_by: Annotated[
@@ -497,7 +506,7 @@ class EnumerationPutRequest(PaZuFaBaseModel):
 
 # ---------------------------------------------------------------------------
 # Deprecated aliases
-#
+# ---------------------------------------------------------------------------
 # Only names that actually shipped on `main` are kept here. The placeholder
 # names the generator invented on the way (`Value`, `Object`,
 # `ReplacementPutRequest*`, `TouchedByInner`) were never released and would be
@@ -505,7 +514,6 @@ class EnumerationPutRequest(PaZuFaBaseModel):
 #
 # `KeyTag` and `VgIdentTyp` have no entry: they are gone from the specification
 # altogether, so there is nothing to forward to. They belong in the changelog.
-# ---------------------------------------------------------------------------
 
 _RENAMED: dict[str, str] = {
     "Scope": "ApiKeyScope",
