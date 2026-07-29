@@ -118,9 +118,9 @@ ignore_missing_imports = true
 
 [tool.datamodel-codegen]
 disable-timestamp = true
-formatters = ["ruff", "ruff-format"]
+formatters = ["ruff-check", "ruff-format"]
 input-file-type = "openapi"
-output = "pazufa_corelib/api_model.py"
+output = "pazufa_corelib/api_model_generated.py"
 output-model-type = "pydantic_v2.BaseModel"
 target-python-version = "3.12"
 url = "https://codeberg.org/PaZuFa/parlamentszusammenfasser/raw/tag/v0.2.3/docs/specs/openapi.yml"
