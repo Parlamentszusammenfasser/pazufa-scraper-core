@@ -508,13 +508,6 @@ class EnumerationPutRequest(PaZuFaBaseModel):
 # ---------------------------------------------------------------------------
 # Deprecated aliases
 # ---------------------------------------------------------------------------
-# Only names that actually shipped on `main` are kept here. The placeholder
-# names the generator invented on the way (`Value`, `Object`,
-# `ReplacementPutRequest*`, `TouchedByInner`) were never released and would be
-# permanent clutter without a single user.
-#
-# `KeyTag` and `VgIdentTyp` have no entry: they are gone from the specification
-# altogether, so there is nothing to forward to. They belong in the changelog.
 
 _RENAMED: dict[str, str] = {
     "Scope": "ApiKeyScope",
