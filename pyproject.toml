@@ -107,7 +107,7 @@ addopts = "-q --cov=pazufa_corelib --cov-report=term-missing --cov-report=xml:co
 
 [tool.coverage.run]
 omit = [
-    "pazufa_corelib/api_model_generated.py",
+    "pazufa_corelib/_api_model_generated.py",
     "pazufa_corelib/api_client/*",
 ]
 

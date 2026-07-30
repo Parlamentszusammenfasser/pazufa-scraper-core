@@ -107,7 +107,7 @@ def check_meinung_scope(meinung: int | None, typ: str) -> None:
 def _check_sha256_hex(value: str, info: ValidationInfo) -> str:
 
     to_test = value.lower()
-    if not SHA1_HEX_RE.fullmatch(to_test):
+    if not SHA256_HEX_RE.fullmatch(to_test):
         raise ValueError(  # noqa: TRY003
             f"'hash' must be a hex-encoded sha256 digest "
             f"({SHA256_HEX_LENGTH} characters, 0-9a-f), "

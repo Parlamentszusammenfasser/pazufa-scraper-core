@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Naming of Some pydantic models** — In line with new naming in the API: `Scope` zu `ApiKeyScope`,`TouchedByItem` zu `TouchedByEntry`,`EnumerationNames` zu `EnumerationName`,`Lobbyregeintrag` zu `Lobbyregistereintrag`,
 ### Fixed
 - **Serialization errors** — fixed multiple serialization errors, especially when exporting to JSON. 
+- **Empty Strings exported**
 
 ### Added
 - **_api_model_generated.py** — private new location of automatically generated pydantic models
