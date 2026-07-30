@@ -8,6 +8,7 @@ the inverse.
 """
 
 import logging
+import re
 from datetime import UTC, datetime
 from types import UnionType
 from typing import Annotated, Any, Union, get_args, get_origin
@@ -27,7 +28,14 @@ LOGGER = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 MEINUNG_ALLOWED_IF: frozenset[str] = frozenset({"stellungnahme", "beschlussempf"})
 """Documenttypes for wich a 'Meinung'-Value is reasonable."""
+SHA256_HEX_LENGTH = 64
+SHA1_HEX_LENGTH = 40
 
+# ---------------------------------------------------------------------------
+# RegEx
+# ---------------------------------------------------------------------------
+SHA256_HEX_RE = re.compile(rf"[0-9a-f]{{{SHA256_HEX_LENGTH}}}")
+SHA1_HEX_RE = re.compile(rf"[0-9a-f]{{{SHA1_HEX_LENGTH}}}")
 
 # ---------------------------------------------------------------------------
 # Datetime
@@ -92,6 +100,32 @@ def check_meinung_scope(meinung: int | None, typ: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Hashes
+# ---------------------------------------------------------------------------
+
+
+def _check_sha256_hex(value: str, info: ValidationInfo) -> str:
+
+    to_test = value.lower()
+    if not SHA1_HEX_RE.fullmatch(to_test):
+        raise ValueError(  # noqa: TRY003
+            f"'hash' must be a hex-encoded sha256 digest "
+            f"({SHA256_HEX_LENGTH} characters, 0-9a-f), "
+            f"got {len(value)} characters: {value[:16]!r}"
+        )
+
+    if to_test != value:
+        LOGGER.warning(
+            "Uppercase digest on %s; normalised to lowercase.", info.field_name
+        )
+
+    return to_test
+
+
+Sha256Hex = Annotated[str, AfterValidator(_check_sha256_hex)]
+"""A hex encoded sha256 String always lowercase and 64 charachters."""
+
+# ---------------------------------------------------------------------------
 # PaZuFaBaseModel
 # ---------------------------------------------------------------------------
 
@@ -114,7 +148,11 @@ def _allows_none(annotation: Any) -> bool:
 
 
 class PaZuFaBaseModel(BaseModel):
-    """Child of pydantic BaseModel. With additional hardening for all PaZuFa Models."""
+    """Child of pydantic BaseModel. With additional hardening for all PaZuFa Models.
+
+    JSON is the intended export format for Objects inheriting from this class.
+    For more information, see the wiki-page: https://migration.wiki.pazufa.de/link/165#bkmrk-page-title
+    """
 
     model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
 
@@ -160,23 +198,22 @@ class PaZuFaBaseModel(BaseModel):
         """Dump in JSON mode by default, so the result is JSON-serialisable.
 
         ``mode="json"`` turns ``UUID``, ``AnyHttpUrl`` and ``datetime`` into
-        their string forms. ``exclude_none`` matches :meth:`model_dump_json`,
-        so that ``json.dumps(m.model_dump())`` and ``m.model_dump_json()`` yield
-        the same payload — without it, the former silently keeps the ``null``
-        values the backend rejects.
-
-        This exists because of Scrapy's default feed exporter: its
-        ``ScrapyJSONEncoder`` has no ``UUID`` branch and aborts with
-        ``TypeError: Object of type UUID is not JSON serializable``, and it
-        formats ``datetime`` as ``"%Y-%m-%d %H:%M:%S"`` — dropping the timezone
-        offset that :func:`_ensure_tz` exists to guarantee, without warning.
+        their string forms. In this mode ``exclude_none`` defaults on to match
+        :meth:`model_dump_json`, so that ``json.dumps(m.model_dump())`` and
+        ``m.model_dump_json()`` yield the same payload — without it, the former
+        silently keeps the ``null`` values the backend rejects.
 
         Note that this changes the *types* in the returned dict: ``zp_start`` is
         a ``str``, not a ``datetime``. Callers that need the Python objects pass
-        ``mode="python"`` explicitly.
+        ``mode="python"`` explicitly. In that mode ``exclude_none`` is *not*
+        forced — it falls back to pydantic's default (``False``), so ``None``
+        fields are kept — because the python dump is meant for in-process use,
+        not for building a backend payload. Pass ``exclude_none=True`` yourself
+        if you want it dropped there too.
         """
         kw.setdefault("mode", "json")
-        kw.setdefault("exclude_none", True)
+        if kw["mode"] != "python":
+            kw.setdefault("exclude_none", True)
         return super().model_dump(**kw)
 
 
@@ -185,4 +222,5 @@ __all__ = [
     "PaZuFaBaseModel",
     "TzDatetime",
     "check_meinung_scope",
+    "Sha256Hex",
 ]

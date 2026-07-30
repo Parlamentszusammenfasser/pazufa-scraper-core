@@ -14,6 +14,7 @@ from pydantic import AnyHttpUrl, Field, RootModel, model_validator
 
 from pazufa_corelib._api_model_hardening import (
     PaZuFaBaseModel,
+    Sha256Hex,
     TzDatetime,
     check_meinung_scope,
 )
@@ -64,7 +65,7 @@ class AuthDeleteHeaderParams(PaZuFaBaseModel):
 
 class Autor(PaZuFaBaseModel):
     fachgebiet: str | None = None
-    lobbyregister: AnyHttpUrl | None = None     # replacing AnyUrl with AnyHttpUrl to make sure links are validt.
+    lobbyregister: AnyHttpUrl | None = None     # replacing AnyUrl with AnyHttpUrl to make sure links are valid http links.
     organisation: str
     person: str | None = None
 
@@ -249,7 +250,7 @@ class Dokument(PaZuFaBaseModel):
     ]
     drucksnr: str | None = None
     hash: Annotated[
-        str,
+        Sha256Hex,
         Field(
             description="corresponds to sha256+bytes, here for backwards compatibility"
         ),
