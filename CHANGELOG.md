@@ -5,11 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
-## [Unreleased]
+## [0.1.3]
 ### Changed
 - **api_model.py** — Is no longer completly automatically generated. It no contains Handwritten extensions
 - **source of automatic generation** — The automatically generated pydantic models now temporarly use the API Endpoint instead of the spec file, as their currently are hughe differences between the spec and the backend.
 - **Naming of Some pydantic models** — In line with new naming in the API: `Scope` zu `ApiKeyScope`,`TouchedByItem` zu `TouchedByEntry`,`EnumerationNames` zu `EnumerationName`,`Lobbyregeintrag` zu `Lobbyregistereintrag`,
+- **Supported Python Version** — support for 3.14 readded, litellm is now supporting it again.
+
 ### Fixed
 - **Serialization errors** — fixed multiple serialization errors, especially when exporting to JSON. 
 - **Empty Strings exported**
