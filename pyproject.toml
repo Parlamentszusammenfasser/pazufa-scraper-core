@@ -155,6 +155,7 @@ safe_licenses = [
     "Mozilla Public License 2.0 (MPL 2.0)",
     "MPL-2.0 AND MIT",
     "Public Domain",
+    "MIT-0",
 ]
 unsafe_packages = [
     "pazufa_corelib",
