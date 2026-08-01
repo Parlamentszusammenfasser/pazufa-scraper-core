@@ -5,16 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
+## [Unreleased]
+### Changed
+- **api_model.py** — Is no longer completly automatically generated. It no contains Handwritten extensions
+- **source of automatic generation** — The automatically generated pydantic models now temporarly use the API Endpoint instead of the spec file, as their currently are hughe differences between the spec and the backend.
+- **Naming of Some pydantic models** — In line with new naming in the API: `Scope` zu `ApiKeyScope`,`TouchedByItem` zu `TouchedByEntry`,`EnumerationNames` zu `EnumerationName`,`Lobbyregeintrag` zu `Lobbyregistereintrag`,
+### Fixed
+- **Serialization errors** — fixed multiple serialization errors, especially when exporting to JSON. 
+- **Empty Strings exported**
+
+### Added
+- **_api_model_generated.py** — private new location of automatically generated pydantic models
+- **_api_model_hardening.py** — private module used for hardening in api_model.py 
+- **`PaZuFaBaseModel`** — PaZuFa specific child of the pydantic BaseModel
+
+### Deprecated
+- **Old Naming of some pydantic models** — `Scope`;`TouchedByItem` ,`EnumerationNames`,`Lobbyregeintrag`
 
 ## [0.1.2] - 2026-06-16
 
 ### Changed
 
-- **Summarization prompts reframed for the public** — `ZUSAMMENFASSUNG_PROMPT` and `ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT` now state that the summary is shown on a public website that makes parliamentary proceedings accessible to citizens without legal/political background, ask for plain language with brief explanations of technical terms, and instruct the model to output only the summary itself. The explicit word-count target was dropped in favour of structural guidance ("focus on the essentials; as short as possible, as detailed as necessary"), since LLMs follow type/audience framing more reliably than numeric length targets.
+- **Summarization prompts reframed for the public** — `ZUSAMMENFASSUNG_PROMPT` and `ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT` now state that the summary is shown on a public website that makes parliamentary proceedings accessible to citizens without legal/political background, ask for plain language with brief explanations of technical terms, and instruct the model to output only the summary itself. The explicit word-count target was dropped in favour of structural guidance (`focus on the essentials; as short as possible, as detailed as necessary`), since LLMs follow type/audience framing more reliably than numeric length targets.
 
 ### Fixed
 
-- **`normalize_volltext` now strips C0 control characters and DEL** (`\x00`–`\x1f` except `\t \n \r`, plus `\x7f`). A stray NUL byte (`0x00`) previously survived into the output and caused the backend's PostgreSQL `text` insert to fail with `invalid byte sequence for encoding "UTF8": 0x00` (#101).
+- **`normalize_volltext` now strips C0 control characters and DEL** (`\x00`–`\x1f` except `\t \n \r`, plus `\x7f`). A stray NUL byte (`0x00`) previously survived into the output and caused the backend's PostgreSQL `text` insert to fail with `invalid byte sequence for encoding `UTF8`: 0x00` (#101).
 - **Summary prompt/schema leakage** ([#104](https://codeberg.org/PaZuFa/pazufa-scraper-core/issues/104)) — `ZusammenfassungResult` no longer accepts output that merely echoes the task or response schema (e.g. summaries containing the `150-250 Wörter` length hint). A new `field_validator` rejects such prompt-echo output so Instructor re-prompts the model. A minimum summary length of 50 characters now drops truncated output, but it is relaxed when the caller requested short output via `LLMConnector.summarize`'s count parameters (signalled through the validation context), so length-bounded summaries keep working. The `150-250 word` instruction was removed from the schema field description (the most-parroted source); the defensive echo patterns are scoped (the length-hint pattern requires the `Wörter` unit, the meta-framing pattern is anchored to the start) so genuine numeric ranges and phrasings inside a real summary are not falsely rejected.
 
 ### Security

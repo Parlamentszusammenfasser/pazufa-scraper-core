@@ -86,8 +86,12 @@ ignore = [
 "tests/**" = ["D", "E501", "S101"]
 "tools/**" = ["D"]
 "pazufa_corelib/api_client/**" = ["D", "E501"]
-"pazufa_corelib/api_model.py" = ["D", "E501"]
-# ^^^ currently auto generated, if switched to handwritten this will be no longer excluded.
+"pazufa_corelib/_api_model_generated.py" = ["D", "E501"]
+"pazufa_corelib/api_model.py" = ["D","E501"]     #docstrings ignored for now
+# E501 is allowed, so that the discriptions fields are truly only different
+# to auto generated ones, when the content chages.
+# This is needed to keep the diff between them clean.
+
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -103,7 +107,7 @@ addopts = "-q --cov=pazufa_corelib --cov-report=term-missing --cov-report=xml:co
 
 [tool.coverage.run]
 omit = [
-    "pazufa_corelib/api_model.py",
+    "pazufa_corelib/_api_model_generated.py",
     "pazufa_corelib/api_client/*",
 ]
 
@@ -115,15 +119,18 @@ disallow_untyped_defs = true
 no_implicit_optional = true
 check_untyped_defs = true
 ignore_missing_imports = true
+# Off by default in mypy; required for the @deprecated aliases in api_model.py
+# to be reported at type-check time rather than only at runtime.
+enable_error_code = ["deprecated"]
 
 [tool.datamodel-codegen]
 disable-timestamp = true
-formatters = ["ruff", "ruff-format"]
+formatters = ["ruff-check", "ruff-format"]
 input-file-type = "openapi"
-output = "pazufa_corelib/api_model.py"
+output = "pazufa_corelib/_api_model_generated.py"
 output-model-type = "pydantic_v2.BaseModel"
 target-python-version = "3.12"
-url = "https://codeberg.org/PaZuFa/parlamentszusammenfasser/raw/tag/v0.2.3/docs/specs/openapi.yml"
+url = "https://staging.api.pazufa.de/openapi.json"
 use-annotated = true
 use-double-quotes = true
 use-standard-collections = true
