@@ -14,7 +14,6 @@ from pydantic import AnyHttpUrl, Field, RootModel, model_validator
 
 from pazufa_corelib._api_model_hardening import (
     PaZuFaBaseModel,
-    Sha256Hex,
     TzDatetime,
     check_meinung_scope,
 )
@@ -101,13 +100,19 @@ class DokumentFormat(StrEnum):
     pazufa = "pazufa"
 
 
-class EnumerationName(StrEnum):
+class EnumerationNames(StrEnum):
     schlagworte = "schlagworte"
     stationstypen = "stationstypen"
     vorgangstypen = "vorgangstypen"
     parlamente = "parlamente"
     vgidtypen = "vgidtypen"
     dokumententypen = "dokumententypen"
+
+
+class HashStrategy(StrEnum):
+    sha256_bytes = "sha256+bytes"
+    sha256_text = "sha256+text"
+    sha1_bytes = "sha1+bytes"
 
 
 class KeytagListing(PaZuFaBaseModel):
@@ -141,7 +146,6 @@ class Lobbyregistereintrag(PaZuFaBaseModel):
 class Mime(StrEnum):
     application_json = "application/json"
     application_pdf = "application/pdf"
-    application_octet_stream = "application/octet-stream"
     text_plain = "text/plain"
     text_html = "text/html"
 
@@ -188,6 +192,40 @@ class ReplacingEntry[T](PaZuFaBaseModel):
     ]
     values: list[T]
 
+class Ressort(StrEnum):
+    Arbeit = "Arbeit"
+    Bildung = "Bildung"
+    Digitalisierung = "Digitalisierung"
+    Energie = "Energie"
+    Ernährung = "Ernährung"
+    Europa = "Europa"
+    Familie_Senioren = "Familie/Senioren"
+    Finanzen = "Finanzen"
+    Forschung = "Forschung"
+    Forsten = "Forsten"
+    Frauen_Gleichstellung = "Frauen/Gleichstellung"
+    Gesundheit_Pflege_Prävention = "Gesundheit/Pflege/Prävention"
+    Heimat = "Heimat"
+    Inneres = "Inneres"
+    Integration_Migration = "Integration/Migration"
+    Jugend = "Jugend"
+    Justiz = "Justiz"
+    Kinder = "Kinder"
+    Klimaschutz = "Klimaschutz"
+    Kommunales = "Kommunales"
+    Kunst_Kultur = "Kunst/Kultur"
+    Landes__Stadtentwicklung = "Landes-/Stadtentwicklung"
+    Ländlicher_Raum = "Ländlicher Raum"
+    Landwirtschaft = "Landwirtschaft"
+    Soziales = "Soziales"
+    Sport = "Sport"
+    Tourismus = "Tourismus"
+    Umwelt = "Umwelt"
+    Verbraucherschutz = "Verbraucherschutz"
+    Verkehr_Infrastruktur = "Verkehr/Infrastruktur"
+    Wirtschaft = "Wirtschaft"
+    Wissenschaft = "Wissenschaft"
+    Wohnen_Bau = "Wohnen/Bau"
 
 class Sachgebiet(IntEnum):
     """Subject area of a Vorgang, inspired by the Parlamentsspiegel systematics.
@@ -417,6 +455,63 @@ class Vorgangstyp(StrEnum):
     sonstig = "sonstig"
 
 
+class Zusammenfassungstupel(PaZuFaBaseModel):
+    inhalt: Annotated[
+        str | None,
+        Field(
+            description="Content of the summary part",
+            examples=[
+                "Das Gesetz zur Haarfärbeverordnung dient der Umsetzung der EU-Richtline 42/69420 zur Schuppenfreiheit bei Eigenschaftsänderlichen Haarmodifikationen vor..."
+            ],
+        ),
+    ] = None
+    typ: Annotated[
+        str | None,
+        Field(
+            description="Type of summary, if the summary is made up of parts\nNOTE: there are some reserved type names:\n- `full`        means summary of the full document without origin info\n- `full-llm`    means summary of the full document, made by llm\n- `full-extern` means summary of the full document, taken from an external source\n\nYou are free to add to these if required, just please stick to the ones available if\npossible",
+            examples=["Basisinformationen"],
+        ),
+    ] = None
+
+
+class DokumentHash(PaZuFaBaseModel):
+    mime: Annotated[
+        Mime,
+        Field(
+            description="The mime of the hashed content.\nIf sha256/1+bytes was used, must be application/pdf;\nIf sha256+text was used, must be text/plain"
+        ),
+    ]
+    strategy: Annotated[
+        HashStrategy,
+        Field(
+            description="The strategy used to compute the hash.\nsha256+text denotes that not the raw file, but the _exact_ volltext field\nof the document was hashed.\nAll text must be utf-8, remain stable under subsequent extraction,\nand mime must be set to text/plain or text/html."
+        ),
+    ]
+    value: Annotated[
+        str, Field(description="Hash value as string of hexadecimal octets")
+    ]
+
+
+class Gremium(PaZuFaBaseModel):
+    link: AnyHttpUrl | None = None
+    name: Annotated[
+        str,
+        Field(
+            description="Name of the body. 'plenum', 'regierung', 'volk' are reserved"
+        ),
+    ]
+    parlament: Parlament
+    wahlperiode: Annotated[int, Field(ge=0)]
+
+
+class HashWrapper(RootModel[str | list[DokumentHash]]):
+    root: str | list[DokumentHash]
+
+
+class ZusammenfassungWrapper(RootModel[str | list[Zusammenfassungstupel]]):
+    root: str | list[Zusammenfassungstupel]
+
+
 class Dokument(PaZuFaBaseModel):
     api_id: Annotated[
         UUID | None,
@@ -432,7 +527,7 @@ class Dokument(PaZuFaBaseModel):
     ]
     drucksnr: str | None = None
     hash: Annotated[
-        Sha256Hex,
+        HashWrapper,
         Field(
             description="corresponds to sha256+bytes, here for backwards compatibility"
         ),
@@ -452,6 +547,13 @@ class Dokument(PaZuFaBaseModel):
     ] = None
     schlagworte: Annotated[
         list[str] | None, Field(description="Keywords associated with this document")
+    ] = None
+    subdoc_id: Annotated[
+        int | None,
+        Field(
+            description="If a document contains more than one semantically closed document (x opinions in a collected file for example)\nthis denotes the index of the sub-file in question. They can potentially share a hash.",
+            ge=0,
+        ),
     ] = None
     titel: Annotated[str, Field(description="Official Title of the Document")]
     touched_by: Annotated[
@@ -485,9 +587,7 @@ class Dokument(PaZuFaBaseModel):
             description="Protocol of the *session on 7.3.*, created on 8.3. modified on 9.3."
         ),
     ]
-    zusammenfassung: Annotated[
-        str | None, Field(description="Summary of the document's contents")
-    ] = None
+    zusammenfassung: ZusammenfassungWrapper | None = None
 
     @model_validator(mode="after")
     def _check_meinung(self) -> Dokument:
@@ -609,6 +709,8 @@ class Vorgang(PaZuFaBaseModel):
     kurztitel: str | None = None
     links: list[AnyHttpUrl] | None = None
     lobbyregister: list[Lobbyregistereintrag] | None = None
+    ressort: Ressort | None = None
+    sachgebiete: list[Sachgebiet] | None = None
     stationen: list[Station]
     titel: str
     touched_by: Annotated[
@@ -739,4 +841,3 @@ if TYPE_CHECKING:
     # plain alias: mypy resolves the type correctly, but only the runtime
     # warning above flags them as deprecated.
     Scope = ApiKeyScope
-    EnumerationNames = EnumerationName
