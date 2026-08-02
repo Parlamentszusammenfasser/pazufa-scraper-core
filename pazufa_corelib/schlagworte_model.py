@@ -20,6 +20,14 @@ from pydantic import (
 #  Models for the items
 # =====================================================================
 
+#: Catch-all Sachgebiet IDs carried verbatim from the upstream Parlamentsspiegel
+#: taxonomy (`9900`, `9999`). They are not topics — they mark material the
+#: systematics could not place — and `ohne@-Systematik` cannot satisfy the ID
+#: format rule below. Exempting them here keeps the vocabulary complete without
+#: loosening validation for real topic IDs. Consumers that offer the vocabulary
+#: as a set of choices are expected to filter these out.
+RESERVED_SCHLAGWORT_IDS: frozenset[str] = frozenset({"Unbekannt", "ohne@-Systematik"})
+
 
 class BaseSchlagwort(BaseModel):
     """Basemodel for Tag and Sachgebiet validation."""
@@ -46,6 +54,8 @@ class BaseSchlagwort(BaseModel):
         Raises:
             ValueError: If the ID contains numbers or special characters.
         """
+        if value in RESERVED_SCHLAGWORT_IDS:
+            return value
         if not re.match(r"^[A-ZÄÖÜa-zäöüß][A-ZÄÖÜa-zäöüß\s\-]+$", value):
             raise ValueError(
                 f"{cls.__class__.__name__}-ID of {value!r} cannot contain"

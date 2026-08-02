@@ -271,6 +271,11 @@ class Ressort(StrEnum):
 
 
 class Sachgebiet(IntEnum):
+    """
+    Enumeration of Sachgebiet Integers.
+
+    The normalization module provides an function to convert the integer into string names.
+    """
     integer_1000 = 1000
     integer_1010 = 1010
     integer_1030 = 1030

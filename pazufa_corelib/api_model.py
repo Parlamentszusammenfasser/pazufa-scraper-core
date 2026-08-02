@@ -6,7 +6,7 @@ Based on automatic generation and augmented with handcrafted additions.
 from __future__ import annotations
 
 import warnings
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
@@ -187,6 +187,188 @@ class ReplacingEntry[T](PaZuFaBaseModel):
         ),
     ]
     values: list[T]
+
+
+class Sachgebiet(IntEnum):
+    """Subject area of a Vorgang, inspired by the Parlamentsspiegel systematics.
+
+    Corresponds to the `fqVSys` parameter in the Parlamentsspiegel search. The
+    generated mirror names these members `integer_1000`, `integer_1010`, ...
+    because the spec ships a bare integer enum with no `x-enum-varnames`, so the
+    codegen falls back to `<type>_<value>`. The names here come from
+    `normalization/mappings/sachgebiete.yaml`, which is the vocabulary the
+    enrichment chain already resolves against.
+
+    `tests/test_api_model_sachgebiete.py` pins the members against the YAML — if
+    a spec bump changes the value set, add the vocabulary entry rather than
+    editing this enum alone.
+    """
+
+    Staat_und_Politik = 1000
+    Staatsaufbau = 1010
+    Menschenrechte = 1030
+    Nation = 1050
+    Ideologien = 1060
+    Politische_Kräfte = 1070
+    Wahlen = 1080
+    Parlament = 1100
+    Abgeordnete = 1110
+    Öffentliche_Verwaltung = 1200
+    Bundesregierung = 1210
+    Landesregierung = 1220
+    Kommunale_Angelegenheiten = 1230
+    Öffentlicher_Dienst = 1240
+    Innere_Sicherheit = 1300
+    Polizei = 1310
+    Verfassungsschutz = 1320
+    Ordnungsrecht = 1330
+    Katastrophen__und_Zivilschutz = 1340
+    Rettungswesen = 1350
+    Verteidigung = 1400
+    Wehrdienst = 1410
+    Rüstung = 1420
+    Abrüstung = 1430
+    Außenpolitik = 1500
+    Internationale_Beziehungen = 1510
+    Internationale_Organisationen = 1520
+    Entwicklungszusammenarbeit = 1530
+    Europapolitik = 1540
+    Europäische_Union = 1600
+    Organe_der_EU = 1610
+    Programme_der_EU = 1620
+    Wirtschaft = 2000
+    Gewerbliche_Wirtschaft = 2010
+    Handel = 2020
+    Dienstleistungen = 2030
+    Versicherungen = 2040
+    Mittelständische_Wirtschaft = 2050
+    Außenwirtschaft = 2060
+    Verbraucher = 2070
+    Preis__und_Kartellrecht = 2080
+    Gewerbeaufsicht = 2090
+    Energie = 2100
+    Fossile_Energien = 2110
+    Kernenergie = 2120
+    Erneuerbare_Energien = 2130
+    Bergbau = 2200
+    Technologie = 2300
+    Arbeit_und_Beschäftigung = 2400
+    Arbeitsmarkt = 2410
+    Berufsausbildung = 2420
+    Arbeitsentgelt = 2430
+    Mitbestimmung = 2440
+    Arbeitsbedingungen = 2450
+    Standardisierung = 2500
+    Normung = 2510
+    Eich__und_Messwesen = 2520
+    Vermessungs__und_Katasterwesen = 2530
+    Verkehr = 2600
+    Öffentlicher_Personenverkehr = 2610
+    Güterverkehr = 2620
+    Straßenverkehr = 2630
+    Schienenverkehr = 2640
+    Luftverkehr = 2650
+    Schifffahrt = 2660
+    Raumfahrt = 2700
+    Bauwesen = 2800
+    Verkehrswegebau = 2810
+    Städtebau = 2820
+    Wohnungswesen = 2830
+    Wasserbau = 2840
+    Recht = 3100
+    Strafrecht = 3110
+    Zivilrecht = 3120
+    Öffentliches_Recht = 3130
+    Urheberschutz = 3140
+    Verfassungsgerichtsbarkeit = 3200
+    Justiz = 3300
+    Gerichte_und_Staatsanwaltschaften = 3310
+    Justizverwaltung = 3320
+    Justizvollzug = 3330
+    Juristische_Berufe = 3400
+    Bildung = 4100
+    Schulen = 4200
+    Lehrer = 4210
+    Allgemeinbildende_Schulen = 4220
+    Berufsbildende_Schulen = 4230
+    Sonderpädagogik = 4240
+    Privatschulen = 4250
+    Frühkindliche_Bildung = 4260
+    Hochschulwesen = 4300
+    Universitäten = 4310
+    Kunst__und_Musikhochschulen = 4320
+    Hochschulen_für_angewandte_Wissenschaften = 4330
+    Wissenschaft = 4400
+    Erwachsenenbildung = 4500
+    Gesellschaft = 5000
+    Lebensgemeinschaften = 5010
+    Sexuelle_Identität = 5020
+    Kinder = 5030
+    Frauen = 5040
+    Menschen_mit_Behinderungen = 5050
+    Alte_Menschen = 5060
+    Ausländer = 5070
+    Sonstige_gesellschaftliche_Gruppen = 5080
+    Soziales = 5100
+    Sozialversicherung = 5110
+    Sozialleistungen = 5120
+    Soziale_Einrichtungen = 5130
+    Versorgung = 5140
+    Pflege = 5150
+    Gesundheit = 5200
+    Gesundheitsschutz = 5210
+    Gesundheitseinrichtungen = 5220
+    Medizinische_Berufe = 5230
+    Arzneimittel = 5240
+    Rauschmittel = 5250
+    Psychiatrie = 5260
+    Tod = 5270
+    Umwelt = 6100
+    Natur = 6110
+    Tier = 6120
+    Boden = 6130
+    Wasser = 6140
+    Klima = 6150
+    Schadstoffe = 6160
+    Abfall = 6200
+    Abwasser = 6300
+    Raumordnung = 6400
+    Ländlicher_Raum = 6410
+    Landwirtschaft = 6500
+    Landwirtschaftliche_Betriebe = 6510
+    Agrarmarkt = 6520
+    Landwirtschaftliche_Berufe = 6530
+    Wald = 6600
+    Jagd = 6700
+    Ernährung = 6800
+    Tierkrankheiten = 6900
+    Kunst = 7100
+    Denkmalschutz = 7200
+    Religionsgemeinschaften = 7300
+    Freizeit = 7400
+    Messen = 7500
+    Sport = 7600
+    Informationsgesellschaft = 7700
+    Printmedien = 7710
+    Rundfunk = 7720
+    Film = 7730
+    Informations__und_Kommunikationstechnologien = 7740
+    Datenschutz = 7750
+    Statistik = 7800
+    Abgaben = 8100
+    Finanzverwaltung = 8200
+    Öffentlicher_Haushalt = 8300
+    Öffentliche_Schulden = 8310
+    Öffentliches_Vermögen = 8320
+    Haushaltskontrolle = 8330
+    Finanzausgleich = 8340
+    Öffentliche_Vergabe = 8350
+    Finanzmarkt = 8400
+    Vermögen = 8600
+    Glücksspiel = 8700
+    Stiftung = 8800
+    Unbekannt = 9900
+    ohne__Systematik = 9999
 
 
 class Stationstyp(StrEnum):
