@@ -142,7 +142,7 @@ def hash_bytes(data: bytes) -> list[tuple[str, str]]:
             - The hash value as a hexadecimal string (str).
     """
     result = list()
-    # result.append(hash_bytes_sha_1(data)) (currently not supported by backend)
     result.append(hash_bytes_sha_256(data))
+    result.append(hash_bytes_sha_1(data))
 
     return result
