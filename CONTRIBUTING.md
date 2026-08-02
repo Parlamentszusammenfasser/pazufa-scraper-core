@@ -161,10 +161,10 @@ directly and keep the diff against the generated module readable.
 
 The two generators read from **different sources**, which is easy to trip over:
 
-| Target | Generator | Source |
-|---|---|---|
-| `_api_model_generated.py` | `datamodel-codegen` | the live endpoint, `tool.datamodel-codegen.url` in [pyproject.toml](pyproject.toml) |
-| `api_client/` | `openapi-python-client` | the vendored [openapi.yaml](openapi.yaml) |
+| Target                    | Generator               | Source                                                                              |
+|---------------------------|-------------------------|-------------------------------------------------------------------------------------|
+| `_api_model_generated.py` | `datamodel-codegen`     | the live endpoint, `tool.datamodel-codegen.url` in [pyproject.toml](pyproject.toml) |
+| `api_client/`             | `openapi-python-client` | the vendored [openapi.yaml](openapi.yaml)                                           |
 
 So regenerating the Pydantic models can pick up API changes that the client
 does not, and vice versa. After a spec bump, regenerate both and check they
