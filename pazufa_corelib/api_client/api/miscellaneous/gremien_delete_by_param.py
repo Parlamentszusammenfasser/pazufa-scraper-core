@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -39,12 +39,26 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | str | None:
     if response.status_code == 204:
-        return None
+        response_204 = cast(Any, None)
+        return response_204
+
+    if response.status_code == 400:
+        response_400 = cast(Any, None)
+        return response_400
+
+    if response.status_code == 401:
+        response_401 = cast(Any, None)
+        return response_401
 
     if response.status_code == 403:
-        return None
+        response_403 = cast(Any, None)
+        return response_403
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -52,7 +66,7 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -67,14 +81,11 @@ def sync_detailed(
     gr: str | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
-) -> Response[Any]:
-    """Administrative endpoint to delete committees matching the specified criteria. Removes all committees
-    that match the filter parameters.
-
+) -> Response[Any | str]:
+    """
     Args:
         gr (str | Unset):
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
 
     Raises:
@@ -82,7 +93,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any]
+        Response[Any | str]
     """
 
     kwargs = _get_kwargs(
@@ -98,20 +109,17 @@ def sync_detailed(
     return _build_response(client=client, response=response)
 
 
-async def asyncio_detailed(
+def sync(
     *,
     client: AuthenticatedClient,
     gr: str | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
-) -> Response[Any]:
-    """Administrative endpoint to delete committees matching the specified criteria. Removes all committees
-    that match the filter parameters.
-
+) -> Any | str | None:
+    """
     Args:
         gr (str | Unset):
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
 
     Raises:
@@ -119,7 +127,36 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any]
+        Any | str
+    """
+
+    return sync_detailed(
+        client=client,
+        gr=gr,
+        p=p,
+        wp=wp,
+    ).parsed
+
+
+async def asyncio_detailed(
+    *,
+    client: AuthenticatedClient,
+    gr: str | Unset = UNSET,
+    p: Parlament | Unset = UNSET,
+    wp: int | Unset = UNSET,
+) -> Response[Any | str]:
+    """
+    Args:
+        gr (str | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        wp (int | Unset):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Any | str]
     """
 
     kwargs = _get_kwargs(
@@ -131,3 +168,34 @@ async def asyncio_detailed(
     response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    *,
+    client: AuthenticatedClient,
+    gr: str | Unset = UNSET,
+    p: Parlament | Unset = UNSET,
+    wp: int | Unset = UNSET,
+) -> Any | str | None:
+    """
+    Args:
+        gr (str | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        wp (int | Unset):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Any | str
+    """
+
+    return (
+        await asyncio_detailed(
+            client=client,
+            gr=gr,
+            p=p,
+            wp=wp,
+        )
+    ).parsed

@@ -7,7 +7,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.parlament import Parlament
-from ...models.vorgang import Vorgang
+from ...models.vorgang_get_response_200_item import VorgangGetResponse200Item
 from ...models.vorgangstyp import Vorgangstyp
 from ...types import UNSET, Response, Unset
 
@@ -22,13 +22,14 @@ def _get_kwargs(
     fach: str | Unset = UNSET,
     org: str | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
-        headers["If-Modified-Since"] = if_modified_since
+        headers["if_modified_since"] = if_modified_since
 
     params: dict[str, Any] = {}
 
@@ -66,6 +67,8 @@ def _get_kwargs(
 
     params["per_page"] = per_page
 
+    params["expand"] = expand
+
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
@@ -78,12 +81,14 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | list[Vorgang] | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | list[VorgangGetResponse200Item] | str | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
         for response_200_item_data in _response_200:
-            response_200_item = Vorgang.from_dict(response_200_item_data)
+            response_200_item = VorgangGetResponse200Item.from_dict(response_200_item_data)
 
             response_200.append(response_200_item)
 
@@ -97,9 +102,13 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_304 = cast(Any, None)
         return response_304
 
-    if response.status_code == 416:
-        response_416 = cast(Any, None)
-        return response_416
+    if response.status_code == 400:
+        response_400 = cast(Any, None)
+        return response_400
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -107,7 +116,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | list[Vorgang]]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | list[VorgangGetResponse200Item] | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -127,35 +138,35 @@ def sync_detailed(
     fach: str | Unset = UNSET,
     org: str | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
-) -> Response[Any | list[Vorgang]]:
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Response[Any | list[VorgangGetResponse200Item] | str]:
     """Retrieves a filterable list of legislative processes. Returns up to 64 processes per request, which
     can be filtered by various criteria including time range, parliament, and electoral period.
 
     Args:
-        since (datetime.datetime | Unset):  Example: 2024-01-01T00:00:00+00:00.
-        until (datetime.datetime | Unset):  Example: 2024-12-31T23:59:59+00:00.
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        since (datetime.datetime | Unset):
+        until (datetime.datetime | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
         person (str | Unset):
         fach (str | Unset):
         org (str | Unset):
-        vgtyp (Vorgangstyp | Unset): Der Gesetzgebungstrack auf dem wir uns befinden. Zum
-            Beispiel: gesetzgebung - Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich
-            sind zusammen mit den Parlamenten in den Stationen
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        vgtyp (Vorgangstyp | Unset): The legislative Track we are on. Together with a parliament,
+            this tells us about the possible stations that can occurr within
+        page (int | Unset):
+        per_page (int | Unset):
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Vorgang]]
+        Response[Any | list[VorgangGetResponse200Item] | str]
     """
 
     kwargs = _get_kwargs(
@@ -169,6 +180,7 @@ def sync_detailed(
         vgtyp=vgtyp,
         page=page,
         per_page=per_page,
+        expand=expand,
         if_modified_since=if_modified_since,
     )
 
@@ -190,35 +202,35 @@ def sync(
     fach: str | Unset = UNSET,
     org: str | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
-) -> Any | list[Vorgang] | None:
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Any | list[VorgangGetResponse200Item] | str | None:
     """Retrieves a filterable list of legislative processes. Returns up to 64 processes per request, which
     can be filtered by various criteria including time range, parliament, and electoral period.
 
     Args:
-        since (datetime.datetime | Unset):  Example: 2024-01-01T00:00:00+00:00.
-        until (datetime.datetime | Unset):  Example: 2024-12-31T23:59:59+00:00.
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        since (datetime.datetime | Unset):
+        until (datetime.datetime | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
         person (str | Unset):
         fach (str | Unset):
         org (str | Unset):
-        vgtyp (Vorgangstyp | Unset): Der Gesetzgebungstrack auf dem wir uns befinden. Zum
-            Beispiel: gesetzgebung - Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich
-            sind zusammen mit den Parlamenten in den Stationen
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        vgtyp (Vorgangstyp | Unset): The legislative Track we are on. Together with a parliament,
+            this tells us about the possible stations that can occurr within
+        page (int | Unset):
+        per_page (int | Unset):
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Vorgang]
+        Any | list[VorgangGetResponse200Item] | str
     """
 
     return sync_detailed(
@@ -233,6 +245,7 @@ def sync(
         vgtyp=vgtyp,
         page=page,
         per_page=per_page,
+        expand=expand,
         if_modified_since=if_modified_since,
     ).parsed
 
@@ -248,35 +261,35 @@ async def asyncio_detailed(
     fach: str | Unset = UNSET,
     org: str | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
-) -> Response[Any | list[Vorgang]]:
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Response[Any | list[VorgangGetResponse200Item] | str]:
     """Retrieves a filterable list of legislative processes. Returns up to 64 processes per request, which
     can be filtered by various criteria including time range, parliament, and electoral period.
 
     Args:
-        since (datetime.datetime | Unset):  Example: 2024-01-01T00:00:00+00:00.
-        until (datetime.datetime | Unset):  Example: 2024-12-31T23:59:59+00:00.
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        since (datetime.datetime | Unset):
+        until (datetime.datetime | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
         person (str | Unset):
         fach (str | Unset):
         org (str | Unset):
-        vgtyp (Vorgangstyp | Unset): Der Gesetzgebungstrack auf dem wir uns befinden. Zum
-            Beispiel: gesetzgebung - Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich
-            sind zusammen mit den Parlamenten in den Stationen
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        vgtyp (Vorgangstyp | Unset): The legislative Track we are on. Together with a parliament,
+            this tells us about the possible stations that can occurr within
+        page (int | Unset):
+        per_page (int | Unset):
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Vorgang]]
+        Response[Any | list[VorgangGetResponse200Item] | str]
     """
 
     kwargs = _get_kwargs(
@@ -290,6 +303,7 @@ async def asyncio_detailed(
         vgtyp=vgtyp,
         page=page,
         per_page=per_page,
+        expand=expand,
         if_modified_since=if_modified_since,
     )
 
@@ -309,35 +323,35 @@ async def asyncio(
     fach: str | Unset = UNSET,
     org: str | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
-) -> Any | list[Vorgang] | None:
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Any | list[VorgangGetResponse200Item] | str | None:
     """Retrieves a filterable list of legislative processes. Returns up to 64 processes per request, which
     can be filtered by various criteria including time range, parliament, and electoral period.
 
     Args:
-        since (datetime.datetime | Unset):  Example: 2024-01-01T00:00:00+00:00.
-        until (datetime.datetime | Unset):  Example: 2024-12-31T23:59:59+00:00.
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        since (datetime.datetime | Unset):
+        until (datetime.datetime | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
         person (str | Unset):
         fach (str | Unset):
         org (str | Unset):
-        vgtyp (Vorgangstyp | Unset): Der Gesetzgebungstrack auf dem wir uns befinden. Zum
-            Beispiel: gesetzgebung - Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich
-            sind zusammen mit den Parlamenten in den Stationen
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        vgtyp (Vorgangstyp | Unset): The legislative Track we are on. Together with a parliament,
+            this tells us about the possible stations that can occurr within
+        page (int | Unset):
+        per_page (int | Unset):
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Vorgang]
+        Any | list[VorgangGetResponse200Item] | str
     """
 
     return (
@@ -353,6 +367,7 @@ async def asyncio(
             vgtyp=vgtyp,
             page=page,
             per_page=per_page,
+            expand=expand,
             if_modified_since=if_modified_since,
         )
     ).parsed

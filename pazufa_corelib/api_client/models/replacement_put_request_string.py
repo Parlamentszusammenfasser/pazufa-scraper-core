@@ -9,22 +9,24 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.enum_put_body_replacing_item import EnumPutBodyReplacingItem
+    from ..models.replacement_put_request_inner_string import (
+        ReplacementPutRequestInnerString,
+    )
 
 
-T = TypeVar("T", bound="EnumPutBody")
+T = TypeVar("T", bound="ReplacementPutRequestString")
 
 
 @_attrs_define
-class EnumPutBody:
+class ReplacementPutRequestString:
     """
     Attributes:
         objects (list[str]):
-        replacing (list[EnumPutBodyReplacingItem] | Unset):
+        replacing (list[ReplacementPutRequestInnerString] | Unset):
     """
 
     objects: list[str]
-    replacing: list[EnumPutBodyReplacingItem] | Unset = UNSET
+    replacing: list[ReplacementPutRequestInnerString] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -51,27 +53,29 @@ class EnumPutBody:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.enum_put_body_replacing_item import EnumPutBodyReplacingItem
+        from ..models.replacement_put_request_inner_string import (
+            ReplacementPutRequestInnerString,
+        )
 
         d = dict(src_dict)
         objects = cast(list[str], d.pop("objects"))
 
         _replacing = d.pop("replacing", UNSET)
-        replacing: list[EnumPutBodyReplacingItem] | Unset = UNSET
+        replacing: list[ReplacementPutRequestInnerString] | Unset = UNSET
         if _replacing is not UNSET:
             replacing = []
             for replacing_item_data in _replacing:
-                replacing_item = EnumPutBodyReplacingItem.from_dict(replacing_item_data)
+                replacing_item = ReplacementPutRequestInnerString.from_dict(replacing_item_data)
 
                 replacing.append(replacing_item)
 
-        enum_put_body = cls(
+        replacement_put_request_string = cls(
             objects=objects,
             replacing=replacing,
         )
 
-        enum_put_body.additional_properties = d
-        return enum_put_body
+        replacement_put_request_string.additional_properties = d
+        return replacement_put_request_string
 
     @property
     def additional_keys(self) -> list[str]:

@@ -183,14 +183,127 @@ def test_patch_spec_against_real_openapi_yaml() -> None:
     """Sanity check on the real spec, not just the synthetic fixture."""
     spec = _real_spec()
     before = _header_params(spec)
-    assert before.get("If-Modified-Since") == "date-time", (
-        "Precondition: spec should still declare If-Modified-Since as date-time"
+    assert before.get("if_modified_since") == "date-time", (
+        "Precondition: spec should still declare if_modified_since as date-time"
     )
-    assert before.get("X-Scraper-Id") == "uuid", (
-        "Precondition: spec should still declare X-Scraper-Id as uuid"
+    assert before.get("x-scraper-id") == "uuid", (
+        "Precondition: spec should still declare x-scraper-id as uuid"
     )
 
     patched = _patch_spec(copy.deepcopy(spec))
     after = _header_params(patched)
-    assert after["If-Modified-Since"] is None
-    assert after["X-Scraper-Id"] is None
+    assert after["if_modified_since"] is None
+    assert after["x-scraper-id"] is None
+
+
+def _autoren_spec() -> dict[str, Any]:
+    """A ``GET /api/v2/autoren`` shaped like spec 0.2.5 declares it."""
+    return {
+        "paths": {
+            "/api/v2/autoren": {
+                "get": {
+                    "parameters": [
+                        {
+                            "name": "person",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": ["string", "null"]},
+                        },
+                        {
+                            "name": "page",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": ["integer", "null"]},
+                        },
+                    ]
+                }
+            },
+            "/api/v2/vorgang/{api_id}": {
+                "get": {
+                    "parameters": [
+                        {
+                            "name": "api_id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "string"},
+                        }
+                    ]
+                }
+            },
+        }
+    }
+
+
+def test_relocates_path_params_absent_from_the_path_template() -> None:
+    patched = _patch_spec(_autoren_spec())
+
+    params = patched["paths"]["/api/v2/autoren"]["get"]["parameters"]
+    assert [p["in"] for p in params] == ["query", "query"]
+    assert [p["required"] for p in params] == [False, False]
+
+
+def test_keeps_path_params_the_template_actually_declares() -> None:
+    patched = _patch_spec(_autoren_spec())
+
+    api_id = patched["paths"]["/api/v2/vorgang/{api_id}"]["get"]["parameters"][0]
+    assert api_id["in"] == "path"
+    assert api_id["required"] is True
+
+
+def _auth_delete_spec(properties: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "paths": {
+            "/api/v2/auth": {
+                "delete": {
+                    "parameters": [
+                        {
+                            "name": "api-key-delete",
+                            "in": "header",
+                            "required": True,
+                            "schema": {
+                                "$ref": "#/components/schemas/AuthDeleteHeaderParams"
+                            },
+                        }
+                    ]
+                }
+            }
+        },
+        "components": {
+            "schemas": {
+                "AuthDeleteHeaderParams": {
+                    "type": "object",
+                    "properties": properties,
+                }
+            }
+        },
+    }
+
+
+def test_unwraps_single_property_object_header_to_its_scalar() -> None:
+    spec = _auth_delete_spec({"api_key_delete": {"type": "string"}})
+    patched = _patch_spec(spec)
+
+    schema = patched["paths"]["/api/v2/auth"]["delete"]["parameters"][0]["schema"]
+    assert schema == {"type": "string"}
+
+
+def test_leaves_multi_property_object_headers_alone() -> None:
+    """Ambiguous wrappers are a human's problem, not the patcher's."""
+    spec = _auth_delete_spec(
+        {"api_key_delete": {"type": "string"}, "other": {"type": "string"}}
+    )
+    patched = _patch_spec(spec)
+
+    schema = patched["paths"]["/api/v2/auth"]["delete"]["parameters"][0]["schema"]
+    assert schema == {"$ref": "#/components/schemas/AuthDeleteHeaderParams"}
+
+
+def test_real_spec_generates_every_endpoint_the_generator_needs() -> None:
+    """The two 0.2.5 constructs that silently cost whole endpoints stay patched."""
+    patched = _patch_spec(_real_spec())
+
+    autoren = patched["paths"]["/api/v2/autoren"]["get"]["parameters"]
+    assert {p["in"] for p in autoren} == {"query"}
+
+    auth_delete = patched["paths"]["/api/v2/auth"]["delete"]["parameters"][0]
+    assert "$ref" not in auth_delete["schema"]

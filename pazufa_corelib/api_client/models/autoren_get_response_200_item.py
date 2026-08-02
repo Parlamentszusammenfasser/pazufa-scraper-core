@@ -8,11 +8,11 @@ from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="Autor")
+T = TypeVar("T", bound="AutorenGetResponse200Item")
 
 
 @_attrs_define
-class Autor:
+class AutorenGetResponse200Item:
     """Person or organisation in some function. e.g.:
     - authors of a statement,
     - expert at a hearing,
@@ -101,15 +101,15 @@ class Autor:
 
         person = _parse_person(d.pop("person", UNSET))
 
-        autor = cls(
+        autoren_get_response_200_item = cls(
             organisation=organisation,
             fachgebiet=fachgebiet,
             lobbyregister=lobbyregister,
             person=person,
         )
 
-        autor.additional_properties = d
-        return autor
+        autoren_get_response_200_item.additional_properties = d
+        return autoren_get_response_200_item
 
     @property
     def additional_keys(self) -> list[str]:

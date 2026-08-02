@@ -11,9 +11,6 @@ class Unset:
     def __bool__(self) -> Literal[False]:
         return False
 
-    def __repr__(self) -> str:
-        return "UNSET"
-
 
 UNSET: Unset = Unset()
 

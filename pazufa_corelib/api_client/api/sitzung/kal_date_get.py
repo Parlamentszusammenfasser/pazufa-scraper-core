@@ -7,8 +7,8 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.kal_date_get_response_200 import KalDateGetResponse200
 from ...models.parlament import Parlament
-from ...models.sitzung import Sitzung
 from ...types import UNSET, Response, Unset
 
 
@@ -16,19 +16,16 @@ def _get_kwargs(
     parlament: Parlament,
     datum: datetime.date,
     *,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
-        headers["If-Modified-Since"] = if_modified_since
+        headers["if_modified_since"] = if_modified_since
 
     params: dict[str, Any] = {}
 
-    params["page"] = page
-
-    params["per_page"] = per_page
+    params["expand"] = expand
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -45,14 +42,11 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | list[Sitzung] | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | KalDateGetResponse200 | str | None:
     if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = Sitzung.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
+        response_200 = KalDateGetResponse200.from_dict(response.json())
 
         return response_200
 
@@ -64,9 +58,17 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_304 = cast(Any, None)
         return response_304
 
-    if response.status_code == 404:
-        response_404 = cast(Any, None)
-        return response_404
+    if response.status_code == 400:
+        response_400 = cast(Any, None)
+        return response_400
+
+    if response.status_code == 416:
+        response_416 = cast(Any, None)
+        return response_416
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -74,7 +76,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | list[Sitzung]]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | KalDateGetResponse200 | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -88,34 +92,30 @@ def sync_detailed(
     datum: datetime.date,
     *,
     client: AuthenticatedClient | Client,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
-) -> Response[Any | list[Sitzung]]:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Response[Any | KalDateGetResponse200 | str]:
     """Retrieves a list of parliamentary sessions for a specific date and parliament. Provides all sessions
     scheduled for the given day in the specified parliamentary body.
 
     Args:
-        parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Sitzung]]
+        Response[Any | KalDateGetResponse200 | str]
     """
 
     kwargs = _get_kwargs(
         parlament=parlament,
         datum=datum,
-        page=page,
-        per_page=per_page,
+        expand=expand,
         if_modified_since=if_modified_since,
     )
 
@@ -131,35 +131,31 @@ def sync(
     datum: datetime.date,
     *,
     client: AuthenticatedClient | Client,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
-) -> Any | list[Sitzung] | None:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Any | KalDateGetResponse200 | str | None:
     """Retrieves a list of parliamentary sessions for a specific date and parliament. Provides all sessions
     scheduled for the given day in the specified parliamentary body.
 
     Args:
-        parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Sitzung]
+        Any | KalDateGetResponse200 | str
     """
 
     return sync_detailed(
         parlament=parlament,
         datum=datum,
         client=client,
-        page=page,
-        per_page=per_page,
+        expand=expand,
         if_modified_since=if_modified_since,
     ).parsed
 
@@ -169,34 +165,30 @@ async def asyncio_detailed(
     datum: datetime.date,
     *,
     client: AuthenticatedClient | Client,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
-) -> Response[Any | list[Sitzung]]:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Response[Any | KalDateGetResponse200 | str]:
     """Retrieves a list of parliamentary sessions for a specific date and parliament. Provides all sessions
     scheduled for the given day in the specified parliamentary body.
 
     Args:
-        parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Sitzung]]
+        Response[Any | KalDateGetResponse200 | str]
     """
 
     kwargs = _get_kwargs(
         parlament=parlament,
         datum=datum,
-        page=page,
-        per_page=per_page,
+        expand=expand,
         if_modified_since=if_modified_since,
     )
 
@@ -210,27 +202,24 @@ async def asyncio(
     datum: datetime.date,
     *,
     client: AuthenticatedClient | Client,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-    if_modified_since: str | Unset = UNSET,
-) -> Any | list[Sitzung] | None:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Any | KalDateGetResponse200 | str | None:
     """Retrieves a list of parliamentary sessions for a specific date and parliament. Provides all sessions
     scheduled for the given day in the specified parliamentary body.
 
     Args:
-        parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Sitzung]
+        Any | KalDateGetResponse200 | str
     """
 
     return (
@@ -238,8 +227,7 @@ async def asyncio(
             parlament=parlament,
             datum=datum,
             client=client,
-            page=page,
-            per_page=per_page,
+            expand=expand,
             if_modified_since=if_modified_since,
         )
     ).parsed

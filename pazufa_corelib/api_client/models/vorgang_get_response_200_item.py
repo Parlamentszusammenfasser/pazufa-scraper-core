@@ -20,11 +20,11 @@ if TYPE_CHECKING:
     from ..models.vg_ident import VgIdent
 
 
-T = TypeVar("T", bound="Vorgang")
+T = TypeVar("T", bound="VorgangGetResponse200Item")
 
 
 @_attrs_define
-class Vorgang:
+class VorgangGetResponse200Item:
     """'Master Object of the API. Wrapper type around stations.
     `Vorgang` describes not only legislative processes, but also other kinds of parliamentary
     proceedings
@@ -260,7 +260,7 @@ class Vorgang:
 
                 touched_by.append(touched_by_item)
 
-        vorgang = cls(
+        vorgang_get_response_200_item = cls(
             api_id=api_id,
             initiatoren=initiatoren,
             stationen=stationen,
@@ -277,8 +277,8 @@ class Vorgang:
             touched_by=touched_by,
         )
 
-        vorgang.additional_properties = d
-        return vorgang
+        vorgang_get_response_200_item.additional_properties = d
+        return vorgang_get_response_200_item
 
     @property
     def additional_keys(self) -> list[str]:

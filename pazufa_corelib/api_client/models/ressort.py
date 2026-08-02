@@ -1,0 +1,40 @@
+from enum import Enum
+
+
+class Ressort(str, Enum):
+    ARBEIT = "Arbeit"
+    BILDUNG = "Bildung"
+    DIGITALISIERUNG = "Digitalisierung"
+    ENERGIE = "Energie"
+    ERNÄHRUNG = "Ernährung"
+    EUROPA = "Europa"
+    FAMILIESENIOREN = "Familie/Senioren"
+    FINANZEN = "Finanzen"
+    FORSCHUNG = "Forschung"
+    FORSTEN = "Forsten"
+    FRAUENGLEICHSTELLUNG = "Frauen/Gleichstellung"
+    GESUNDHEITPFLEGEPRÄVENTION = "Gesundheit/Pflege/Prävention"
+    HEIMAT = "Heimat"
+    INNERES = "Inneres"
+    INTEGRATIONMIGRATION = "Integration/Migration"
+    JUGEND = "Jugend"
+    JUSTIZ = "Justiz"
+    KINDER = "Kinder"
+    KLIMASCHUTZ = "Klimaschutz"
+    KOMMUNALES = "Kommunales"
+    KUNSTKULTUR = "Kunst/Kultur"
+    LANDES_STADTENTWICKLUNG = "Landes-/Stadtentwicklung"
+    LANDWIRTSCHAFT = "Landwirtschaft"
+    LÄNDLICHER_RAUM = "Ländlicher Raum"
+    SOZIALES = "Soziales"
+    SPORT = "Sport"
+    TOURISMUS = "Tourismus"
+    UMWELT = "Umwelt"
+    VERBRAUCHERSCHUTZ = "Verbraucherschutz"
+    VERKEHRINFRASTRUKTUR = "Verkehr/Infrastruktur"
+    WIRTSCHAFT = "Wirtschaft"
+    WISSENSCHAFT = "Wissenschaft"
+    WOHNENBAU = "Wohnen/Bau"
+
+    def __str__(self) -> str:
+        return str(self.value)

@@ -8,13 +8,12 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
-T = TypeVar("T", bound="RotationResponse")
+T = TypeVar("T", bound="AuthRotateResponse201")
 
 
 @_attrs_define
-class RotationResponse:
-    """Response from a successful key rotation request
-
+class AuthRotateResponse201:
+    """
     Attributes:
         new_api_key (str): The newly created API key (shown only once)
         rotation_complete_date (datetime.datetime): Confirmed date when the old key will be invalidated
@@ -47,13 +46,13 @@ class RotationResponse:
 
         rotation_complete_date = isoparse(d.pop("rotation_complete_date"))
 
-        rotation_response = cls(
+        auth_rotate_response_201 = cls(
             new_api_key=new_api_key,
             rotation_complete_date=rotation_complete_date,
         )
 
-        rotation_response.additional_properties = d
-        return rotation_response
+        auth_rotate_response_201.additional_properties = d
+        return auth_rotate_response_201
 
     @property
     def additional_keys(self) -> list[str]:

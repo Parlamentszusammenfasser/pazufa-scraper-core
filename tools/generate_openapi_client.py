@@ -29,22 +29,36 @@ def run(cmd: list[str]) -> None:
 
 
 def _patch_spec(spec: dict) -> dict:
-    """Strip header formats that the Python client generator cannot honor.
+    """Normalise upstream spec constructs the Python client generator rejects.
 
-    See ``_UNSUPPORTED_HEADER_FORMATS`` for the list and the reason. The
-    source file on disk is never modified; this only operates on the loaded
-    dict.
+    Three fixes, all confined to the loaded dict — the source file on disk is
+    never modified:
+
+    1. Header ``format`` values the generator mis-renders. See
+       ``_UNSUPPORTED_HEADER_FORMATS``.
+    2. Query parameters mislabelled ``in: path`` (see
+       ``_relocate_phantom_path_params``).
+    3. Object-typed header parameters (see ``_unwrap_object_header``).
+
+    Fixes 2 and 3 target constructs that are *invalid* OpenAPI rather than
+    merely awkward: without them the generator drops the whole endpoint. Only
+    provably-unusable declarations are rewritten here; changes that are valid
+    OpenAPI but semantically surprising are deliberately mirrored as-is so the
+    generated client stays a faithful image of the tagged spec.
     """
-    for path_item in spec.get("paths", {}).values():
+    for path, path_item in spec.get("paths", {}).items():
         for operation in path_item.values():
             if not isinstance(operation, dict):
                 continue
+            _relocate_phantom_path_params(path, operation)
             for param in operation.get("parameters", []):
                 if isinstance(param, dict):
                     _strip_unsupported_header_format(param)
+                    _unwrap_object_header(spec, param)
     for param in spec.get("components", {}).get("parameters", {}).values():
         if isinstance(param, dict):
             _strip_unsupported_header_format(param)
+            _unwrap_object_header(spec, param)
     return spec
 
 
@@ -54,6 +68,62 @@ def _strip_unsupported_header_format(param: dict[str, Any]) -> None:
     schema = param.get("schema")
     if isinstance(schema, dict) and schema.get("format") in _UNSUPPORTED_HEADER_FORMATS:
         schema.pop("format")
+
+
+def _relocate_phantom_path_params(path: str, operation: dict[str, Any]) -> None:
+    """Move ``in: path`` parameters that the path template never declares to query.
+
+    Spec 0.2.5 marks the ``GET /api/v2/autoren`` filters (``person``, ``fach``,
+    ``org``, ``page``, ``per_page``) as ``in: path``, but ``/api/v2/autoren``
+    has no ``{...}`` placeholders at all — so no request could ever bind them.
+    They were ``in: query, required: false`` in 0.2.3 and are described as
+    filters, so this is an upstream generation artifact. Left alone, the
+    generator refuses the endpoint outright and ``autoren_get`` disappears
+    from the client.
+
+    ``required`` is dropped alongside the move: a filter typed ``[string,
+    null]`` is optional by construction, and a required query parameter would
+    force callers to pass every filter on every call.
+    """
+    for param in operation.get("parameters", []):
+        if not isinstance(param, dict) or param.get("in") != "path":
+            continue
+        if "{" + str(param.get("name")) + "}" in path:
+            continue
+        param["in"] = "query"
+        param["required"] = False
+
+
+def _unwrap_object_header(spec: dict[str, Any], param: dict[str, Any]) -> None:
+    """Replace an object-typed header schema with its single scalar property.
+
+    Spec 0.2.5 types the ``api-key-delete`` header of ``DELETE /api/v2/auth``
+    as ``$ref: AuthDeleteHeaderParams``, an object wrapping one string field.
+    An HTTP header carries a scalar, and 0.2.3 typed this same header as a
+    plain string, so the wrapper is an upstream generation artifact. Left
+    alone, the generator refuses the endpoint and ``auth_delete`` disappears
+    from the client.
+
+    Only single-property objects are unwrapped; anything else is left for a
+    human to look at.
+    """
+    if param.get("in") != "header":
+        return
+    schema = param.get("schema")
+    if not isinstance(schema, dict):
+        return
+    ref = schema.get("$ref")
+    if not isinstance(ref, str) or not ref.startswith("#/components/schemas/"):
+        return
+    target = spec.get("components", {}).get("schemas", {}).get(ref.rsplit("/", 1)[-1])
+    if not isinstance(target, dict) or target.get("type") != "object":
+        return
+    properties = target.get("properties")
+    if not isinstance(properties, dict) or len(properties) != 1:
+        return
+    (inner,) = properties.values()
+    if isinstance(inner, dict):
+        param["schema"] = dict(inner)
 
 
 def main() -> None:

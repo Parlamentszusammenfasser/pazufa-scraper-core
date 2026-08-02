@@ -9,23 +9,27 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.gremien_put_body_replacing_item import GremienPutBodyReplacingItem
-    from ..models.gremium import Gremium
+    from ..models.replacement_put_request_gremium_objects_item import (
+        ReplacementPutRequestGremiumObjectsItem,
+    )
+    from ..models.replacement_put_request_inner_gremium import (
+        ReplacementPutRequestInnerGremium,
+    )
 
 
-T = TypeVar("T", bound="GremienPutBody")
+T = TypeVar("T", bound="ReplacementPutRequestGremium")
 
 
 @_attrs_define
-class GremienPutBody:
+class ReplacementPutRequestGremium:
     """
     Attributes:
-        objects (list[Gremium]):
-        replacing (list[GremienPutBodyReplacingItem] | Unset):
+        objects (list[ReplacementPutRequestGremiumObjectsItem]):
+        replacing (list[ReplacementPutRequestInnerGremium] | Unset):
     """
 
-    objects: list[Gremium]
-    replacing: list[GremienPutBodyReplacingItem] | Unset = UNSET
+    objects: list[ReplacementPutRequestGremiumObjectsItem]
+    replacing: list[ReplacementPutRequestInnerGremium] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -55,33 +59,37 @@ class GremienPutBody:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.gremien_put_body_replacing_item import GremienPutBodyReplacingItem
-        from ..models.gremium import Gremium
+        from ..models.replacement_put_request_gremium_objects_item import (
+            ReplacementPutRequestGremiumObjectsItem,
+        )
+        from ..models.replacement_put_request_inner_gremium import (
+            ReplacementPutRequestInnerGremium,
+        )
 
         d = dict(src_dict)
         objects = []
         _objects = d.pop("objects")
         for objects_item_data in _objects:
-            objects_item = Gremium.from_dict(objects_item_data)
+            objects_item = ReplacementPutRequestGremiumObjectsItem.from_dict(objects_item_data)
 
             objects.append(objects_item)
 
         _replacing = d.pop("replacing", UNSET)
-        replacing: list[GremienPutBodyReplacingItem] | Unset = UNSET
+        replacing: list[ReplacementPutRequestInnerGremium] | Unset = UNSET
         if _replacing is not UNSET:
             replacing = []
             for replacing_item_data in _replacing:
-                replacing_item = GremienPutBodyReplacingItem.from_dict(replacing_item_data)
+                replacing_item = ReplacementPutRequestInnerGremium.from_dict(replacing_item_data)
 
                 replacing.append(replacing_item)
 
-        gremien_put_body = cls(
+        replacement_put_request_gremium = cls(
             objects=objects,
             replacing=replacing,
         )
 
-        gremien_put_body.additional_properties = d
-        return gremien_put_body
+        replacement_put_request_gremium.additional_properties = d
+        return replacement_put_request_gremium
 
     @property
     def additional_keys(self) -> list[str]:
