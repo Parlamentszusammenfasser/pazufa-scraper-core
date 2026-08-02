@@ -14,7 +14,9 @@ from pydantic import AnyHttpUrl, Field, RootModel, model_validator
 
 from pazufa_corelib._api_model_hardening import (
     PaZuFaBaseModel,
+    Sha256Hex,
     TzDatetime,
+    check_hash_combination,
     check_meinung_scope,
 )
 
@@ -491,6 +493,18 @@ class DokumentHash(PaZuFaBaseModel):
         str, Field(description="Hash value as string of hexadecimal octets")
     ]
 
+    @model_validator(mode="after")
+    def _check_hash_combination(self) -> DokumentHash:
+        """Reject mime/strategy/digest combinations the specification excludes.
+
+        The rule and its table live in `_api_model_hardening` — the strategy
+        decides both the legal mimes and the digest length, which no per-field
+        annotation can express. Only the hook belongs here. The digest is
+        lowercased on the way through.
+        """
+        self.value = check_hash_combination(self.strategy, self.mime, self.value)
+        return self
+
 
 class Gremium(PaZuFaBaseModel):
     link: AnyHttpUrl | None = None
@@ -504,8 +518,16 @@ class Gremium(PaZuFaBaseModel):
     wahlperiode: Annotated[int, Field(ge=0)]
 
 
-class HashWrapper(RootModel[str | list[DokumentHash]]):
-    root: str | list[DokumentHash]
+class HashWrapper(RootModel[Sha256Hex | list[DokumentHash]]):
+    """Either the legacy bare digest or the explicit list of typed hashes.
+
+    The bare string form is the backwards-compatible spelling of
+    ``sha256+bytes`` (see the ``hash`` field of `Dokument`), so it is validated
+    as a sha256 digest rather than as a free string — the generated mirror types
+    it as a plain ``str`` and would let a truncated or sha1 digest through.
+    """
+
+    root: Sha256Hex | list[DokumentHash]
 
 
 class ZusammenfassungWrapper(RootModel[str | list[Zusammenfassungstupel]]):
@@ -529,7 +551,7 @@ class Dokument(PaZuFaBaseModel):
     hash: Annotated[
         HashWrapper,
         Field(
-            description="corresponds to sha256+bytes, here for backwards compatibility"
+            description="Wrapper that allows for legacy Hashes"
         ),
     ]
     kurztitel: Annotated[
@@ -603,18 +625,6 @@ class Dokument(PaZuFaBaseModel):
 
 class DokumentOrApiId(RootModel[Dokument | UUID]):
     root: Dokument | UUID
-
-
-class Gremium(PaZuFaBaseModel):
-    link: AnyHttpUrl | None = None
-    name: Annotated[
-        str,
-        Field(
-            description="Name of the body. 'plenum', 'regierung', 'volk' are reserved"
-        ),
-    ]
-    parlament: Parlament
-    wahlperiode: Annotated[int, Field(ge=0)]
 
 
 class Station(PaZuFaBaseModel):

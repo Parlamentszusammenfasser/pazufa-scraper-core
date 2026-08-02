@@ -15,16 +15,27 @@ import pytest
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from pazufa_corelib._api_model_hardening import (
+    HASH_RULES,
     MEINUNG_ALLOWED_IF,
     SHA1_HEX_LENGTH,
     SHA256_HEX_LENGTH,
     PaZuFaBaseModel,
+    Sha1Hex,
     Sha256Hex,
     TzDatetime,
     _allows_none,
+    check_hash_combination,
     check_meinung_scope,
 )
-from pazufa_corelib.api_model import Autor, Doktyp, Dokument
+from pazufa_corelib.api_model import (
+    Autor,
+    Doktyp,
+    Dokument,
+    DokumentHash,
+    HashStrategy,
+    HashWrapper,
+    Mime,
+)
 
 HARDENING_LOGGER = "pazufa_corelib._api_model_hardening"
 
@@ -273,7 +284,7 @@ class TestSha256Hex:
     def test_digest_on_dokument_is_normalised(self, sha256_digest: str) -> None:
         doc = Dokument(
             autoren=[Autor(organisation="SPD")],
-            hash=sha256_digest.upper(),
+            hash=sha256_digest.upper(),  # type: ignore[arg-type]
             link="https://example.org/doc.pdf",  # type: ignore[arg-type]
             titel="Ein Titel",
             volltext="Ein Volltext",
@@ -281,13 +292,219 @@ class TestSha256Hex:
             zp_modifiziert=datetime(2024, 3, 9, tzinfo=UTC),
             zp_referenz=datetime(2024, 3, 7, tzinfo=UTC),
         )
-        assert doc.hash == sha256_digest
+        assert doc.hash.root == sha256_digest
+
+
+class TestSha1Hex:
+    @staticmethod
+    def _validate(value: str) -> str:
+        return TypeAdapter(Sha1Hex).validate_python(value)
+
+    def test_real_digest_accepted(self) -> None:
+        digest = hashlib.sha1(b"pazufa").hexdigest()  # noqa: S324
+        assert self._validate(digest) == digest
+
+    def test_sha256_digest_rejected(self, sha256_digest: str) -> None:
+        """The mirror of the sha256 guard: 64 characters are not a sha1 digest."""
+        with pytest.raises(ValidationError, match="sha1"):
+            self._validate(sha256_digest)
+
+    def test_uppercase_normalised_to_lowercase(self) -> None:
+        digest = hashlib.sha1(b"pazufa").hexdigest()  # noqa: S324
+        assert self._validate(digest.upper()) == digest
+
+
+# =====================================================================
+# check_hash_combination
+# =====================================================================
+
+
+class TestCheckHashCombination:
+    """The rule as a pure function, independent of the model wiring."""
+
+    @staticmethod
+    def _digest(strategy: str) -> str:
+        if strategy == "sha1+bytes":
+            return hashlib.sha1(b"pazufa").hexdigest()  # noqa: S324
+        return hashlib.sha256(b"pazufa").hexdigest()
+
+    @pytest.mark.parametrize(
+        ("strategy", "mime"),
+        [
+            ("sha256+bytes", "application/pdf"),
+            ("sha1+bytes", "application/pdf"),
+            ("sha256+text", "text/plain"),
+            ("sha256+text", "text/html"),
+        ],
+    )
+    def test_legal_combinations_accepted(self, strategy: str, mime: str) -> None:
+        digest = self._digest(strategy)
+        assert check_hash_combination(strategy, mime, digest) == digest
+
+    @pytest.mark.parametrize(
+        ("strategy", "mime"),
+        [
+            ("sha256+bytes", "text/plain"),
+            ("sha256+bytes", "text/html"),
+            ("sha1+bytes", "text/plain"),
+            ("sha256+text", "application/pdf"),
+            ("sha256+text", "application/json"),
+            ("sha256+bytes", "application/json"),
+        ],
+    )
+    def test_mismatched_mime_rejected(self, strategy: str, mime: str) -> None:
+        with pytest.raises(ValueError, match="requires a mime"):
+            check_hash_combination(strategy, mime, self._digest(strategy))
+
+    def test_application_json_never_legal(self) -> None:
+        """No strategy hashes a JSON body — the mime exists for other fields."""
+        assert all(
+            "application/json" not in rule.allowed_mimes for rule in HASH_RULES.values()
+        )
+
+    def test_sha1_length_digest_rejected_for_sha256_strategy(self) -> None:
+        with pytest.raises(ValueError, match="sha256"):
+            check_hash_combination(
+                "sha256+bytes",
+                "application/pdf",
+                hashlib.sha1(b"pazufa").hexdigest(),  # noqa: S324
+            )
+
+    def test_sha256_length_digest_rejected_for_sha1_strategy(
+        self, sha256_digest: str
+    ) -> None:
+        with pytest.raises(ValueError, match="sha1"):
+            check_hash_combination("sha1+bytes", "application/pdf", sha256_digest)
+
+    def test_digest_is_lowercased(self, sha256_digest: str) -> None:
+        result = check_hash_combination(
+            "sha256+bytes", "application/pdf", sha256_digest.upper()
+        )
+        assert result == sha256_digest
+
+    def test_unknown_strategy_rejected(self, sha256_digest: str) -> None:
+        with pytest.raises(ValueError, match="Unknown hash strategy"):
+            check_hash_combination("md5+bytes", "application/pdf", sha256_digest)
+
+    def test_str_enum_members_accepted(self, sha256_digest: str) -> None:
+        """``strategy``/``mime`` are typed ``str`` so this rule needs no imports."""
+        assert (
+            check_hash_combination(
+                HashStrategy.sha256_bytes, Mime.application_pdf, sha256_digest
+            )
+            == sha256_digest
+        )
+
+    def test_error_names_both_offending_values(self, sha256_digest: str) -> None:
+        with pytest.raises(ValueError) as excinfo:
+            check_hash_combination("sha256+text", "application/pdf", sha256_digest)
+        message = str(excinfo.value)
+        assert "sha256+text" in message
+        assert "application/pdf" in message
+
+
+class TestHashCombinationOnDokumentHash:
+    """The rule as `api_model.DokumentHash` wires it up."""
+
+    def test_legal_combination_accepted(self, sha256_digest: str) -> None:
+        entry = DokumentHash(
+            mime=Mime.application_pdf,
+            strategy=HashStrategy.sha256_bytes,
+            value=sha256_digest,
+        )
+        assert entry.value == sha256_digest
+
+    def test_mismatched_mime_rejected(self, sha256_digest: str) -> None:
+        with pytest.raises(ValidationError, match="requires a mime"):
+            DokumentHash(
+                mime=Mime.text_plain,
+                strategy=HashStrategy.sha256_bytes,
+                value=sha256_digest,
+            )
+
+    def test_wrong_digest_length_rejected(self, sha256_digest: str) -> None:
+        with pytest.raises(ValidationError, match="sha1"):
+            DokumentHash(
+                mime=Mime.application_pdf,
+                strategy=HashStrategy.sha1_bytes,
+                value=sha256_digest,
+            )
+
+    def test_digest_is_normalised(self, sha256_digest: str) -> None:
+        entry = DokumentHash(
+            mime=Mime.application_pdf,
+            strategy=HashStrategy.sha256_bytes,
+            value=sha256_digest.upper(),
+        )
+        assert entry.value == sha256_digest
+
+
+class TestHashWrapper:
+    """The legacy bare-string form is a sha256 digest, not a free string."""
+
+    @staticmethod
+    def _validate(value: Any) -> HashWrapper:
+        return HashWrapper.model_validate(value)
+
+    def test_bare_digest_accepted(self, sha256_digest: str) -> None:
+        assert self._validate(sha256_digest).root == sha256_digest
+
+    def test_bare_digest_normalised(self, sha256_digest: str) -> None:
+        assert self._validate(sha256_digest.upper()).root == sha256_digest
+
+    def test_bare_non_digest_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            self._validate("not-a-digest")
+
+    def test_bare_sha1_digest_rejected(self) -> None:
+        """The bare form means sha256+bytes, so a sha1 digest cannot pass."""
+        with pytest.raises(ValidationError):
+            self._validate(hashlib.sha1(b"pazufa").hexdigest())  # noqa: S324
+
+    def test_list_form_accepted(self, sha256_digest: str) -> None:
+        wrapper = self._validate(
+            [
+                {
+                    "mime": "application/pdf",
+                    "strategy": "sha256+bytes",
+                    "value": sha256_digest,
+                }
+            ]
+        )
+        assert isinstance(wrapper.root, list)
+        assert wrapper.root[0].value == sha256_digest
+
+    def test_illegal_combination_in_list_rejected(self, sha256_digest: str) -> None:
+        with pytest.raises(ValidationError):
+            self._validate(
+                [
+                    {
+                        "mime": "application/json",
+                        "strategy": "sha256+bytes",
+                        "value": sha256_digest,
+                    }
+                ]
+            )
 
 
 class TestHashConstants:
     def test_lengths_match_the_algorithms(self) -> None:
         assert SHA256_HEX_LENGTH == len(hashlib.sha256(b"").hexdigest())
         assert SHA1_HEX_LENGTH == len(hashlib.sha1(b"").hexdigest())  # noqa: S324
+
+    def test_hash_rules_cover_every_strategy(self) -> None:
+        """`HASH_RULES` keys the enum by value; a new strategy must be added here.
+
+        Without this guard a regenerated `HashStrategy` would gain a member that
+        :func:`check_hash_combination` rejects as unknown.
+        """
+        assert set(HASH_RULES) == {member.value for member in HashStrategy}
+
+    def test_hash_rules_only_name_known_mimes(self) -> None:
+        """A typo in a mime would reject every hash using that strategy."""
+        known = {member.value for member in Mime}
+        for rule in HASH_RULES.values():
+            assert rule.allowed_mimes <= known
 
     def test_meinung_allowed_if_matches_doktyp_members(self) -> None:
         """A typo here would silently disable the rule for a whole type."""

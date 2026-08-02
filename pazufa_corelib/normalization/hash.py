@@ -5,8 +5,8 @@ import logging
 from inspect import stack
 from typing import Any
 
-from .text import normalize_volltext
 from ..api_model import HashStrategy
+from .text import normalize_volltext
 
 # =====================================================================
 # Constants
