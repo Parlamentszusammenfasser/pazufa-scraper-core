@@ -33,9 +33,17 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_201 = response.text
         return response_201
 
-    if response.status_code == 403:
-        response_403 = cast(Any, None)
-        return response_403
+    if response.status_code == 400:
+        response_400 = cast(Any, None)
+        return response_400
+
+    if response.status_code == 401:
+        response_401 = cast(Any, None)
+        return response_401
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -57,12 +65,10 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: CreateApiKey,
 ) -> Response[Any | str]:
-    """Key adder interface for creating new API keys. Allows administrators to generate new access keys for
-    collectors, administrative tools, or other key adders.
-
+    """
     Args:
-        body (CreateApiKey): Fragt einen neuen API-Key an. Dieser wird gehasht in der Datenbank
-            gespeichert und wird nur einmalig in Klartext ausgegeben
+        body (CreateApiKey): Requests a new API key. The key will be saved as hash in the database
+            and only produced once in clear text.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -88,12 +94,10 @@ def sync(
     client: AuthenticatedClient,
     body: CreateApiKey,
 ) -> Any | str | None:
-    """Key adder interface for creating new API keys. Allows administrators to generate new access keys for
-    collectors, administrative tools, or other key adders.
-
+    """
     Args:
-        body (CreateApiKey): Fragt einen neuen API-Key an. Dieser wird gehasht in der Datenbank
-            gespeichert und wird nur einmalig in Klartext ausgegeben
+        body (CreateApiKey): Requests a new API key. The key will be saved as hash in the database
+            and only produced once in clear text.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,12 +118,10 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: CreateApiKey,
 ) -> Response[Any | str]:
-    """Key adder interface for creating new API keys. Allows administrators to generate new access keys for
-    collectors, administrative tools, or other key adders.
-
+    """
     Args:
-        body (CreateApiKey): Fragt einen neuen API-Key an. Dieser wird gehasht in der Datenbank
-            gespeichert und wird nur einmalig in Klartext ausgegeben
+        body (CreateApiKey): Requests a new API key. The key will be saved as hash in the database
+            and only produced once in clear text.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,12 +145,10 @@ async def asyncio(
     client: AuthenticatedClient,
     body: CreateApiKey,
 ) -> Any | str | None:
-    """Key adder interface for creating new API keys. Allows administrators to generate new access keys for
-    collectors, administrative tools, or other key adders.
-
+    """
     Args:
-        body (CreateApiKey): Fragt einen neuen API-Key an. Dieser wird gehasht in der Datenbank
-            gespeichert und wird nur einmalig in Klartext ausgegeben
+        body (CreateApiKey): Requests a new API key. The key will be saved as hash in the database
+            and only produced once in clear text.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

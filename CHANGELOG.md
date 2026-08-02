@@ -5,21 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
-## [0.1.3]
+## [Unreleased]
 ### Changed
 - **api_model.py** — Is no longer completly automatically generated. It no contains Handwritten extensions
 - **source of automatic generation** — The automatically generated pydantic models now temporarly use the API Endpoint instead of the spec file, as their currently are hughe differences between the spec and the backend.
 - **Naming of Some pydantic models** — In line with new naming in the API: `Scope` zu `ApiKeyScope`,`TouchedByItem` zu `TouchedByEntry`,`EnumerationNames` zu `EnumerationName`,`Lobbyregeintrag` zu `Lobbyregistereintrag`,
-- **Supported Python Version** — support for 3.14 readded, litellm is now supporting it again.
+- **`openapi.yaml` updated to spec 0.2.5** (from 0.2.3, tag `v0.2.5+v0.0.7`) and `pazufa_corelib/api_client/` regenerated from it. The spec moved to OpenAPI 3.1.0 and renamed every schema to PascalCase; generated module and class names are unaffected because the generator normalises them.
+- **`Dokument.hash` is now `oneOf[string, DokumentHash[]]`** — the plain hex string collectors already send stays valid, so this is additive for them. The structured arm carries `value` + `strategy` + `mime`, matching the variants `pazufa_corelib.normalization.hash` already returns.
+- **Path parameters `{sid}` and `{vorgang_id}` are now `{api_id}`** — `sitzung`/`vorgang` by-id endpoints take `api_id=` instead.
+- **The `If-Modified-Since` header is now spelled `if_modified_since`** on the wire. Underscores make this a different header, not a case variant; mirrored as the spec declares it and pinned by a test. Suspected upstream artifact — see below.
 
 ### Fixed
 - **Serialization errors** — fixed multiple serialization errors, especially when exporting to JSON. 
 - **Empty Strings exported**
+- **Two endpoints no longer disappear from the generated client.** Spec 0.2.5 declares the `GET /api/v2/autoren` filters as `in: path` even though `/api/v2/autoren` has no path placeholders, and types the `DELETE /api/v2/auth` header as an object wrapper. Both are invalid as written and made `openapi-python-client` skip the whole endpoint. `tools/generate_openapi_client.py` now normalises them (query parameters / unwrapped scalar header) at generation time; the file on disk is untouched. Both should be fixed upstream.
 
 ### Added
 - **_api_model_generated.py** — private new location of automatically generated pydantic models
 - **_api_model_hardening.py** — private module used for hardening in api_model.py 
 - **`PaZuFaBaseModel`** — PaZuFa specific child of the pydantic BaseModel
+- **New 0.2.5 model surface** — `Vorgang.ressort` (`Ressort`) and `Vorgang.sachgebiete` (`Sachgebiet`), `Dokument.subdoc_id` for sections that legitimately share a hash, `DokumentHash`/`HashStrategy`/`Mime`, and `Zusammenfassungstupel` for typed partial summaries.
+- **New enum values** — `Doktyp`: `eckpunktepapier`, `gesetz`. `Stationstyp`: `parl-antragsst`, `parl-verfgstop`, `parl-vermittas`, `preparl-formvs`.
+
+### Removed
+- **`Station.trojanergefahr`** — dropped by spec 0.2.5. Collectors that scored documents for it (the BW scraper does) have nowhere to put the value.
+- **`X-Scraper-Id` on `PUT /api/v2/kalender/{parlament}/{datum}`** — dropped by spec 0.2.5 while `PUT /api/v2/vorgang` kept it, so `kal_date_put()` no longer accepts `x_scraper_id`. Looks accidental upstream.
+- **`GET /ping` and `GET /status`** — removed from the spec, so `api/unauthorisiert/` is gone from the client.
 
 ### Deprecated
 - **Old Naming of some pydantic models** — `Scope`;`TouchedByItem` ,`EnumerationNames`,`Lobbyregeintrag`

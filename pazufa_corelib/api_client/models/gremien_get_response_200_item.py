@@ -9,11 +9,11 @@ from attrs import field as _attrs_field
 from ..models.parlament import Parlament
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="Gremium")
+T = TypeVar("T", bound="GremienGetResponse200Item")
 
 
 @_attrs_define
-class Gremium:
+class GremienGetResponse200Item:
     """A body in which decisions can be made: committees, plenary halls, cabinett, peoples, ...
 
     Attributes:
@@ -74,15 +74,15 @@ class Gremium:
 
         link = _parse_link(d.pop("link", UNSET))
 
-        gremium = cls(
+        gremien_get_response_200_item = cls(
             name=name,
             parlament=parlament,
             wahlperiode=wahlperiode,
             link=link,
         )
 
-        gremium.additional_properties = d
-        return gremium
+        gremien_get_response_200_item.additional_properties = d
+        return gremien_get_response_200_item
 
     @property
     def additional_keys(self) -> list[str]:

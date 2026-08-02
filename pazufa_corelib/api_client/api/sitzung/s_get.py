@@ -8,7 +8,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.parlament import Parlament
-from ...models.sitzung import Sitzung
+from ...models.s_get_response_200 import SGetResponse200
 from ...models.vorgangstyp import Vorgangstyp
 from ...types import UNSET, Response, Unset
 
@@ -17,18 +17,19 @@ def _get_kwargs(
     *,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     gr: str | Unset = UNSET,
     vgid: UUID | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    if_modified_since: str | Unset = UNSET,
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
-        headers["If-Modified-Since"] = if_modified_since
+        headers["if_modified_since"] = if_modified_since
 
     params: dict[str, Any] = {}
 
@@ -67,6 +68,8 @@ def _get_kwargs(
 
     params["vgtyp"] = json_vgtyp
 
+    params["expand"] = expand
+
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
@@ -79,14 +82,11 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | list[Sitzung] | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | SGetResponse200 | str | None:
     if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = Sitzung.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
+        response_200 = SGetResponse200.from_dict(response.json())
 
         return response_200
 
@@ -98,9 +98,17 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_304 = cast(Any, None)
         return response_304
 
+    if response.status_code == 400:
+        response_400 = cast(Any, None)
+        return response_400
+
     if response.status_code == 416:
         response_416 = cast(Any, None)
         return response_416
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -108,7 +116,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | list[Sitzung]]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | SGetResponse200 | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -122,39 +132,39 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     gr: str | Unset = UNSET,
     vgid: UUID | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    if_modified_since: str | Unset = UNSET,
-) -> Response[Any | list[Sitzung]]:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Response[Any | SGetResponse200 | str]:
     """Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
     can be filtered by various criteria including time frame, parliament, and electoral period.
 
     Args:
-        since (datetime.datetime | Unset):  Example: 2024-01-01T00:00:00+00:00.
-        until (datetime.datetime | Unset):  Example: 2024-12-31T23:59:59+00:00.
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        since (datetime.datetime | Unset):
+        until (datetime.datetime | Unset):
+        page (int | Unset):
+        per_page (int | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
         gr (str | Unset):
         vgid (UUID | Unset):
-        vgtyp (Vorgangstyp | Unset): Der Gesetzgebungstrack auf dem wir uns befinden. Zum
-            Beispiel: gesetzgebung - Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich
-            sind zusammen mit den Parlamenten in den Stationen
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        vgtyp (Vorgangstyp | Unset): The legislative Track we are on. Together with a parliament,
+            this tells us about the possible stations that can occurr within
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Sitzung]]
+        Response[Any | SGetResponse200 | str]
     """
 
     kwargs = _get_kwargs(
@@ -167,6 +177,7 @@ def sync_detailed(
         gr=gr,
         vgid=vgid,
         vgtyp=vgtyp,
+        expand=expand,
         if_modified_since=if_modified_since,
     )
 
@@ -182,39 +193,39 @@ def sync(
     client: AuthenticatedClient | Client,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     gr: str | Unset = UNSET,
     vgid: UUID | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    if_modified_since: str | Unset = UNSET,
-) -> Any | list[Sitzung] | None:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Any | SGetResponse200 | str | None:
     """Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
     can be filtered by various criteria including time frame, parliament, and electoral period.
 
     Args:
-        since (datetime.datetime | Unset):  Example: 2024-01-01T00:00:00+00:00.
-        until (datetime.datetime | Unset):  Example: 2024-12-31T23:59:59+00:00.
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        since (datetime.datetime | Unset):
+        until (datetime.datetime | Unset):
+        page (int | Unset):
+        per_page (int | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
         gr (str | Unset):
         vgid (UUID | Unset):
-        vgtyp (Vorgangstyp | Unset): Der Gesetzgebungstrack auf dem wir uns befinden. Zum
-            Beispiel: gesetzgebung - Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich
-            sind zusammen mit den Parlamenten in den Stationen
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        vgtyp (Vorgangstyp | Unset): The legislative Track we are on. Together with a parliament,
+            this tells us about the possible stations that can occurr within
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Sitzung]
+        Any | SGetResponse200 | str
     """
 
     return sync_detailed(
@@ -228,6 +239,7 @@ def sync(
         gr=gr,
         vgid=vgid,
         vgtyp=vgtyp,
+        expand=expand,
         if_modified_since=if_modified_since,
     ).parsed
 
@@ -237,39 +249,39 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     gr: str | Unset = UNSET,
     vgid: UUID | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    if_modified_since: str | Unset = UNSET,
-) -> Response[Any | list[Sitzung]]:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Response[Any | SGetResponse200 | str]:
     """Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
     can be filtered by various criteria including time frame, parliament, and electoral period.
 
     Args:
-        since (datetime.datetime | Unset):  Example: 2024-01-01T00:00:00+00:00.
-        until (datetime.datetime | Unset):  Example: 2024-12-31T23:59:59+00:00.
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        since (datetime.datetime | Unset):
+        until (datetime.datetime | Unset):
+        page (int | Unset):
+        per_page (int | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
         gr (str | Unset):
         vgid (UUID | Unset):
-        vgtyp (Vorgangstyp | Unset): Der Gesetzgebungstrack auf dem wir uns befinden. Zum
-            Beispiel: gesetzgebung - Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich
-            sind zusammen mit den Parlamenten in den Stationen
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        vgtyp (Vorgangstyp | Unset): The legislative Track we are on. Together with a parliament,
+            this tells us about the possible stations that can occurr within
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Sitzung]]
+        Response[Any | SGetResponse200 | str]
     """
 
     kwargs = _get_kwargs(
@@ -282,6 +294,7 @@ async def asyncio_detailed(
         gr=gr,
         vgid=vgid,
         vgtyp=vgtyp,
+        expand=expand,
         if_modified_since=if_modified_since,
     )
 
@@ -295,39 +308,39 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     gr: str | Unset = UNSET,
     vgid: UUID | Unset = UNSET,
     vgtyp: Vorgangstyp | Unset = UNSET,
-    if_modified_since: str | Unset = UNSET,
-) -> Any | list[Sitzung] | None:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Any | SGetResponse200 | str | None:
     """Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
     can be filtered by various criteria including time frame, parliament, and electoral period.
 
     Args:
-        since (datetime.datetime | Unset):  Example: 2024-01-01T00:00:00+00:00.
-        until (datetime.datetime | Unset):  Example: 2024-12-31T23:59:59+00:00.
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        since (datetime.datetime | Unset):
+        until (datetime.datetime | Unset):
+        page (int | Unset):
+        per_page (int | Unset):
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
         gr (str | Unset):
         vgid (UUID | Unset):
-        vgtyp (Vorgangstyp | Unset): Der Gesetzgebungstrack auf dem wir uns befinden. Zum
-            Beispiel: gesetzgebung - Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich
-            sind zusammen mit den Parlamenten in den Stationen
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        vgtyp (Vorgangstyp | Unset): The legislative Track we are on. Together with a parliament,
+            this tells us about the possible stations that can occurr within
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Sitzung]
+        Any | SGetResponse200 | str
     """
 
     return (
@@ -342,6 +355,7 @@ async def asyncio(
             gr=gr,
             vgid=vgid,
             vgtyp=vgtyp,
+            expand=expand,
             if_modified_since=if_modified_since,
         )
     ).parsed

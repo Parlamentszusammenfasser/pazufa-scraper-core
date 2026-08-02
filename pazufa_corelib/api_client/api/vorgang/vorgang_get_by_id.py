@@ -12,26 +12,34 @@ from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    vorgang_id: UUID,
+    api_id: UUID,
     *,
-    if_modified_since: str | Unset = UNSET,
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
-        headers["If-Modified-Since"] = if_modified_since
+        headers["if_modified_since"] = if_modified_since
+
+    params: dict[str, Any] = {}
+
+    params["expand"] = expand
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/v2/vorgang/{vorgang_id}".format(
-            vorgang_id=quote(str(vorgang_id), safe=""),
+        "url": "/api/v2/vorgang/{api_id}".format(
+            api_id=quote(str(api_id), safe=""),
         ),
+        "params": params,
     }
 
     _kwargs["headers"] = headers
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | Vorgang | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | Vorgang | str | None:
     if response.status_code == 200:
         response_200 = Vorgang.from_dict(response.json())
 
@@ -41,9 +49,21 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_304 = cast(Any, None)
         return response_304
 
+    if response.status_code == 400:
+        response_400 = cast(Any, None)
+        return response_400
+
     if response.status_code == 404:
         response_404 = cast(Any, None)
         return response_404
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
+
+    if response.status_code == 501:
+        response_501 = cast(Any, None)
+        return response_501
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -51,7 +71,7 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | Vorgang]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | Vorgang | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -61,29 +81,32 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 
 
 def sync_detailed(
-    vorgang_id: UUID,
+    api_id: UUID,
     *,
     client: AuthenticatedClient | Client,
-    if_modified_since: str | Unset = UNSET,
-) -> Response[Any | Vorgang]:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Response[Any | Vorgang | str]:
     """Retrieves a specific legislative process by its unique identifier. Returns comprehensive details
     about the process including all its stations, associated documents, and metadata. If called by admin
     or higher, this returns a list of last scrapers/collectors touching the object
 
     Args:
-        vorgang_id (UUID):
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        api_id (UUID):
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Vorgang]
+        Response[Any | Vorgang | str]
     """
 
     kwargs = _get_kwargs(
-        vorgang_id=vorgang_id,
+        api_id=api_id,
+        expand=expand,
         if_modified_since=if_modified_since,
     )
 
@@ -95,58 +118,64 @@ def sync_detailed(
 
 
 def sync(
-    vorgang_id: UUID,
+    api_id: UUID,
     *,
     client: AuthenticatedClient | Client,
-    if_modified_since: str | Unset = UNSET,
-) -> Any | Vorgang | None:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Any | Vorgang | str | None:
     """Retrieves a specific legislative process by its unique identifier. Returns comprehensive details
     about the process including all its stations, associated documents, and metadata. If called by admin
     or higher, this returns a list of last scrapers/collectors touching the object
 
     Args:
-        vorgang_id (UUID):
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        api_id (UUID):
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Vorgang
+        Any | Vorgang | str
     """
 
     return sync_detailed(
-        vorgang_id=vorgang_id,
+        api_id=api_id,
         client=client,
+        expand=expand,
         if_modified_since=if_modified_since,
     ).parsed
 
 
 async def asyncio_detailed(
-    vorgang_id: UUID,
+    api_id: UUID,
     *,
     client: AuthenticatedClient | Client,
-    if_modified_since: str | Unset = UNSET,
-) -> Response[Any | Vorgang]:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Response[Any | Vorgang | str]:
     """Retrieves a specific legislative process by its unique identifier. Returns comprehensive details
     about the process including all its stations, associated documents, and metadata. If called by admin
     or higher, this returns a list of last scrapers/collectors touching the object
 
     Args:
-        vorgang_id (UUID):
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        api_id (UUID):
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Vorgang]
+        Response[Any | Vorgang | str]
     """
 
     kwargs = _get_kwargs(
-        vorgang_id=vorgang_id,
+        api_id=api_id,
+        expand=expand,
         if_modified_since=if_modified_since,
     )
 
@@ -156,31 +185,34 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    vorgang_id: UUID,
+    api_id: UUID,
     *,
     client: AuthenticatedClient | Client,
-    if_modified_since: str | Unset = UNSET,
-) -> Any | Vorgang | None:
+    expand: bool | Unset = UNSET,
+    if_modified_since: None | str | Unset = UNSET,
+) -> Any | Vorgang | str | None:
     """Retrieves a specific legislative process by its unique identifier. Returns comprehensive details
     about the process including all its stations, associated documents, and metadata. If called by admin
     or higher, this returns a list of last scrapers/collectors touching the object
 
     Args:
-        vorgang_id (UUID):
-        if_modified_since (str | Unset):  Example: 2024-01-01T00:00:00+00:00.
+        api_id (UUID):
+        expand (bool | Unset):
+        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Vorgang
+        Any | Vorgang | str
     """
 
     return (
         await asyncio_detailed(
-            vorgang_id=vorgang_id,
+            api_id=api_id,
             client=client,
+            expand=expand,
             if_modified_since=if_modified_since,
         )
     ).parsed

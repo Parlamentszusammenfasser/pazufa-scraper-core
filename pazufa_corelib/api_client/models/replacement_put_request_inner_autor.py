@@ -7,39 +7,41 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
-    from ..models.gremium import Gremium
+    from ..models.replacement_put_request_inner_autor_values_item import (
+        ReplacementPutRequestInnerAutorValuesItem,
+    )
 
 
-T = TypeVar("T", bound="GremienPutBodyReplacingItem")
+T = TypeVar("T", bound="ReplacementPutRequestInnerAutor")
 
 
 @_attrs_define
-class GremienPutBodyReplacingItem:
+class ReplacementPutRequestInnerAutor:
     """
     Attributes:
-        values (list[Gremium]):
         replaced_by (int): This object is replaced by the object with index {} in the 'objects' list above. 0-Based
             indexing.
+        values (list[ReplacementPutRequestInnerAutorValuesItem]):
     """
 
-    values: list[Gremium]
     replaced_by: int
+    values: list[ReplacementPutRequestInnerAutorValuesItem]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        replaced_by = self.replaced_by
+
         values = []
         for values_item_data in self.values:
             values_item = values_item_data.to_dict()
             values.append(values_item)
 
-        replaced_by = self.replaced_by
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "values": values,
                 "replaced_by": replaced_by,
+                "values": values,
             }
         )
 
@@ -47,25 +49,27 @@ class GremienPutBodyReplacingItem:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.gremium import Gremium
+        from ..models.replacement_put_request_inner_autor_values_item import (
+            ReplacementPutRequestInnerAutorValuesItem,
+        )
 
         d = dict(src_dict)
+        replaced_by = d.pop("replaced_by")
+
         values = []
         _values = d.pop("values")
         for values_item_data in _values:
-            values_item = Gremium.from_dict(values_item_data)
+            values_item = ReplacementPutRequestInnerAutorValuesItem.from_dict(values_item_data)
 
             values.append(values_item)
 
-        replaced_by = d.pop("replaced_by")
-
-        gremien_put_body_replacing_item = cls(
-            values=values,
+        replacement_put_request_inner_autor = cls(
             replaced_by=replaced_by,
+            values=values,
         )
 
-        gremien_put_body_replacing_item.additional_properties = d
-        return gremien_put_body_replacing_item
+        replacement_put_request_inner_autor.additional_properties = d
+        return replacement_put_request_inner_autor
 
     @property
     def additional_keys(self) -> list[str]:

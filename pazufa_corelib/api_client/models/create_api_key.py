@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
-from ..models.create_api_key_scope import CreateApiKeyScope
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="CreateApiKey")
@@ -16,24 +15,27 @@ T = TypeVar("T", bound="CreateApiKey")
 
 @_attrs_define
 class CreateApiKey:
-    """Fragt einen neuen API-Key an. Dieser wird gehasht in der Datenbank gespeichert und wird nur einmalig in Klartext
-    ausgegeben
+    """Requests a new API key. The key will be saved as hash in the database and only produced once in clear text.
 
-        Attributes:
-            scope (CreateApiKeyScope):
-            expires_at (datetime.datetime | Unset): The expiration date of the API Key Example: 2024-12-31T23:59:59+00:00.
+    Attributes:
+        scope (str): Note: inline enums are not fully supported by openapi-generator
+        expires_at (datetime.datetime | None | Unset): The expiration date of the API Key
     """
 
-    scope: CreateApiKeyScope
-    expires_at: datetime.datetime | Unset = UNSET
+    scope: str
+    expires_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        scope = self.scope.value
+        scope = self.scope
 
-        expires_at: str | Unset = UNSET
-        if not isinstance(self.expires_at, Unset):
+        expires_at: None | str | Unset
+        if isinstance(self.expires_at, Unset):
+            expires_at = UNSET
+        elif isinstance(self.expires_at, datetime.datetime):
             expires_at = self.expires_at.isoformat()
+        else:
+            expires_at = self.expires_at
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -50,14 +52,24 @@ class CreateApiKey:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        scope = CreateApiKeyScope(d.pop("scope"))
+        scope = d.pop("scope")
 
-        _expires_at = d.pop("expires_at", UNSET)
-        expires_at: datetime.datetime | Unset
-        if isinstance(_expires_at, Unset):
-            expires_at = UNSET
-        else:
-            expires_at = isoparse(_expires_at)
+        def _parse_expires_at(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                expires_at_type_0 = isoparse(data)
+
+                return expires_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        expires_at = _parse_expires_at(d.pop("expires_at", UNSET))
 
         create_api_key = cls(
             scope=scope,

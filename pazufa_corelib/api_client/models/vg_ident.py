@@ -11,17 +11,11 @@ T = TypeVar("T", bound="VgIdent")
 
 @_attrs_define
 class VgIdent:
-    """Eindeutiger Identifikator für einen Vorgang innerhalb eines Parlaments+Wahlperiode. Kann z.B. eine
-    Initiativdrucksache oder eine Vorgansnummer im Parlament sein.
+    """Unique identifyer for a Vorgang within a parliament and election period: Vorgangsnummer, Initiativdrucksache, ...
 
-        Example:
-            {'id': '20/12345', 'typ': 'initdrucks'}
-
-        Attributes:
-            id (str):  Example: 123e4567-e.
-            typ (str): Typ von Identifikatoren für einen gesamten Vorgang. Offen für was auch immer ein Parlament benutzt um
-                einen Vorgang zu identifizieren. Aktuell in der Datenbank: initdrucks, vorgnr, api-id, sonstig bitte keine neue
-                Abkürzung für denselben Typ erfinden Example: initdrucks.
+    Attributes:
+        id (str):
+        typ (str):
     """
 
     id: str

@@ -9,11 +9,11 @@ from attrs import field as _attrs_field
 from ..models.parlament import Parlament
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="Gremium")
+T = TypeVar("T", bound="ReplacementPutRequestGremiumObjectsItem")
 
 
 @_attrs_define
-class Gremium:
+class ReplacementPutRequestGremiumObjectsItem:
     """A body in which decisions can be made: committees, plenary halls, cabinett, peoples, ...
 
     Attributes:
@@ -74,15 +74,15 @@ class Gremium:
 
         link = _parse_link(d.pop("link", UNSET))
 
-        gremium = cls(
+        replacement_put_request_gremium_objects_item = cls(
             name=name,
             parlament=parlament,
             wahlperiode=wahlperiode,
             link=link,
         )
 
-        gremium.additional_properties = d
-        return gremium
+        replacement_put_request_gremium_objects_item.additional_properties = d
+        return replacement_put_request_gremium_objects_item
 
     @property
     def additional_keys(self) -> list[str]:

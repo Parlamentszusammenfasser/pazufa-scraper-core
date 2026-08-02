@@ -7,6 +7,7 @@ rather than in production.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -18,12 +19,23 @@ from pazufa_corelib import format_if_modified_since
 from pazufa_corelib.api_client.api.sitzung import kal_date_put
 from pazufa_corelib.api_client.api.vorgang import vorgang_get_by_id, vorgang_put
 from pazufa_corelib.api_client.client import AuthenticatedClient
+from pazufa_corelib.api_client.models.doktyp import Doktyp
+from pazufa_corelib.api_client.models.dokument import Dokument
+from pazufa_corelib.api_client.models.dokument_hash import DokumentHash
+from pazufa_corelib.api_client.models.gremium import Gremium
+from pazufa_corelib.api_client.models.hash_strategy import HashStrategy
+from pazufa_corelib.api_client.models.mime import Mime
 from pazufa_corelib.api_client.models.parlament import Parlament
+from pazufa_corelib.api_client.models.ressort import Ressort
+from pazufa_corelib.api_client.models.sachgebiet import Sachgebiet
+from pazufa_corelib.api_client.models.station import Station
+from pazufa_corelib.api_client.models.stationstyp import Stationstyp
 from pazufa_corelib.api_client.models.vorgang import Vorgang
 from pazufa_corelib.api_client.models.vorgangstyp import Vorgangstyp
 
 SCRAPER_ID = "11111111-2222-3333-4444-555555555555"
 VORGANG_ID = UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+SHA256_HEX = "e" * 64
 
 
 @pytest.fixture
@@ -39,6 +51,7 @@ def client(captured: list[dict[str, Any]]) -> AuthenticatedClient:
                 "method": request.method,
                 "url": str(request.url),
                 "headers": dict(request.headers),
+                "content": request.content,
             }
         )
         if request.method == "GET":
@@ -69,11 +82,15 @@ def test_if_modified_since_helper_round_trips_through_client(
 ) -> None:
     ims = format_if_modified_since(datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
     vorgang_get_by_id.sync_detailed(
-        vorgang_id=VORGANG_ID,
+        api_id=VORGANG_ID,
         client=client,
         if_modified_since=ims,
     )
-    assert captured[-1]["headers"]["if-modified-since"] == "2024-01-01T00:00:00+00:00"
+    # Spec 0.2.5 renamed this header from "If-Modified-Since" to
+    # "if_modified_since". Underscores make it a genuinely different header on
+    # the wire, not a case variant, so the value is pinned here to make the
+    # change visible if it is reverted upstream.
+    assert captured[-1]["headers"]["if_modified_since"] == "2024-01-01T00:00:00+00:00"
 
 
 def test_scraper_id_header_is_sent_on_vorgang_put(
@@ -83,14 +100,152 @@ def test_scraper_id_header_is_sent_on_vorgang_put(
     assert captured[-1]["headers"]["x-scraper-id"] == SCRAPER_ID
 
 
-def test_scraper_id_header_is_sent_on_kal_date_put(
+def test_kal_date_put_no_longer_carries_a_scraper_id(
     client: AuthenticatedClient, captured: list[dict[str, Any]]
 ) -> None:
+    """Spec 0.2.5 dropped ``X-Scraper-Id`` from the calendar collector endpoint.
+
+    ``PUT /api/v2/vorgang`` kept the header, so the omission looks accidental
+    rather than a deliberate move to deriving the collector from the API key.
+    Pinned so that restoring it upstream trips this test instead of silently
+    changing what collectors send.
+    """
     kal_date_put.sync_detailed(
         Parlament.BT,
         datetime(2024, 1, 1, tzinfo=timezone.utc).date(),
         client=client,
         body=[],
-        x_scraper_id=SCRAPER_ID,
     )
-    assert captured[-1]["headers"]["x-scraper-id"] == SCRAPER_ID
+    assert "x-scraper-id" not in captured[-1]["headers"]
+
+
+# --- Spec 0.2.5 model surface -------------------------------------------------
+
+
+def _dokument(**overrides: Any) -> Dokument:
+    kwargs: dict[str, Any] = {
+        "titel": "Testdokument",
+        "link": "https://example.com/doc.pdf",
+        "hash_": SHA256_HEX,
+        "typ": Doktyp.ENTWURF,
+        "volltext": "Volltext",
+        "autoren": [],
+        "zp_modifiziert": datetime(2024, 1, 1, tzinfo=timezone.utc),
+        "zp_referenz": datetime(2024, 1, 1, tzinfo=timezone.utc),
+    }
+    kwargs.update(overrides)
+    return Dokument(**kwargs)
+
+
+def test_dokument_hash_accepts_a_plain_hex_string() -> None:
+    """0.2.5 retyped ``hash`` as ``oneOf[string, DokumentHash[]]``.
+
+    The scalar arm is what every existing collector sends, so it has to keep
+    surviving a serialise/parse round trip unchanged.
+    """
+    payload = _dokument().to_dict()
+    assert payload["hash"] == SHA256_HEX
+    assert Dokument.from_dict(payload).hash_ == SHA256_HEX
+
+
+def test_dokument_hash_accepts_a_list_of_structured_hashes() -> None:
+    dok = _dokument(
+        hash_=[
+            DokumentHash(
+                value=SHA256_HEX,
+                strategy=HashStrategy.SHA256BYTES,
+                mime=Mime.APPLICATIONPDF,
+            )
+        ]
+    )
+    payload = dok.to_dict()
+    assert payload["hash"] == [
+        {
+            "value": SHA256_HEX,
+            "strategy": "sha256+bytes",
+            "mime": "application/pdf",
+        }
+    ]
+
+    parsed = Dokument.from_dict(payload)
+    assert isinstance(parsed.hash_, list)
+    assert parsed.hash_[0].strategy == HashStrategy.SHA256BYTES
+    assert parsed.hash_[0].mime == Mime.APPLICATIONPDF
+
+
+def test_dokument_carries_subdoc_id() -> None:
+    """New in 0.2.5: distinguishes sections that legitimately share a hash."""
+    payload = _dokument(subdoc_id=3).to_dict()
+    assert payload["subdoc_id"] == 3
+    assert Dokument.from_dict(payload).subdoc_id == 3
+
+
+def test_vorgang_carries_ressort_and_sachgebiete() -> None:
+    vorgang = _vorgang()
+    vorgang.ressort = Ressort.INNERES
+    vorgang.sachgebiete = [Sachgebiet.VALUE_1010, Sachgebiet.VALUE_2000]
+
+    payload = vorgang.to_dict()
+    assert payload["ressort"] == "Inneres"
+    assert payload["sachgebiete"] == [1010, 2000]
+
+    parsed = Vorgang.from_dict(payload)
+    assert parsed.ressort == Ressort.INNERES
+    assert parsed.sachgebiete == [Sachgebiet.VALUE_1010, Sachgebiet.VALUE_2000]
+
+
+@pytest.mark.parametrize("value", ["eckpunktepapier", "gesetz"])
+def test_doktyp_gained_0_2_5_values(value: str) -> None:
+    assert Doktyp(value).value == value
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["parl-antragsst", "parl-verfgstop", "parl-vermittas", "preparl-formvs"],
+)
+def test_stationstyp_gained_0_2_5_values(value: str) -> None:
+    assert Stationstyp(value).value == value
+
+
+def test_station_no_longer_accepts_trojanergefahr() -> None:
+    """0.2.5 removed ``Station.trojanergefahr`` outright.
+
+    Collectors that scored documents for it (the BW scraper does) have nowhere
+    to put the value now. Pinned so a reinstatement upstream is noticed.
+    """
+    with pytest.raises(TypeError):
+        Station(  # type: ignore[call-arg]
+            typ=Stationstyp.PARL_INITIATIV,
+            dokumente=[],
+            zp_start=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            gremium=Gremium(name="Plenum", parlament=Parlament.BW, wahlperiode=17),
+            trojanergefahr=2,
+        )
+
+
+def test_vorgang_put_serialises_the_full_0_2_5_surface_over_the_wire(
+    client: AuthenticatedClient, captured: list[dict[str, Any]]
+) -> None:
+    """The new fields must survive the actual httpx request, not just to_dict."""
+    vorgang = _vorgang()
+    vorgang.ressort = Ressort.INNERES
+    vorgang.sachgebiete = [Sachgebiet.VALUE_1010]
+    vorgang.stationen = [
+        Station(
+            typ=Stationstyp.PREPARL_FORMVS,
+            dokumente=[_dokument(subdoc_id=1, typ=Doktyp.ECKPUNKTEPAPIER)],
+            zp_start=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            gremium=Gremium(name="Plenum", parlament=Parlament.BW, wahlperiode=17),
+        )
+    ]
+
+    vorgang_put.sync_detailed(client=client, body=vorgang, x_scraper_id=SCRAPER_ID)
+
+    body = json.loads(captured[-1]["content"])
+    assert body["ressort"] == "Inneres"
+    assert body["sachgebiete"] == [1010]
+    station = body["stationen"][0]
+    assert station["typ"] == "preparl-formvs"
+    assert station["dokumente"][0]["typ"] == "eckpunktepapier"
+    assert station["dokumente"][0]["subdoc_id"] == 1
+    assert station["dokumente"][0]["hash"] == SHA256_HEX

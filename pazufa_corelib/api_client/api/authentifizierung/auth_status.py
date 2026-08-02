@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -19,11 +19,21 @@ def _get_kwargs() -> dict[str, Any]:
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> ApiKeyStatus | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | ApiKeyStatus | str | None:
     if response.status_code == 200:
         response_200 = ApiKeyStatus.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 401:
+        response_401 = cast(Any, None)
+        return response_401
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -31,7 +41,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[ApiKeyStatus]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | ApiKeyStatus | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -43,16 +55,15 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-) -> Response[ApiKeyStatus]:
-    """Retrieves information about the currently used API key including expiration date, rotation status,
-    and key health.
+) -> Response[Any | ApiKeyStatus | str]:
+    """Get some information about your own key
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ApiKeyStatus]
+        Response[Any | ApiKeyStatus | str]
     """
 
     kwargs = _get_kwargs()
@@ -67,16 +78,15 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-) -> ApiKeyStatus | None:
-    """Retrieves information about the currently used API key including expiration date, rotation status,
-    and key health.
+) -> Any | ApiKeyStatus | str | None:
+    """Get some information about your own key
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ApiKeyStatus
+        Any | ApiKeyStatus | str
     """
 
     return sync_detailed(
@@ -87,16 +97,15 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-) -> Response[ApiKeyStatus]:
-    """Retrieves information about the currently used API key including expiration date, rotation status,
-    and key health.
+) -> Response[Any | ApiKeyStatus | str]:
+    """Get some information about your own key
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ApiKeyStatus]
+        Response[Any | ApiKeyStatus | str]
     """
 
     kwargs = _get_kwargs()
@@ -109,16 +118,15 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-) -> ApiKeyStatus | None:
-    """Retrieves information about the currently used API key including expiration date, rotation status,
-    and key health.
+) -> Any | ApiKeyStatus | str | None:
+    """Get some information about your own key
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ApiKeyStatus
+        Any | ApiKeyStatus | str
     """
 
     return (

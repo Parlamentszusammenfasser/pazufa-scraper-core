@@ -5,7 +5,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.gremium import Gremium
+from ...models.gremien_get_response_200_item import GremienGetResponse200Item
 from ...models.parlament import Parlament
 from ...types import UNSET, Response, Unset
 
@@ -15,8 +15,8 @@ def _get_kwargs(
     gr: str | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -46,12 +46,14 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | list[Gremium] | None:
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | list[GremienGetResponse200Item] | str | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
         for response_200_item_data in _response_200:
-            response_200_item = Gremium.from_dict(response_200_item_data)
+            response_200_item = GremienGetResponse200Item.from_dict(response_200_item_data)
 
             response_200.append(response_200_item)
 
@@ -61,13 +63,27 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_204 = cast(Any, None)
         return response_204
 
+    if response.status_code == 304:
+        response_304 = cast(Any, None)
+        return response_304
+
+    if response.status_code == 400:
+        response_400 = cast(Any, None)
+        return response_400
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | list[Gremium]]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | list[GremienGetResponse200Item] | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -82,26 +98,25 @@ def sync_detailed(
     gr: str | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-) -> Response[Any | list[Gremium]]:
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+) -> Response[Any | list[GremienGetResponse200Item] | str]:
     """Retrieves a list of committees filtered by optional parameters. Returns committees matching the
     specified criteria from parliament bodies and electoral periods.
 
     Args:
         gr (str | Unset):
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
+        page (int | Unset):
+        per_page (int | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Gremium]]
+        Response[Any | list[GremienGetResponse200Item] | str]
     """
 
     kwargs = _get_kwargs(
@@ -125,26 +140,25 @@ def sync(
     gr: str | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-) -> Any | list[Gremium] | None:
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+) -> Any | list[GremienGetResponse200Item] | str | None:
     """Retrieves a list of committees filtered by optional parameters. Returns committees matching the
     specified criteria from parliament bodies and electoral periods.
 
     Args:
         gr (str | Unset):
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
+        page (int | Unset):
+        per_page (int | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Gremium]
+        Any | list[GremienGetResponse200Item] | str
     """
 
     return sync_detailed(
@@ -163,26 +177,25 @@ async def asyncio_detailed(
     gr: str | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-) -> Response[Any | list[Gremium]]:
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+) -> Response[Any | list[GremienGetResponse200Item] | str]:
     """Retrieves a list of committees filtered by optional parameters. Returns committees matching the
     specified criteria from parliament bodies and electoral periods.
 
     Args:
         gr (str | Unset):
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
+        page (int | Unset):
+        per_page (int | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Gremium]]
+        Response[Any | list[GremienGetResponse200Item] | str]
     """
 
     kwargs = _get_kwargs(
@@ -204,26 +217,25 @@ async def asyncio(
     gr: str | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
-    page: int | Unset = 1,
-    per_page: int | Unset = 32,
-) -> Any | list[Gremium] | None:
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
+) -> Any | list[GremienGetResponse200Item] | str | None:
     """Retrieves a list of committees filtered by optional parameters. Returns committees matching the
     specified criteria from parliament bodies and electoral periods.
 
     Args:
         gr (str | Unset):
-        p (Parlament | Unset): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
         wp (int | Unset):
-        page (int | Unset):  Default: 1.
-        per_page (int | Unset):  Default: 32.
+        page (int | Unset):
+        per_page (int | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Gremium]
+        Any | list[GremienGetResponse200Item] | str
     """
 
     return (

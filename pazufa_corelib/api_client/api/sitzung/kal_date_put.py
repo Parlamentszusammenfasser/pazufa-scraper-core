@@ -1,6 +1,6 @@
 import datetime
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
 
 import httpx
@@ -17,10 +17,8 @@ def _get_kwargs(
     datum: datetime.date,
     *,
     body: list[Sitzung],
-    x_scraper_id: str,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    headers["X-Scraper-Id"] = x_scraper_id
 
     _kwargs: dict[str, Any] = {
         "method": "put",
@@ -41,12 +39,30 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | str | None:
     if response.status_code == 201:
-        return None
+        response_201 = cast(Any, None)
+        return response_201
 
-    if response.status_code == 403:
-        return None
+    if response.status_code == 304:
+        response_304 = cast(Any, None)
+        return response_304
+
+    if response.status_code == 400:
+        response_400 = response.text
+        return response_400
+
+    if response.status_code == 401:
+        response_401 = cast(Any, None)
+        return response_401
+
+    if response.status_code == 409:
+        response_409 = cast(Any, None)
+        return response_409
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -54,7 +70,7 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -69,17 +85,14 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: list[Sitzung],
-    x_scraper_id: str,
-) -> Response[Any]:
+) -> Response[Any | str]:
     """Collector interface for adding or updating sessions for a specific date and parliament. Completely
     replaces all sessions for the given date, with restrictions based on how far in the past the date
     is. Admin API keys can override the time restriction.
 
     Args:
-        parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
-        x_scraper_id (str):
         body (list[Sitzung]):
 
     Raises:
@@ -87,14 +100,13 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any]
+        Response[Any | str]
     """
 
     kwargs = _get_kwargs(
         parlament=parlament,
         datum=datum,
         body=body,
-        x_scraper_id=x_scraper_id,
     )
 
     response = client.get_httpx_client().request(
@@ -104,23 +116,20 @@ def sync_detailed(
     return _build_response(client=client, response=response)
 
 
-async def asyncio_detailed(
+def sync(
     parlament: Parlament,
     datum: datetime.date,
     *,
     client: AuthenticatedClient,
     body: list[Sitzung],
-    x_scraper_id: str,
-) -> Response[Any]:
+) -> Any | str | None:
     """Collector interface for adding or updating sessions for a specific date and parliament. Completely
     replaces all sessions for the given date, with restrictions based on how far in the past the date
     is. Admin API keys can override the time restriction.
 
     Args:
-        parlament (Parlament): Enumeration der Parlamentsähnlichen Entscheidungscorpi in
-            Deutschland
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
-        x_scraper_id (str):
         body (list[Sitzung]):
 
     Raises:
@@ -128,16 +137,81 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any]
+        Any | str
+    """
+
+    return sync_detailed(
+        parlament=parlament,
+        datum=datum,
+        client=client,
+        body=body,
+    ).parsed
+
+
+async def asyncio_detailed(
+    parlament: Parlament,
+    datum: datetime.date,
+    *,
+    client: AuthenticatedClient,
+    body: list[Sitzung],
+) -> Response[Any | str]:
+    """Collector interface for adding or updating sessions for a specific date and parliament. Completely
+    replaces all sessions for the given date, with restrictions based on how far in the past the date
+    is. Admin API keys can override the time restriction.
+
+    Args:
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        datum (datetime.date):
+        body (list[Sitzung]):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Any | str]
     """
 
     kwargs = _get_kwargs(
         parlament=parlament,
         datum=datum,
         body=body,
-        x_scraper_id=x_scraper_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    parlament: Parlament,
+    datum: datetime.date,
+    *,
+    client: AuthenticatedClient,
+    body: list[Sitzung],
+) -> Any | str | None:
+    """Collector interface for adding or updating sessions for a specific date and parliament. Completely
+    replaces all sessions for the given date, with restrictions based on how far in the past the date
+    is. Admin API keys can override the time restriction.
+
+    Args:
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        datum (datetime.date):
+        body (list[Sitzung]):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Any | str
+    """
+
+    return (
+        await asyncio_detailed(
+            parlament=parlament,
+            datum=datum,
+            client=client,
+            body=body,
+        )
+    ).parsed

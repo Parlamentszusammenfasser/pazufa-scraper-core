@@ -6,33 +6,33 @@ from typing import Any, TypeVar, cast
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="EnumPutBodyReplacingItem")
+T = TypeVar("T", bound="ReplacementPutRequestInnerString")
 
 
 @_attrs_define
-class EnumPutBodyReplacingItem:
+class ReplacementPutRequestInnerString:
     """
     Attributes:
-        values (list[str]):
-        replaced_by (int): This value is replaced by the object with index {} in the 'objects' list above. 0-Based
+        replaced_by (int): This object is replaced by the object with index {} in the 'objects' list above. 0-Based
             indexing.
+        values (list[str]):
     """
 
-    values: list[str]
     replaced_by: int
+    values: list[str]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        values = self.values
-
         replaced_by = self.replaced_by
+
+        values = self.values
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "values": values,
                 "replaced_by": replaced_by,
+                "values": values,
             }
         )
 
@@ -41,17 +41,17 @@ class EnumPutBodyReplacingItem:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        values = cast(list[str], d.pop("values"))
-
         replaced_by = d.pop("replaced_by")
 
-        enum_put_body_replacing_item = cls(
-            values=values,
+        values = cast(list[str], d.pop("values"))
+
+        replacement_put_request_inner_string = cls(
             replaced_by=replaced_by,
+            values=values,
         )
 
-        enum_put_body_replacing_item.additional_properties = d
-        return enum_put_body_replacing_item
+        replacement_put_request_inner_string.additional_properties = d
+        return replacement_put_request_inner_string
 
     @property
     def additional_keys(self) -> list[str]:

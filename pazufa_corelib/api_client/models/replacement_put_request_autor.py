@@ -9,23 +9,27 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.autor import Autor
-    from ..models.autoren_put_body_replacing_item import AutorenPutBodyReplacingItem
+    from ..models.replacement_put_request_autor_objects_item import (
+        ReplacementPutRequestAutorObjectsItem,
+    )
+    from ..models.replacement_put_request_inner_autor import (
+        ReplacementPutRequestInnerAutor,
+    )
 
 
-T = TypeVar("T", bound="AutorenPutBody")
+T = TypeVar("T", bound="ReplacementPutRequestAutor")
 
 
 @_attrs_define
-class AutorenPutBody:
+class ReplacementPutRequestAutor:
     """
     Attributes:
-        objects (list[Autor]):
-        replacing (list[AutorenPutBodyReplacingItem] | Unset):
+        objects (list[ReplacementPutRequestAutorObjectsItem]):
+        replacing (list[ReplacementPutRequestInnerAutor] | Unset):
     """
 
-    objects: list[Autor]
-    replacing: list[AutorenPutBodyReplacingItem] | Unset = UNSET
+    objects: list[ReplacementPutRequestAutorObjectsItem]
+    replacing: list[ReplacementPutRequestInnerAutor] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -55,33 +59,37 @@ class AutorenPutBody:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.autor import Autor
-        from ..models.autoren_put_body_replacing_item import AutorenPutBodyReplacingItem
+        from ..models.replacement_put_request_autor_objects_item import (
+            ReplacementPutRequestAutorObjectsItem,
+        )
+        from ..models.replacement_put_request_inner_autor import (
+            ReplacementPutRequestInnerAutor,
+        )
 
         d = dict(src_dict)
         objects = []
         _objects = d.pop("objects")
         for objects_item_data in _objects:
-            objects_item = Autor.from_dict(objects_item_data)
+            objects_item = ReplacementPutRequestAutorObjectsItem.from_dict(objects_item_data)
 
             objects.append(objects_item)
 
         _replacing = d.pop("replacing", UNSET)
-        replacing: list[AutorenPutBodyReplacingItem] | Unset = UNSET
+        replacing: list[ReplacementPutRequestInnerAutor] | Unset = UNSET
         if _replacing is not UNSET:
             replacing = []
             for replacing_item_data in _replacing:
-                replacing_item = AutorenPutBodyReplacingItem.from_dict(replacing_item_data)
+                replacing_item = ReplacementPutRequestInnerAutor.from_dict(replacing_item_data)
 
                 replacing.append(replacing_item)
 
-        autoren_put_body = cls(
+        replacement_put_request_autor = cls(
             objects=objects,
             replacing=replacing,
         )
 
-        autoren_put_body.additional_properties = d
-        return autoren_put_body
+        replacement_put_request_autor.additional_properties = d
+        return replacement_put_request_autor
 
     @property
     def additional_keys(self) -> list[str]:

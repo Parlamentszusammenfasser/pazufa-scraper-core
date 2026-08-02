@@ -6,7 +6,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.auth_listing_keytag_response_200 import AuthListingKeytagResponse200
+from ...models.keytag_listing import KeytagListing
 from ...types import Response
 
 
@@ -26,15 +26,19 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | AuthListingKeytagResponse200 | None:
+) -> Any | KeytagListing | str | None:
     if response.status_code == 200:
-        response_200 = AuthListingKeytagResponse200.from_dict(response.json())
+        response_200 = KeytagListing.from_dict(response.json())
 
         return response_200
 
-    if response.status_code == 403:
-        response_403 = cast(Any, None)
-        return response_403
+    if response.status_code == 401:
+        response_401 = cast(Any, None)
+        return response_401
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -44,7 +48,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any | AuthListingKeytagResponse200]:
+) -> Response[Any | KeytagListing | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -57,9 +61,8 @@ def sync_detailed(
     keytag: str,
     *,
     client: AuthenticatedClient,
-) -> Response[Any | AuthListingKeytagResponse200]:
-    """Retrieve a detailed overview of the objects changed by this key
-
+) -> Response[Any | KeytagListing | str]:
+    """
     Args:
         keytag (str):
 
@@ -68,7 +71,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | AuthListingKeytagResponse200]
+        Response[Any | KeytagListing | str]
     """
 
     kwargs = _get_kwargs(
@@ -86,9 +89,8 @@ def sync(
     keytag: str,
     *,
     client: AuthenticatedClient,
-) -> Any | AuthListingKeytagResponse200 | None:
-    """Retrieve a detailed overview of the objects changed by this key
-
+) -> Any | KeytagListing | str | None:
+    """
     Args:
         keytag (str):
 
@@ -97,7 +99,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | AuthListingKeytagResponse200
+        Any | KeytagListing | str
     """
 
     return sync_detailed(
@@ -110,9 +112,8 @@ async def asyncio_detailed(
     keytag: str,
     *,
     client: AuthenticatedClient,
-) -> Response[Any | AuthListingKeytagResponse200]:
-    """Retrieve a detailed overview of the objects changed by this key
-
+) -> Response[Any | KeytagListing | str]:
+    """
     Args:
         keytag (str):
 
@@ -121,7 +122,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | AuthListingKeytagResponse200]
+        Response[Any | KeytagListing | str]
     """
 
     kwargs = _get_kwargs(
@@ -137,9 +138,8 @@ async def asyncio(
     keytag: str,
     *,
     client: AuthenticatedClient,
-) -> Any | AuthListingKeytagResponse200 | None:
-    """Retrieve a detailed overview of the objects changed by this key
-
+) -> Any | KeytagListing | str | None:
+    """
     Args:
         keytag (str):
 
@@ -148,7 +148,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | AuthListingKeytagResponse200
+        Any | KeytagListing | str
     """
 
     return (
