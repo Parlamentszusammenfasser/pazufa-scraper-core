@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **New enum values** — `Doktyp`: `eckpunktepapier`, `gesetz`. `Stationstyp`: `parl-antragsst`, `parl-verfgstop`, `parl-vermittas`, `preparl-formvs`.
 - **hash_bytes function** — now also outputs sha1 hashes.
 - **Sachgebite.yaml** — Two previously omitted Sachgebite added (9900: Unbekannt; 9999: ohne@-Systematik)
+- **Working-Models** — Pydantic Models with all fields optional to allow for step by step filling, without ValidationErrors.
 
 ### Removed
 - **`Station.trojanergefahr`** — dropped by spec 0.2.5. Collectors that scored documents for it (the BW scraper does) have nowhere to put the value.
