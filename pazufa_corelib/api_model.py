@@ -22,8 +22,7 @@ from pazufa_corelib._api_model_hardening import (
 
 
 class ApiKeyScope(StrEnum):
-    """Permission level of an API key.
-    """
+    """Permission level of an API key."""
 
     admin = "admin"
     collector = "collector"
@@ -66,7 +65,9 @@ class AuthDeleteHeaderParams(PaZuFaBaseModel):
 
 class Autor(PaZuFaBaseModel):
     fachgebiet: str | None = None
-    lobbyregister: AnyHttpUrl | None = None     # replacing AnyUrl with AnyHttpUrl to make sure links are valid http links.
+    lobbyregister: AnyHttpUrl | None = (
+        None  # replacing AnyUrl with AnyHttpUrl to make sure links are valid http links.
+    )
     organisation: str
     person: str | None = None
 
@@ -194,6 +195,7 @@ class ReplacingEntry[T](PaZuFaBaseModel):
     ]
     values: list[T]
 
+
 class Ressort(StrEnum):
     Arbeit = "Arbeit"
     Bildung = "Bildung"
@@ -228,6 +230,7 @@ class Ressort(StrEnum):
     Wirtschaft = "Wirtschaft"
     Wissenschaft = "Wissenschaft"
     Wohnen_Bau = "Wohnen/Bau"
+
 
 class Sachgebiet(IntEnum):
     """Subject area of a Vorgang, inspired by the Parlamentsspiegel systematics.
@@ -550,9 +553,7 @@ class Dokument(PaZuFaBaseModel):
     drucksnr: str | None = None
     hash: Annotated[
         HashWrapper,
-        Field(
-            description="Wrapper that allows for legacy Hashes"
-        ),
+        Field(description="Wrapper that allows for legacy Hashes"),
     ]
     kurztitel: Annotated[
         str | None,

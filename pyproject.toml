@@ -101,7 +101,7 @@ convention = "google"
 
 [tool.ruff.format]
 docstring-code-format = true
-exclude = ["pazufa_corelib/api_client/**", "pazufa_corelib/api_model.py"]
+exclude = ["pazufa_corelib/api_client/**", "pazufa_corelib/_api_model_generated.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
