@@ -1,6 +1,7 @@
 POETRY := poetry run
 
-.PHONY: help check lint typecheck security licenses test coverage format generate generate-models generate-client clean install \
+.PHONY: help check lint typecheck security licenses test coverage format generate generate-models generate-client \
+        generate-working-models clean install \
         secrets-scan secrets-update secrets-audit
 
 help:
@@ -13,8 +14,9 @@ help:
 	@echo "  test           Run pytest"
 	@echo "  coverage       Run pytest with coverage report"
 	@echo "  format         Auto-fix lint issues and reformat"
-	@echo "  generate       Regenerate API models and client"
+	@echo "  generate       Regenerate API models, working models and client"
 	@echo "  generate-models Regenerate Pydantic API models with datamodel-codegen"
+	@echo "  generate-working-models Regenerate the all-optional mirror of api_model.py"
 	@echo "  generate-client Regenerate the OpenAPI client"
 	@echo "  clean          Remove build artifacts and caches"
 	@echo "  install        Install dev dependencies"
@@ -50,10 +52,15 @@ format:
 	$(POETRY) ruff check --fix
 	$(POETRY) ruff format
 
-generate: generate-models generate-client
+generate: generate-models generate-working-models generate-client
 
 generate-models:
 	$(POETRY) datamodel-codegen
+
+# Runs after generate-models only by convention; its source is the handcrafted
+# api_model.py, not the spec, so update that first when the API changes.
+generate-working-models:
+	$(POETRY) python tools/generate_working_models.py
 
 generate-client:
 	$(POETRY) python tools/generate_openapi_client.py

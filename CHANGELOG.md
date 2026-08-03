@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Two endpoints no longer disappear from the generated client.** Spec 0.2.5 declares the `GET /api/v2/autoren` filters as `in: path` even though `/api/v2/autoren` has no path placeholders, and types the `DELETE /api/v2/auth` header as an object wrapper. Both are invalid as written and made `openapi-python-client` skip the whole endpoint. `tools/generate_openapi_client.py` now normalises them (query parameters / unwrapped scalar header) at generation time; the file on disk is untouched. Both should be fixed upstream.
 
 ### Added
+- **api_model_working.py** — shipped, generated mirror of `api_model.py` with a `Working` prefix and every field optional, for carrying partially collected data through a scraper while staying type-checked. Enums are imported from `api_model`, the models inherit `PaZuFaBaseModel`, and `TzDatetime`/`AnyHttpUrl` fields keep their types; required fields, constraints and validators are intentionally dropped. Regenerate with `make generate-working-models`.
 - **_api_model_generated.py** — private new location of automatically generated pydantic models
 - **_api_model_hardening.py** — private module used for hardening in api_model.py 
 - **`PaZuFaBaseModel`** — PaZuFa specific child of the pydantic BaseModel
