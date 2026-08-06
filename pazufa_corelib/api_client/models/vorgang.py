@@ -7,6 +7,8 @@ from uuid import UUID
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
+from ..models.ressort import Ressort
+from ..models.sachgebiet import Sachgebiet
 from ..models.vorgangstyp import Vorgangstyp
 from ..types import UNSET, Unset
 
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
     from ..models.autor import Autor
     from ..models.lobbyregeintrag import Lobbyregeintrag
     from ..models.station import Station
-    from ..models.touched_by_item import TouchedByItem
+    from ..models.touched_by_inner import TouchedByInner
     from ..models.vg_ident import VgIdent
 
 
@@ -23,65 +25,49 @@ T = TypeVar("T", bound="Vorgang")
 
 @_attrs_define
 class Vorgang:
-    """'Master-Objekt' der API. Der Wrapper um Stationen, die den Beratungsverlauf tatsächlich beschreiben. Ein Vorgang
-    kann dabei nicht nur ein Gesetz, sondern auch ein parlamentarischer Antrag sein.
-
-        Example:
-            {'api_id': '123e4567-e89b-12d3-a456-426614174000', 'titel': 'Gesetz zur Änderung des Bundeswahlgesetzes und
-                anderer Gesetze', 'kurztitel': 'Wahlrechtsreform', 'wahlperiode': 20, 'verfassungsaendernd': False, 'typ': 'gg-
-                einspruch', 'ids': [{'id': '20/12345', 'typ': 'initdrucks'}, {'id': 'WR-2024-01', 'typ': 'vorgnr'}], 'links':
-                ['https://www.bundestag.de/dokumente/textarchiv/2024/wahlrechtsreform',
-                'https://dip.bundestag.de/vorgang/123456'], 'initiatoren': [{'person': 'Dr. Friedrich Merz', 'organisation':
-                'CDU/CSU-Fraktion', 'fachgebiet': 'Innenpolitik'}, {'organisation': 'SPD-Fraktion'}], 'stationen': [{'api_id':
-                'f1e2d3c4-b5a6-7890-abcd-1234567890cd', 'titel': 'Erste Lesung im Bundestag', 'zp_start':
-                '2024-04-15T10:00:00+02:00', 'zp_modifiziert': '2024-04-15T13:45:00+02:00', 'parlament': 'BT', 'typ': 'parl-
-                vollvlsgn', 'dokumente': []}], 'lobbyregister': [{'organisation': {'organisation': 'Bundesverband der Deutschen
-                Industrie e.V.', 'person': 'Dr. Johannes Weber'}, 'interne_id': 'LR-ID-12345678', 'intention': 'Stellungnahme zu
-                Auswirkungen der Gesetzesänderung auf die deutsche Wirtschaft.', 'link':
-                'https://www.lobbyregister.bundestag.de/eintragung/12345678', 'betroffene_drucksachen': ['BT-Drs. 20/12345']}]}
+    """'Master Object of the API. Wrapper type around stations.
+    `Vorgang` describes not only legislative processes, but also other kinds of parliamentary
+    proceedings
 
         Attributes:
-            api_id (UUID):  Example: 123e4567-e89b-12d3-a456-426614174000.
+            api_id (UUID): Use UUID version 5 with your collector id as namespace
+            initiatoren (list[Autor]): List of persons or organisations, which initiated the Vorgang.
+            stationen (list[Station]): List of stations, the core of what happens in one Proceeding
             titel (str):
-            wahlperiode (int): Nummer der Wahlperiode, in der der Vorgang stattfindet
-            verfassungsaendernd (bool):
-            typ (Vorgangstyp): Der Gesetzgebungstrack auf dem wir uns befinden. Zum Beispiel: gesetzgebung -
-                Einspruchsgesetz. Legt fest, welche Stationen im Vorgang möglich sind zusammen mit den Parlamenten in den
-                Stationen
-            initiatoren (list[Autor]): Liste von Personen oder Organisationen, die den Vorgang initiiert haben. Kann z.B.
-                eine Person, eine Organisation oder ein Gremium sein.
-            stationen (list[Station]):
-            touched_by (list[TouchedByItem] | Unset): list of scraper uuids / key database ids that have touched this object
-            kurztitel (str | Unset):
+            typ (Vorgangstyp): The legislative Track we are on. Together with a parliament, this tells us about the possible
+                stations that can occurr within
+            verfassungsaendernd (bool): Is this Vorgang directly intended to change the constitution of whatever state it
+                happens
+                in?
+            wahlperiode (int): number of the electoral period
             ids (list[VgIdent] | Unset):
+            kurztitel (None | str | Unset):
             links (list[str] | Unset):
-            lobbyregister (list[Lobbyregeintrag] | Unset):
+            lobbyregister (list[Lobbyregeintrag] | Unset): Lobby register annotations from Bundestag sources
+            ressort (None | Ressort | Unset):
+            sachgebiete (list[Sachgebiet] | Unset): Sachgebiet information
+            touched_by (list[TouchedByInner] | Unset): list of scraper uuids / key database ids that have touched this
+                object
     """
 
     api_id: UUID
-    titel: str
-    wahlperiode: int
-    verfassungsaendernd: bool
-    typ: Vorgangstyp
     initiatoren: list[Autor]
     stationen: list[Station]
-    touched_by: list[TouchedByItem] | Unset = UNSET
-    kurztitel: str | Unset = UNSET
+    titel: str
+    typ: Vorgangstyp
+    verfassungsaendernd: bool
+    wahlperiode: int
     ids: list[VgIdent] | Unset = UNSET
+    kurztitel: None | str | Unset = UNSET
     links: list[str] | Unset = UNSET
     lobbyregister: list[Lobbyregeintrag] | Unset = UNSET
+    ressort: None | Ressort | Unset = UNSET
+    sachgebiete: list[Sachgebiet] | Unset = UNSET
+    touched_by: list[TouchedByInner] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         api_id = str(self.api_id)
-
-        titel = self.titel
-
-        wahlperiode = self.wahlperiode
-
-        verfassungsaendernd = self.verfassungsaendernd
-
-        typ = self.typ.value
 
         initiatoren = []
         for initiatoren_item_data in self.initiatoren:
@@ -93,14 +79,13 @@ class Vorgang:
             stationen_item = stationen_item_data.to_dict()
             stationen.append(stationen_item)
 
-        touched_by: list[dict[str, Any]] | Unset = UNSET
-        if not isinstance(self.touched_by, Unset):
-            touched_by = []
-            for componentsschemastouched_by_item_data in self.touched_by:
-                componentsschemastouched_by_item = componentsschemastouched_by_item_data.to_dict()
-                touched_by.append(componentsschemastouched_by_item)
+        titel = self.titel
 
-        kurztitel = self.kurztitel
+        typ = self.typ.value
+
+        verfassungsaendernd = self.verfassungsaendernd
+
+        wahlperiode = self.wahlperiode
 
         ids: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.ids, Unset):
@@ -108,6 +93,12 @@ class Vorgang:
             for ids_item_data in self.ids:
                 ids_item = ids_item_data.to_dict()
                 ids.append(ids_item)
+
+        kurztitel: None | str | Unset
+        if isinstance(self.kurztitel, Unset):
+            kurztitel = UNSET
+        else:
+            kurztitel = self.kurztitel
 
         links: list[str] | Unset = UNSET
         if not isinstance(self.links, Unset):
@@ -120,29 +111,55 @@ class Vorgang:
                 lobbyregister_item = lobbyregister_item_data.to_dict()
                 lobbyregister.append(lobbyregister_item)
 
+        ressort: None | str | Unset
+        if isinstance(self.ressort, Unset):
+            ressort = UNSET
+        elif isinstance(self.ressort, Ressort):
+            ressort = self.ressort.value
+        else:
+            ressort = self.ressort
+
+        sachgebiete: list[int] | Unset = UNSET
+        if not isinstance(self.sachgebiete, Unset):
+            sachgebiete = []
+            for sachgebiete_item_data in self.sachgebiete:
+                sachgebiete_item = sachgebiete_item_data.value
+                sachgebiete.append(sachgebiete_item)
+
+        touched_by: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.touched_by, Unset):
+            touched_by = []
+            for touched_by_item_data in self.touched_by:
+                touched_by_item = touched_by_item_data.to_dict()
+                touched_by.append(touched_by_item)
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "api_id": api_id,
-                "titel": titel,
-                "wahlperiode": wahlperiode,
-                "verfassungsaendernd": verfassungsaendernd,
-                "typ": typ,
                 "initiatoren": initiatoren,
                 "stationen": stationen,
+                "titel": titel,
+                "typ": typ,
+                "verfassungsaendernd": verfassungsaendernd,
+                "wahlperiode": wahlperiode,
             }
         )
-        if touched_by is not UNSET:
-            field_dict["touched_by"] = touched_by
-        if kurztitel is not UNSET:
-            field_dict["kurztitel"] = kurztitel
         if ids is not UNSET:
             field_dict["ids"] = ids
+        if kurztitel is not UNSET:
+            field_dict["kurztitel"] = kurztitel
         if links is not UNSET:
             field_dict["links"] = links
         if lobbyregister is not UNSET:
             field_dict["lobbyregister"] = lobbyregister
+        if ressort is not UNSET:
+            field_dict["ressort"] = ressort
+        if sachgebiete is not UNSET:
+            field_dict["sachgebiete"] = sachgebiete
+        if touched_by is not UNSET:
+            field_dict["touched_by"] = touched_by
 
         return field_dict
 
@@ -151,19 +168,11 @@ class Vorgang:
         from ..models.autor import Autor
         from ..models.lobbyregeintrag import Lobbyregeintrag
         from ..models.station import Station
-        from ..models.touched_by_item import TouchedByItem
+        from ..models.touched_by_inner import TouchedByInner
         from ..models.vg_ident import VgIdent
 
         d = dict(src_dict)
         api_id = UUID(d.pop("api_id"))
-
-        titel = d.pop("titel")
-
-        wahlperiode = d.pop("wahlperiode")
-
-        verfassungsaendernd = d.pop("verfassungsaendernd")
-
-        typ = Vorgangstyp(d.pop("typ"))
 
         initiatoren = []
         _initiatoren = d.pop("initiatoren")
@@ -179,16 +188,13 @@ class Vorgang:
 
             stationen.append(stationen_item)
 
-        _touched_by = d.pop("touched_by", UNSET)
-        touched_by: list[TouchedByItem] | Unset = UNSET
-        if _touched_by is not UNSET:
-            touched_by = []
-            for componentsschemastouched_by_item_data in _touched_by:
-                componentsschemastouched_by_item = TouchedByItem.from_dict(componentsschemastouched_by_item_data)
+        titel = d.pop("titel")
 
-                touched_by.append(componentsschemastouched_by_item)
+        typ = Vorgangstyp(d.pop("typ"))
 
-        kurztitel = d.pop("kurztitel", UNSET)
+        verfassungsaendernd = d.pop("verfassungsaendernd")
+
+        wahlperiode = d.pop("wahlperiode")
 
         _ids = d.pop("ids", UNSET)
         ids: list[VgIdent] | Unset = UNSET
@@ -198,6 +204,15 @@ class Vorgang:
                 ids_item = VgIdent.from_dict(ids_item_data)
 
                 ids.append(ids_item)
+
+        def _parse_kurztitel(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        kurztitel = _parse_kurztitel(d.pop("kurztitel", UNSET))
 
         links = cast(list[str], d.pop("links", UNSET))
 
@@ -210,19 +225,56 @@ class Vorgang:
 
                 lobbyregister.append(lobbyregister_item)
 
+        def _parse_ressort(data: object) -> None | Ressort | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                ressort_type_1 = Ressort(data)
+
+                return ressort_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Ressort | Unset, data)
+
+        ressort = _parse_ressort(d.pop("ressort", UNSET))
+
+        _sachgebiete = d.pop("sachgebiete", UNSET)
+        sachgebiete: list[Sachgebiet] | Unset = UNSET
+        if _sachgebiete is not UNSET:
+            sachgebiete = []
+            for sachgebiete_item_data in _sachgebiete:
+                sachgebiete_item = Sachgebiet(sachgebiete_item_data)
+
+                sachgebiete.append(sachgebiete_item)
+
+        _touched_by = d.pop("touched_by", UNSET)
+        touched_by: list[TouchedByInner] | Unset = UNSET
+        if _touched_by is not UNSET:
+            touched_by = []
+            for touched_by_item_data in _touched_by:
+                touched_by_item = TouchedByInner.from_dict(touched_by_item_data)
+
+                touched_by.append(touched_by_item)
+
         vorgang = cls(
             api_id=api_id,
-            titel=titel,
-            wahlperiode=wahlperiode,
-            verfassungsaendernd=verfassungsaendernd,
-            typ=typ,
             initiatoren=initiatoren,
             stationen=stationen,
-            touched_by=touched_by,
-            kurztitel=kurztitel,
+            titel=titel,
+            typ=typ,
+            verfassungsaendernd=verfassungsaendernd,
+            wahlperiode=wahlperiode,
             ids=ids,
+            kurztitel=kurztitel,
             links=links,
             lobbyregister=lobbyregister,
+            ressort=ressort,
+            sachgebiete=sachgebiete,
+            touched_by=touched_by,
         )
 
         vorgang.additional_properties = d

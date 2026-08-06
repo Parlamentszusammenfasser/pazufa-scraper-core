@@ -5,16 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
+## [0.2.0] - 06-08-2026
+### Changed
+- **api_model.py** — Is no longer completly automatically generated. It no contains Handwritten extensions
+- **api_model.py** — Is now updated to spec 0.25
+- **api_model.py** — Links are now expected to be in http format
+- **Naming of Some pydantic models** — In line with new naming in the API: `Scope` zu `ApiKeyScope`,`TouchedByItem` zu `TouchedByEntry`,`Lobbyregeintrag` zu `Lobbyregistereintrag`,
+- **`openapi.yaml` updated to spec 0.2.5** (from 0.2.3, tag `v0.2.5+v0.0.7`) and `pazufa_corelib/api_client/` regenerated from it. The spec moved to OpenAPI 3.1.0 and renamed every schema to PascalCase; generated module and class names are unaffected because the generator normalises them.
+- **`Dokument.hash` is now `oneOf[string, DokumentHash[]]`** — the plain hex string collectors already send stays valid, so this is additive for them. The structured arm carries `value` + `strategy` + `mime`, matching the variants `pazufa_corelib.normalization.hash` already returns.
+- **Path parameters `{sid}` and `{vorgang_id}` are now `{api_id}`** — `sitzung`/`vorgang` by-id endpoints take `api_id=` instead.
+- **The `If-Modified-Since` header is now spelled `if_modified_since`** on the wire. Underscores make this a different header, not a case variant; mirrored as the spec declares it and pinned by a test. Suspected upstream artifact — see below.
+
+### Fixed
+- **Serialization errors** — fixed multiple serialization errors, especially when exporting to JSON. 
+- **Empty Strings exported**
+- **Two endpoints no longer disappear from the generated client.** Spec 0.2.5 declares the `GET /api/v2/autoren` filters as `in: path` even though `/api/v2/autoren` has no path placeholders, and types the `DELETE /api/v2/auth` header as an object wrapper. Both are invalid as written and made `openapi-python-client` skip the whole endpoint. `tools/generate_openapi_client.py` now normalises them (query parameters / unwrapped scalar header) at generation time; the file on disk is untouched. Both should be fixed upstream.
+
+### Added
+- **api_model_working.py** — shipped, generated mirror of `api_model.py` with a `Working` prefix and every field optional, for carrying partially collected data through a scraper while staying type-checked. Enums are imported from `api_model`, the models inherit `PaZuFaBaseModel`, and `TzDatetime`/`AnyHttpUrl` fields keep their types; required fields, constraints and validators are intentionally dropped. Regenerate with `make generate-working-models`.
+- **_api_model_generated.py** — private new location of automatically generated pydantic models
+- **_api_model_hardening.py** — private module used for hardening in api_model.py 
+- **`PaZuFaBaseModel`** — PaZuFa specific child of the pydantic BaseModel
+- **New 0.2.5 model surface** — `Vorgang.ressort` (`Ressort`) and `Vorgang.sachgebiete` (`Sachgebiet`), `Dokument.subdoc_id` for sections that legitimately share a hash, `DokumentHash`/`HashStrategy`/`Mime`, and `Zusammenfassungstupel` for typed partial summaries.
+- **New enum values** — `Doktyp`: `eckpunktepapier`, `gesetz`. `Stationstyp`: `parl-antragsst`, `parl-verfgstop`, `parl-vermittas`, `preparl-formvs`.
+- **hash_bytes function** — now also outputs sha1 hashes.
+- **Sachgebite.yaml** — Two previously omitted Sachgebite added (9900: Unbekannt; 9999: ohne@-Systematik)
+- **Working-Models** — Pydantic Models with all fields optional to allow for step by step filling, without ValidationErrors.
+
+### Removed
+- **`Station.trojanergefahr`** — dropped by spec 0.2.5. Collectors that scored documents for it (the BW scraper does) have nowhere to put the value.
+- **`X-Scraper-Id` on `PUT /api/v2/kalender/{parlament}/{datum}`** — dropped by spec 0.2.5 while `PUT /api/v2/vorgang` kept it, so `kal_date_put()` no longer accepts `x_scraper_id`. Looks accidental upstream.
+- **`GET /ping` and `GET /status`** — removed from the spec, so `api/unauthorisiert/` is gone from the client.
+
 
 ## [0.1.2] - 2026-06-16
 
 ### Changed
 
-- **Summarization prompts reframed for the public** — `ZUSAMMENFASSUNG_PROMPT` and `ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT` now state that the summary is shown on a public website that makes parliamentary proceedings accessible to citizens without legal/political background, ask for plain language with brief explanations of technical terms, and instruct the model to output only the summary itself. The explicit word-count target was dropped in favour of structural guidance ("focus on the essentials; as short as possible, as detailed as necessary"), since LLMs follow type/audience framing more reliably than numeric length targets.
+- **Summarization prompts reframed for the public** — `ZUSAMMENFASSUNG_PROMPT` and `ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT` now state that the summary is shown on a public website that makes parliamentary proceedings accessible to citizens without legal/political background, ask for plain language with brief explanations of technical terms, and instruct the model to output only the summary itself. The explicit word-count target was dropped in favour of structural guidance (`focus on the essentials; as short as possible, as detailed as necessary`), since LLMs follow type/audience framing more reliably than numeric length targets.
 
 ### Fixed
 
-- **`normalize_volltext` now strips C0 control characters and DEL** (`\x00`–`\x1f` except `\t \n \r`, plus `\x7f`). A stray NUL byte (`0x00`) previously survived into the output and caused the backend's PostgreSQL `text` insert to fail with `invalid byte sequence for encoding "UTF8": 0x00` (#101).
+- **`normalize_volltext` now strips C0 control characters and DEL** (`\x00`–`\x1f` except `\t \n \r`, plus `\x7f`). A stray NUL byte (`0x00`) previously survived into the output and caused the backend's PostgreSQL `text` insert to fail with `invalid byte sequence for encoding `UTF8`: 0x00` (#101).
 - **Summary prompt/schema leakage** ([#104](https://codeberg.org/PaZuFa/pazufa-scraper-core/issues/104)) — `ZusammenfassungResult` no longer accepts output that merely echoes the task or response schema (e.g. summaries containing the `150-250 Wörter` length hint). A new `field_validator` rejects such prompt-echo output so Instructor re-prompts the model. A minimum summary length of 50 characters now drops truncated output, but it is relaxed when the caller requested short output via `LLMConnector.summarize`'s count parameters (signalled through the validation context), so length-bounded summaries keep working. The `150-250 word` instruction was removed from the schema field description (the most-parroted source); the defensive echo patterns are scoped (the length-hint pattern requires the `Wörter` unit, the meta-framing pattern is anchored to the start) so genuine numeric ranges and phrasings inside a real summary are not falsely rejected.
 
 ### Security

@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
 from uuid import UUID
 
@@ -24,12 +24,26 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | str | None:
     if response.status_code == 204:
-        return None
+        response_204 = cast(Any, None)
+        return response_204
+
+    if response.status_code == 400:
+        response_400 = cast(Any, None)
+        return response_400
+
+    if response.status_code == 401:
+        response_401 = cast(Any, None)
+        return response_401
 
     if response.status_code == 403:
-        return None
+        response_403 = cast(Any, None)
+        return response_403
+
+    if response.status_code == 500:
+        response_500 = response.text
+        return response_500
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -37,7 +51,7 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -50,7 +64,7 @@ def sync_detailed(
     api_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Response[Any]:
+) -> Response[Any | str]:
     """Administrative endpoint to remove a document from the system. This operation cannot be undone and
     may affect other resources referencing this document.
 
@@ -62,7 +76,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any]
+        Response[Any | str]
     """
 
     kwargs = _get_kwargs(
@@ -76,11 +90,11 @@ def sync_detailed(
     return _build_response(client=client, response=response)
 
 
-async def asyncio_detailed(
+def sync(
     api_id: UUID,
     *,
     client: AuthenticatedClient,
-) -> Response[Any]:
+) -> Any | str | None:
     """Administrative endpoint to remove a document from the system. This operation cannot be undone and
     may affect other resources referencing this document.
 
@@ -92,7 +106,32 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any]
+        Any | str
+    """
+
+    return sync_detailed(
+        api_id=api_id,
+        client=client,
+    ).parsed
+
+
+async def asyncio_detailed(
+    api_id: UUID,
+    *,
+    client: AuthenticatedClient,
+) -> Response[Any | str]:
+    """Administrative endpoint to remove a document from the system. This operation cannot be undone and
+    may affect other resources referencing this document.
+
+    Args:
+        api_id (UUID):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Any | str]
     """
 
     kwargs = _get_kwargs(
@@ -102,3 +141,30 @@ async def asyncio_detailed(
     response = await client.get_async_httpx_client().request(**kwargs)
 
     return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    api_id: UUID,
+    *,
+    client: AuthenticatedClient,
+) -> Any | str | None:
+    """Administrative endpoint to remove a document from the system. This operation cannot be undone and
+    may affect other resources referencing this document.
+
+    Args:
+        api_id (UUID):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Any | str
+    """
+
+    return (
+        await asyncio_detailed(
+            api_id=api_id,
+            client=client,
+        )
+    ).parsed

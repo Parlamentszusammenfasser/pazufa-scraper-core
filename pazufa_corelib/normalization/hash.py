@@ -5,21 +5,13 @@ import logging
 from inspect import stack
 from typing import Any
 
+from ..api_model import HashStrategy
 from .text import normalize_volltext
 
 # =====================================================================
 # Constants
 # =====================================================================
 LOGGER = logging.getLogger(__name__)
-
-HASH_ALGORITHM_SHA_256 = "sha256"
-HASH_ALGORITHM_SHA_1 = "sha1"
-
-HASH_CONNECTOR = "+"
-
-HASH_VARIANT_BYTES = "bytes"
-HASH_VARIANT_TEXT = "text"
-
 
 # =====================================================================
 # Private Helper Functions
@@ -63,7 +55,7 @@ def hash_bytes_sha_1(data: bytes) -> tuple[str, str]:
     _check_type(data, bytes)
 
     hash_content = hashlib.sha1(data).hexdigest()
-    hash_type = HASH_ALGORITHM_SHA_1 + HASH_CONNECTOR + HASH_VARIANT_BYTES
+    hash_type = HashStrategy.sha1_bytes
 
     return hash_content, hash_type
 
@@ -80,7 +72,7 @@ def hash_bytes_sha_256(data: bytes) -> tuple[str, str]:
     _check_type(data, bytes)
 
     hash_content = hashlib.sha256(data).hexdigest()
-    hash_type = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_BYTES
+    hash_type = HashStrategy.sha256_bytes
 
     return hash_content, hash_type
 
@@ -107,7 +99,7 @@ def hash_text_sha_256(text: str) -> tuple[str, str]:
             "(input is garbled or blank)"
         )
     hash_content = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
-    hash_type = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_TEXT
+    hash_type = HashStrategy.sha256_text
 
     return hash_content, hash_type
 
@@ -150,7 +142,7 @@ def hash_bytes(data: bytes) -> list[tuple[str, str]]:
             - The hash value as a hexadecimal string (str).
     """
     result = list()
-    # result.append(hash_bytes_sha_1(data)) (currently not supported by backend)
     result.append(hash_bytes_sha_256(data))
+    result.append(hash_bytes_sha_1(data))
 
     return result

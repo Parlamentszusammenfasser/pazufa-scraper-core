@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -13,34 +13,45 @@ T = TypeVar("T", bound="Autor")
 
 @_attrs_define
 class Autor:
-    """Eine Person oder Organisation, die eine bestimmte Funktion übernommen hat. Z.B: Autor einer Stellungnahme, Experte
-    bei einer Anhörung, Initiator eines Vorgangs.
-
-        Example:
-            {'person': 'Prof. Dr. Susanne Meyer', 'organisation': 'Universität Heidelberg', 'fachgebiet':
-                'Verfassungsrecht', 'lobbyregister': 'https://www.lobbyregister.bundestag.de/suche/experte/12345'}
+    """Person or organisation in some function. e.g.:
+    - authors of a statement,
+    - expert at a hearing,
+    - initiator of a Vorgang
+    - authoring organisations of documents
 
         Attributes:
             organisation (str):
-            person (str | Unset):
-            fachgebiet (str | Unset):
-            lobbyregister (str | Unset):
+            fachgebiet (None | str | Unset):
+            lobbyregister (None | str | Unset):
+            person (None | str | Unset):
     """
 
     organisation: str
-    person: str | Unset = UNSET
-    fachgebiet: str | Unset = UNSET
-    lobbyregister: str | Unset = UNSET
+    fachgebiet: None | str | Unset = UNSET
+    lobbyregister: None | str | Unset = UNSET
+    person: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         organisation = self.organisation
 
-        person = self.person
+        fachgebiet: None | str | Unset
+        if isinstance(self.fachgebiet, Unset):
+            fachgebiet = UNSET
+        else:
+            fachgebiet = self.fachgebiet
 
-        fachgebiet = self.fachgebiet
+        lobbyregister: None | str | Unset
+        if isinstance(self.lobbyregister, Unset):
+            lobbyregister = UNSET
+        else:
+            lobbyregister = self.lobbyregister
 
-        lobbyregister = self.lobbyregister
+        person: None | str | Unset
+        if isinstance(self.person, Unset):
+            person = UNSET
+        else:
+            person = self.person
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -49,12 +60,12 @@ class Autor:
                 "organisation": organisation,
             }
         )
-        if person is not UNSET:
-            field_dict["person"] = person
         if fachgebiet is not UNSET:
             field_dict["fachgebiet"] = fachgebiet
         if lobbyregister is not UNSET:
             field_dict["lobbyregister"] = lobbyregister
+        if person is not UNSET:
+            field_dict["person"] = person
 
         return field_dict
 
@@ -63,17 +74,38 @@ class Autor:
         d = dict(src_dict)
         organisation = d.pop("organisation")
 
-        person = d.pop("person", UNSET)
+        def _parse_fachgebiet(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
 
-        fachgebiet = d.pop("fachgebiet", UNSET)
+        fachgebiet = _parse_fachgebiet(d.pop("fachgebiet", UNSET))
 
-        lobbyregister = d.pop("lobbyregister", UNSET)
+        def _parse_lobbyregister(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        lobbyregister = _parse_lobbyregister(d.pop("lobbyregister", UNSET))
+
+        def _parse_person(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        person = _parse_person(d.pop("person", UNSET))
 
         autor = cls(
             organisation=organisation,
-            person=person,
             fachgebiet=fachgebiet,
             lobbyregister=lobbyregister,
+            person=person,
         )
 
         autor.additional_properties = d

@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from pazufa_corelib.api_model import Autor
 from pazufa_corelib.normalization import (
@@ -1585,18 +1586,41 @@ class TestNormalizeAutor:
             normalize_autor(item, author_resolver, org_resolver)
         assert item.person is None
 
-    def test_whitespace_only_person_normalized_to_none(
+    def test_whitespace_only_person_normalized_to_none_by_model(self) -> None:
+        """A blank ``person`` becomes ``None`` while the Autor is being built.
+
+        ``_blank_to_none`` on ``PaZuFaBaseModel`` maps blank strings on optional
+        fields to ``None``, so the normaliser no longer sees the value. Asserting
+        it here keeps the guarantee under test at the level where it now lives.
+        """
+        assert Autor(organisation="SPD", person="   ").person is None
+
+    def test_whitespace_only_person_after_assignment_normalized_to_none(
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
-        item = Autor(organisation="SPD", person="   ")
+        item = Autor(organisation="SPD", person="Erika Mustermann")
+        item.person = "   "
         with pytest.warns(DeprecationWarning):
             normalize_autor(item, author_resolver, org_resolver)
         assert item.person is None
 
-    def test_empty_organisation_raises(
+    def test_empty_organisation_rejected_by_model(self) -> None:
+        """A blank organisation is rejected while the Autor is being built.
+
+        ``str_min_length`` on ``PaZuFaBaseModel`` catches this before
+        ``normalize_autor`` ever sees the value, so the check has moved from the
+        normaliser to the model. The normaliser keeps its own guard because
+        ``validate_assignment`` is off: assigning a blank string after
+        construction still slips past the model.
+        """
+        with pytest.raises(ValidationError):
+            Autor(organisation="   ")
+
+    def test_empty_organisation_after_assignment_raises(
         self, author_resolver: AuthorResolver, org_resolver: OrganizationResolver
     ) -> None:
-        item = Autor(organisation="   ")
+        item = Autor(organisation="SPD")
+        item.organisation = "   "
         with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
             normalize_autor(item, author_resolver, org_resolver)
 

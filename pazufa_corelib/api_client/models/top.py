@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -18,24 +18,21 @@ T = TypeVar("T", bound="Top")
 
 @_attrs_define
 class Top:
-    """Ein Tagesordnungspunkt. Muss Nummer und Titel enthalten, für den Rest siehe unten.
-
-    Example:
-        {'nummer': 3, 'titel': 'Erste Beratung des von den Fraktionen SPD, BÜNDNIS 90/DIE GRÜNEN und FDP eingebrachten
-            Entwurfs eines Gesetzes zur Änderung des Bundeswahlgesetzes', 'dokumente': []}
+    """An item on the agenda
 
     Attributes:
-        nummer (int): Nummer des TOPs in einer Sitzung
+        nummer (int): number of this item on the agenda
         titel (str):
-        vorgang_id (list[UUID] | Unset): Die Nummer assoziierter Vorgänge. Wird beim Upload ignoriert, aber beim
-            Download mitgegeben zusammen mit den konkreten Drucksachen
-        dokumente (list[Dokument | str] | Unset): Die Dokumente, die in diesem TOP besprochen werden sollen
+        dokumente (list[Dokument | UUID] | Unset): documents handled in this agenda item
+        vorgang_id (list[UUID] | Unset): api ids of associated Vorgang objects.
+            Is ignored at upload time, but passed at download time.
+            The matching happens via the documents supplied below
     """
 
     nummer: int
     titel: str
+    dokumente: list[Dokument | UUID] | Unset = UNSET
     vorgang_id: list[UUID] | Unset = UNSET
-    dokumente: list[Dokument | str] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -45,13 +42,6 @@ class Top:
 
         titel = self.titel
 
-        vorgang_id: list[str] | Unset = UNSET
-        if not isinstance(self.vorgang_id, Unset):
-            vorgang_id = []
-            for vorgang_id_item_data in self.vorgang_id:
-                vorgang_id_item = str(vorgang_id_item_data)
-                vorgang_id.append(vorgang_id_item)
-
         dokumente: list[dict[str, Any] | str] | Unset = UNSET
         if not isinstance(self.dokumente, Unset):
             dokumente = []
@@ -60,8 +50,16 @@ class Top:
                 if isinstance(dokumente_item_data, Dokument):
                     dokumente_item = dokumente_item_data.to_dict()
                 else:
-                    dokumente_item = dokumente_item_data
+                    dokumente_item = str(dokumente_item_data)
+
                 dokumente.append(dokumente_item)
+
+        vorgang_id: list[str] | Unset = UNSET
+        if not isinstance(self.vorgang_id, Unset):
+            vorgang_id = []
+            for vorgang_id_item_data in self.vorgang_id:
+                vorgang_id_item = str(vorgang_id_item_data)
+                vorgang_id.append(vorgang_id_item)
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -71,10 +69,10 @@ class Top:
                 "titel": titel,
             }
         )
-        if vorgang_id is not UNSET:
-            field_dict["vorgang_id"] = vorgang_id
         if dokumente is not UNSET:
             field_dict["dokumente"] = dokumente
+        if vorgang_id is not UNSET:
+            field_dict["vorgang_id"] = vorgang_id
 
         return field_dict
 
@@ -87,6 +85,31 @@ class Top:
 
         titel = d.pop("titel")
 
+        _dokumente = d.pop("dokumente", UNSET)
+        dokumente: list[Dokument | UUID] | Unset = UNSET
+        if _dokumente is not UNSET:
+            dokumente = []
+            for dokumente_item_data in _dokumente:
+
+                def _parse_dokumente_item(data: object) -> Dokument | UUID:
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        componentsschemas_dokument_or_api_id_type_0 = Dokument.from_dict(data)
+
+                        return componentsschemas_dokument_or_api_id_type_0
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    if not isinstance(data, str):
+                        raise TypeError()
+                    componentsschemas_dokument_or_api_id_type_1 = UUID(data)
+
+                    return componentsschemas_dokument_or_api_id_type_1
+
+                dokumente_item = _parse_dokumente_item(dokumente_item_data)
+
+                dokumente.append(dokumente_item)
+
         _vorgang_id = d.pop("vorgang_id", UNSET)
         vorgang_id: list[UUID] | Unset = UNSET
         if _vorgang_id is not UNSET:
@@ -96,32 +119,11 @@ class Top:
 
                 vorgang_id.append(vorgang_id_item)
 
-        _dokumente = d.pop("dokumente", UNSET)
-        dokumente: list[Dokument | str] | Unset = UNSET
-        if _dokumente is not UNSET:
-            dokumente = []
-            for dokumente_item_data in _dokumente:
-
-                def _parse_dokumente_item(data: object) -> Dokument | str:
-                    try:
-                        if not isinstance(data, dict):
-                            raise TypeError()
-                        dokumente_item_type_0 = Dokument.from_dict(data)
-
-                        return dokumente_item_type_0
-                    except (TypeError, ValueError, AttributeError, KeyError):
-                        pass
-                    return cast(Dokument | str, data)
-
-                dokumente_item = _parse_dokumente_item(dokumente_item_data)
-
-                dokumente.append(dokumente_item)
-
         top = cls(
             nummer=nummer,
             titel=titel,
-            vorgang_id=vorgang_id,
             dokumente=dokumente,
+            vorgang_id=vorgang_id,
         )
 
         top.additional_properties = d

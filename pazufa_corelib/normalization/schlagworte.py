@@ -23,6 +23,7 @@ from rapidfuzz import fuzz, process
 
 from pazufa_corelib.normalization._fuzzy import fuzzy_resolve
 from pazufa_corelib.schlagworte_model import (
+    RESERVED_SCHLAGWORT_IDS,
     Sachgebiet,
     SachgebietFile,
     SchlagwortIDResolution,
@@ -219,9 +220,19 @@ def _build_json(items: Sequence[BaseModel]) -> str:
 
 
 def _build_json_sachgebiete_no_numbers(sachgebiete: list[Sachgebiet]) -> str:
-    """Serialize Sachgebiete to JSON, omitting the Sachgebiet number."""
+    """Serialize Sachgebiete to JSON, omitting the Sachgebiet number.
+
+    Reserved catch-alls (`Unbekannt`, `ohne@-Systematik`) are dropped: this
+    feeds the classification prompt, and offering them as choices invites the
+    model to label a document "unknown" instead of picking a real Sachgebiet.
+    They stay in the vocabulary for round-tripping values the API sends us.
+    """
     return _build_json(
-        [Tag.model_construct(id=s.id, description=s.description) for s in sachgebiete]
+        [
+            Tag.model_construct(id=s.id, description=s.description)
+            for s in sachgebiete
+            if s.id not in RESERVED_SCHLAGWORT_IDS
+        ]
     )
 
 
