@@ -650,3 +650,11 @@ tags:
   - id: Stiftung
     number: 8800
     description: Stiftungsrecht, gemeinnützige Stiftungen und Stiftungsförderung
+
+  - id: Unbekannt
+    number: 9900
+    description: Sachgebiet nicht bestimmbar oder noch nicht zugeordnet
+
+  - id: ohne@-Systematik
+    number: 9999
+    description: Material, das bewusst außerhalb der Sachgebietssystematik geführt wird

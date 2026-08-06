@@ -6,7 +6,7 @@ Based on automatic generation and augmented with handcrafted additions.
 from __future__ import annotations
 
 import warnings
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
@@ -16,13 +16,13 @@ from pazufa_corelib._api_model_hardening import (
     PaZuFaBaseModel,
     Sha256Hex,
     TzDatetime,
+    check_hash_combination,
     check_meinung_scope,
 )
 
 
 class ApiKeyScope(StrEnum):
-    """Permission level of an API key.
-    """
+    """Permission level of an API key."""
 
     admin = "admin"
     collector = "collector"
@@ -30,6 +30,8 @@ class ApiKeyScope(StrEnum):
 
 
 class ApiKeyStatus(PaZuFaBaseModel):
+    """Current state of an API key, as returned when querying its status."""
+
     expires_at: Annotated[
         TzDatetime,
         Field(
@@ -60,17 +62,33 @@ class RotationResponse(PaZuFaBaseModel):
 
 
 class AuthDeleteHeaderParams(PaZuFaBaseModel):
+    """Header parameters for the API-key deletion endpoint.
+
+    Carries the key that authorises (and identifies) the deletion request.
+    """
+
     api_key_delete: str
 
 
 class Autor(PaZuFaBaseModel):
+    """Urheber of a `Dokument` or `Vorgang`: a person, Organisation or Gremium.
+
+    Only ``organisation`` is required; ``person`` names an individual within it,
+    and ``lobbyregister`` links to the entry in the Lobbyregister where
+    applicable.
+    """
+
     fachgebiet: str | None = None
-    lobbyregister: AnyHttpUrl | None = None     # replacing AnyUrl with AnyHttpUrl to make sure links are valid http links.
+    lobbyregister: AnyHttpUrl | None = (
+        None  # replacing AnyUrl with AnyHttpUrl to make sure links are valid http links.
+    )
     organisation: str
     person: str | None = None
 
 
 class CreateApiKey(PaZuFaBaseModel):
+    """Request body for minting a new API key with a given scope and lifetime."""
+
     expires_at: Annotated[
         TzDatetime | None, Field(description="The expiration date of the API Key")
     ] = None
@@ -78,6 +96,8 @@ class CreateApiKey(PaZuFaBaseModel):
 
 
 class Doktyp(StrEnum):
+    """Dokumententyp of a `Dokument` (Gesetzentwurf, Antrag, Stellungnahme, ...)."""
+
     eckpunktepapier = "eckpunktepapier"
     preparl_entwurf = "preparl-entwurf"
     entwurf = "entwurf"
@@ -97,11 +117,19 @@ class Doktyp(StrEnum):
 
 
 class DokumentFormat(StrEnum):
+    """Serialisation format a `Dokument` is requested or delivered in."""
+
     ftm = "ftm"
     pazufa = "pazufa"
 
 
-class EnumerationName(StrEnum):
+class EnumerationNames(StrEnum):
+    """Names of the Enumerationen (controlled vocabularies) exposed by the API.
+
+    Covers Schlagworte, Stationstypen, Vorgangstypen, Parlamente, VgId-Typen and
+    Dokumententypen.
+    """
+
     schlagworte = "schlagworte"
     stationstypen = "stationstypen"
     vorgangstypen = "vorgangstypen"
@@ -110,7 +138,25 @@ class EnumerationName(StrEnum):
     dokumententypen = "dokumententypen"
 
 
+class HashStrategy(StrEnum):
+    """Algorithm and input used to compute a `DokumentHash`.
+
+    ``+bytes`` hashes the raw file, ``+text`` hashes the extracted ``volltext``.
+    See `DokumentHash` for the mime/strategy/length constraints this implies.
+    """
+
+    sha256_bytes = "sha256+bytes"
+    sha256_text = "sha256+text"
+    sha1_bytes = "sha1+bytes"
+
+
 class KeytagListing(PaZuFaBaseModel):
+    """Keytags grouped by the object kind they belong to.
+
+    Each list holds the keytags known for that object type: `Dokument`e,
+    `Sitzung`en, `Station`en and `Vorgang`/Vorgänge.
+    """
+
     dokumente: list[str] | None = None
     sitzungen: list[str] | None = None
     stationen: list[str] | None = None
@@ -118,6 +164,12 @@ class KeytagListing(PaZuFaBaseModel):
 
 
 class Lobbyregistereintrag(PaZuFaBaseModel):
+    """An entry from the Lobbyregister linked to a `Vorgang`.
+
+    Records the Organisation that tried to influence the legislative process,
+    its stated ``intention``, and the Drucksachen the entry references.
+    """
+
     betroffene_drucksachen: Annotated[
         list[str],
         Field(
@@ -139,14 +191,24 @@ class Lobbyregistereintrag(PaZuFaBaseModel):
 
 
 class Mime(StrEnum):
+    """MIME type of hashed or transferred `Dokument` content.
+
+    Context: <https://en.wikipedia.org/wiki/Media_type>"""
+
     application_json = "application/json"
     application_pdf = "application/pdf"
-    application_octet_stream = "application/octet-stream"
     text_plain = "text/plain"
     text_html = "text/html"
 
 
 class Parlament(StrEnum):
+    """Parlament a `Gremium` belongs to.
+
+    ``BT`` (Bundestag), ``BR`` (Bundesrat), ``BV`` (Bundesversammlung) and
+    ``EK`` (Europakammer) are the federal bodies; the remaining two-letter codes
+    are the Länder.
+    """
+
     BT = "BT"
     BR = "BR"
     BV = "BV"
@@ -189,7 +251,224 @@ class ReplacingEntry[T](PaZuFaBaseModel):
     values: list[T]
 
 
+class Ressort(StrEnum):
+    """Ressort (government department / policy area) responsible for a `Vorgang`."""
+
+    Arbeit = "Arbeit"
+    Bildung = "Bildung"
+    Digitalisierung = "Digitalisierung"
+    Energie = "Energie"
+    Ernährung = "Ernährung"
+    Europa = "Europa"
+    Familie_Senioren = "Familie/Senioren"
+    Finanzen = "Finanzen"
+    Forschung = "Forschung"
+    Forsten = "Forsten"
+    Frauen_Gleichstellung = "Frauen/Gleichstellung"
+    Gesundheit_Pflege_Prävention = "Gesundheit/Pflege/Prävention"
+    Heimat = "Heimat"
+    Inneres = "Inneres"
+    Integration_Migration = "Integration/Migration"
+    Jugend = "Jugend"
+    Justiz = "Justiz"
+    Kinder = "Kinder"
+    Klimaschutz = "Klimaschutz"
+    Kommunales = "Kommunales"
+    Kunst_Kultur = "Kunst/Kultur"
+    Landes__Stadtentwicklung = "Landes-/Stadtentwicklung"
+    Ländlicher_Raum = "Ländlicher Raum"
+    Landwirtschaft = "Landwirtschaft"
+    Soziales = "Soziales"
+    Sport = "Sport"
+    Tourismus = "Tourismus"
+    Umwelt = "Umwelt"
+    Verbraucherschutz = "Verbraucherschutz"
+    Verkehr_Infrastruktur = "Verkehr/Infrastruktur"
+    Wirtschaft = "Wirtschaft"
+    Wissenschaft = "Wissenschaft"
+    Wohnen_Bau = "Wohnen/Bau"
+
+
+class Sachgebiet(IntEnum):
+    """Subject area of a Vorgang, inspired by the Parlamentsspiegel systematics.
+
+    Backend only accepts integer values.
+    """
+
+    Staat_und_Politik = 1000
+    Staatsaufbau = 1010
+    Menschenrechte = 1030
+    Nation = 1050
+    Ideologien = 1060
+    Politische_Kräfte = 1070
+    Wahlen = 1080
+    Parlament = 1100
+    Abgeordnete = 1110
+    Öffentliche_Verwaltung = 1200
+    Bundesregierung = 1210
+    Landesregierung = 1220
+    Kommunale_Angelegenheiten = 1230
+    Öffentlicher_Dienst = 1240
+    Innere_Sicherheit = 1300
+    Polizei = 1310
+    Verfassungsschutz = 1320
+    Ordnungsrecht = 1330
+    Katastrophen__und_Zivilschutz = 1340
+    Rettungswesen = 1350
+    Verteidigung = 1400
+    Wehrdienst = 1410
+    Rüstung = 1420
+    Abrüstung = 1430
+    Außenpolitik = 1500
+    Internationale_Beziehungen = 1510
+    Internationale_Organisationen = 1520
+    Entwicklungszusammenarbeit = 1530
+    Europapolitik = 1540
+    Europäische_Union = 1600
+    Organe_der_EU = 1610
+    Programme_der_EU = 1620
+    Wirtschaft = 2000
+    Gewerbliche_Wirtschaft = 2010
+    Handel = 2020
+    Dienstleistungen = 2030
+    Versicherungen = 2040
+    Mittelständische_Wirtschaft = 2050
+    Außenwirtschaft = 2060
+    Verbraucher = 2070
+    Preis__und_Kartellrecht = 2080
+    Gewerbeaufsicht = 2090
+    Energie = 2100
+    Fossile_Energien = 2110
+    Kernenergie = 2120
+    Erneuerbare_Energien = 2130
+    Bergbau = 2200
+    Technologie = 2300
+    Arbeit_und_Beschäftigung = 2400
+    Arbeitsmarkt = 2410
+    Berufsausbildung = 2420
+    Arbeitsentgelt = 2430
+    Mitbestimmung = 2440
+    Arbeitsbedingungen = 2450
+    Standardisierung = 2500
+    Normung = 2510
+    Eich__und_Messwesen = 2520
+    Vermessungs__und_Katasterwesen = 2530
+    Verkehr = 2600
+    Öffentlicher_Personenverkehr = 2610
+    Güterverkehr = 2620
+    Straßenverkehr = 2630
+    Schienenverkehr = 2640
+    Luftverkehr = 2650
+    Schifffahrt = 2660
+    Raumfahrt = 2700
+    Bauwesen = 2800
+    Verkehrswegebau = 2810
+    Städtebau = 2820
+    Wohnungswesen = 2830
+    Wasserbau = 2840
+    Recht = 3100
+    Strafrecht = 3110
+    Zivilrecht = 3120
+    Öffentliches_Recht = 3130
+    Urheberschutz = 3140
+    Verfassungsgerichtsbarkeit = 3200
+    Justiz = 3300
+    Gerichte_und_Staatsanwaltschaften = 3310
+    Justizverwaltung = 3320
+    Justizvollzug = 3330
+    Juristische_Berufe = 3400
+    Bildung = 4100
+    Schulen = 4200
+    Lehrer = 4210
+    Allgemeinbildende_Schulen = 4220
+    Berufsbildende_Schulen = 4230
+    Sonderpädagogik = 4240
+    Privatschulen = 4250
+    Frühkindliche_Bildung = 4260
+    Hochschulwesen = 4300
+    Universitäten = 4310
+    Kunst__und_Musikhochschulen = 4320
+    Hochschulen_für_angewandte_Wissenschaften = 4330
+    Wissenschaft = 4400
+    Erwachsenenbildung = 4500
+    Gesellschaft = 5000
+    Lebensgemeinschaften = 5010
+    Sexuelle_Identität = 5020
+    Kinder = 5030
+    Frauen = 5040
+    Menschen_mit_Behinderungen = 5050
+    Alte_Menschen = 5060
+    Ausländer = 5070
+    Sonstige_gesellschaftliche_Gruppen = 5080
+    Soziales = 5100
+    Sozialversicherung = 5110
+    Sozialleistungen = 5120
+    Soziale_Einrichtungen = 5130
+    Versorgung = 5140
+    Pflege = 5150
+    Gesundheit = 5200
+    Gesundheitsschutz = 5210
+    Gesundheitseinrichtungen = 5220
+    Medizinische_Berufe = 5230
+    Arzneimittel = 5240
+    Rauschmittel = 5250
+    Psychiatrie = 5260
+    Tod = 5270
+    Umwelt = 6100
+    Natur = 6110
+    Tier = 6120
+    Boden = 6130
+    Wasser = 6140
+    Klima = 6150
+    Schadstoffe = 6160
+    Abfall = 6200
+    Abwasser = 6300
+    Raumordnung = 6400
+    Ländlicher_Raum = 6410
+    Landwirtschaft = 6500
+    Landwirtschaftliche_Betriebe = 6510
+    Agrarmarkt = 6520
+    Landwirtschaftliche_Berufe = 6530
+    Wald = 6600
+    Jagd = 6700
+    Ernährung = 6800
+    Tierkrankheiten = 6900
+    Kunst = 7100
+    Denkmalschutz = 7200
+    Religionsgemeinschaften = 7300
+    Freizeit = 7400
+    Messen = 7500
+    Sport = 7600
+    Informationsgesellschaft = 7700
+    Printmedien = 7710
+    Rundfunk = 7720
+    Film = 7730
+    Informations__und_Kommunikationstechnologien = 7740
+    Datenschutz = 7750
+    Statistik = 7800
+    Abgaben = 8100
+    Finanzverwaltung = 8200
+    Öffentlicher_Haushalt = 8300
+    Öffentliche_Schulden = 8310
+    Öffentliches_Vermögen = 8320
+    Haushaltskontrolle = 8330
+    Finanzausgleich = 8340
+    Öffentliche_Vergabe = 8350
+    Finanzmarkt = 8400
+    Vermögen = 8600
+    Glücksspiel = 8700
+    Stiftung = 8800
+    Unbekannt = 9900
+    ohne__Systematik = 9999
+
+
 class Stationstyp(StrEnum):
+    """Stationstyp: the stage a `Vorgang` has reached, carried by a `Station`.
+
+    Values are grouped by phase: ``preparl-*`` before parliamentary handling,
+    ``parl-*`` during it, and ``postparl-*`` after.
+    """
+
     preparl_regent = "preparl-regent"
     preparl_eckpup = "preparl-eckpup"
     preparl_regbsl = "preparl-regbsl"
@@ -213,6 +492,12 @@ class Stationstyp(StrEnum):
 
 
 class TouchedByEntry(PaZuFaBaseModel):
+    """A single scraper's fingerprint on an object it created or modified.
+
+    Attached to most top-level objects to record provenance: which scraper
+    (by key hash and/or uuid) last touched the record.
+    """
+
     key: Annotated[
         str | None, Field(description="Key hash of the scraper that touched the object")
     ] = None
@@ -222,11 +507,19 @@ class TouchedByEntry(PaZuFaBaseModel):
 
 
 class VgIdent(PaZuFaBaseModel):
+    """An external Vorgang-Ident, tagged with its id scheme.
+
+    ``typ`` names the kind of id (e.g. a Drucksachennummer scheme) and ``id`` is
+    its value, letting the same `Vorgang` carry several cross-references.
+    """
+
     id: str
     typ: str
 
 
 class Vorgangstyp(StrEnum):
+    """Vorgangstyp of a `Vorgang`, chiefly by the Grundgesetz route it follows."""
+
     gg_einspruch = "gg-einspruch"
     gg_zustimmung = "gg-zustimmung"
     gg_land_parl = "gg-land-parl"
@@ -235,7 +528,118 @@ class Vorgangstyp(StrEnum):
     sonstig = "sonstig"
 
 
+class Zusammenfassungstupel(PaZuFaBaseModel):
+    """One part of a structured Zusammenfassung of a `Dokument`.
+
+    A Zusammenfassung may be split into several typed parts; ``typ`` labels the
+    part (see the reserved ``full*`` names) and ``inhalt`` holds its text.
+    """
+
+    inhalt: Annotated[
+        str | None,
+        Field(
+            description="Content of the summary part",
+            examples=[
+                "Das Gesetz zur Haarfärbeverordnung dient der Umsetzung der EU-Richtline 42/69420 zur Schuppenfreiheit bei Eigenschaftsänderlichen Haarmodifikationen vor..."
+            ],
+        ),
+    ] = None
+    typ: Annotated[
+        str | None,
+        Field(
+            description="Type of summary, if the summary is made up of parts\nNOTE: there are some reserved type names:\n- `full`        means summary of the full document without origin info\n- `full-llm`    means summary of the full document, made by llm\n- `full-extern` means summary of the full document, taken from an external source\n\nYou are free to add to these if required, just please stick to the ones available if\npossible",
+            examples=["Basisinformationen"],
+        ),
+    ] = None
+
+
+class DokumentHash(PaZuFaBaseModel):
+    """A typed content hash of a `Dokument`.
+
+    The ``strategy`` (see `HashStrategy`) fixes both which ``mime`` types are
+    legal and the expected digest length; the ``_check_hash_combination``
+    validator enforces that table rather than any single field annotation.
+    """
+
+    mime: Annotated[
+        Mime,
+        Field(
+            description="The mime of the hashed content.\nIf sha256/1+bytes was used, must be application/pdf;\nIf sha256+text was used, must be text/plain"
+        ),
+    ]
+    strategy: Annotated[
+        HashStrategy,
+        Field(
+            description="The strategy used to compute the hash.\nsha256+text denotes that not the raw file, but the _exact_ volltext field\nof the document was hashed.\nAll text must be utf-8, remain stable under subsequent extraction,\nand mime must be set to text/plain or text/html."
+        ),
+    ]
+    value: Annotated[
+        str, Field(description="Hash value as string of hexadecimal octets")
+    ]
+
+    @model_validator(mode="after")
+    def _check_hash_combination(self) -> DokumentHash:
+        """Reject mime/strategy/digest combinations the specification excludes.
+
+        The rule and its table live in `_api_model_hardening` — the strategy
+        decides both the legal mimes and the digest length, which no per-field
+        annotation can express. Only the hook belongs here. The digest is
+        lowercased on the way through.
+        """
+        self.value = check_hash_combination(self.strategy, self.mime, self.value)
+        return self
+
+
+class Gremium(PaZuFaBaseModel):
+    """A Gremium (Plenum, Ausschuss, Regierung, ...) within a given Wahlperiode.
+
+    Identified by its ``name`` within a `Parlament` and ``wahlperiode``; the
+    names ``plenum``, ``regierung`` and ``volk`` are reserved.
+    """
+
+    link: AnyHttpUrl | None = None
+    name: Annotated[
+        str,
+        Field(
+            description="Name of the body. 'plenum', 'regierung', 'volk' are reserved"
+        ),
+    ]
+    parlament: Parlament
+    wahlperiode: Annotated[int, Field(ge=0)]
+
+
+class HashWrapper(RootModel[Sha256Hex | list[DokumentHash]]):
+    """Either the legacy bare digest or the explicit list of typed hashes.
+
+    The bare string form is the backwards-compatible spelling of
+    ``sha256+bytes`` (see the ``hash`` field of `Dokument`), so it is validated
+    as a sha256 digest rather than as a free string — the generated mirror types
+    it as a plain ``str`` and would let a truncated or sha1 digest through.
+    """
+
+    root: Sha256Hex | list[DokumentHash]
+
+
+class ZusammenfassungWrapper(RootModel[str | list[Zusammenfassungstupel]]):
+    """A Zusammenfassung as either plain text or a list of typed parts.
+
+    The bare string is a single unstructured Zusammenfassung; the list form
+    carries the structured, per-part variant (see `Zusammenfassungstupel`).
+    """
+
+    root: str | list[Zusammenfassungstupel]
+
+
 class Dokument(PaZuFaBaseModel):
+    """A single Dokument with its Volltext, metadata and provenance.
+
+    The core payload of the API: ``volltext``, hash, `Autor`en and `Doktyp`,
+    plus optional Zusammenfassungen and a ``meinung``. Two validators enforce
+    domain rules the field types cannot — ``_check_meinung`` restricts on which
+    Doktypen a ``meinung`` is allowed, and the `HashWrapper` guards digest
+    integrity.
+    """
+
     api_id: Annotated[
         UUID | None,
         Field(
@@ -250,10 +654,8 @@ class Dokument(PaZuFaBaseModel):
     ]
     drucksnr: str | None = None
     hash: Annotated[
-        Sha256Hex,
-        Field(
-            description="corresponds to sha256+bytes, here for backwards compatibility"
-        ),
+        HashWrapper,
+        Field(description="Wrapper that allows for legacy Hashes"),
     ]
     kurztitel: Annotated[
         str | None,
@@ -270,6 +672,13 @@ class Dokument(PaZuFaBaseModel):
     ] = None
     schlagworte: Annotated[
         list[str] | None, Field(description="Keywords associated with this document")
+    ] = None
+    subdoc_id: Annotated[
+        int | None,
+        Field(
+            description="If a document contains more than one semantically closed document (x opinions in a collected file for example)\nthis denotes the index of the sub-file in question. They can potentially share a hash.",
+            ge=0,
+        ),
     ] = None
     titel: Annotated[str, Field(description="Official Title of the Document")]
     touched_by: Annotated[
@@ -303,9 +712,7 @@ class Dokument(PaZuFaBaseModel):
             description="Protocol of the *session on 7.3.*, created on 8.3. modified on 9.3."
         ),
     ]
-    zusammenfassung: Annotated[
-        str | None, Field(description="Summary of the document's contents")
-    ] = None
+    zusammenfassung: ZusammenfassungWrapper | None = None
 
     @model_validator(mode="after")
     def _check_meinung(self) -> Dokument:
@@ -320,22 +727,23 @@ class Dokument(PaZuFaBaseModel):
 
 
 class DokumentOrApiId(RootModel[Dokument | UUID]):
+    """A `Dokument` reference: the full object on upload, a bare api id on download.
+
+    Uploads send complete Dokumente inline; downloads replace them with the
+    server-assigned ``api_id``, so both spellings must validate.
+    """
+
     root: Dokument | UUID
 
 
-class Gremium(PaZuFaBaseModel):
-    link: AnyHttpUrl | None = None
-    name: Annotated[
-        str,
-        Field(
-            description="Name of the body. 'plenum', 'regierung', 'volk' are reserved"
-        ),
-    ]
-    parlament: Parlament
-    wahlperiode: Annotated[int, Field(ge=0)]
-
-
 class Station(PaZuFaBaseModel):
+    """One Station of a `Vorgang`, handled by a specific `Gremium`.
+
+    A Station bundles the `Dokument`e and (optionally) Stellungnahmen produced
+    at a given step of the Vorgang (see `Stationstyp`), together with the
+    federführende Gremium and the timespan it covers.
+    """
+
     additional_links: Annotated[
         list[AnyHttpUrl] | None,
         Field(
@@ -398,6 +806,12 @@ class Station(PaZuFaBaseModel):
 
 
 class Top(PaZuFaBaseModel):
+    """A single Tagesordnungspunkt (TOP) within a `Sitzung`.
+
+    Numbered by ``nummer`` on the Tagesordnung; ``vorgang_id`` back-references
+    are derived server-side from the attached `Dokument`e and ignored on upload.
+    """
+
     dokumente: Annotated[
         list[DokumentOrApiId] | None,
         Field(description="documents handled in this agenda item"),
@@ -413,6 +827,13 @@ class Top(PaZuFaBaseModel):
 
 
 class Vorgang(PaZuFaBaseModel):
+    """A Vorgang (legislative process) and its `Station`en.
+
+    The top-level unit of the domain: it groups the ordered Stationen a matter
+    passes through, together with its `Autor`en (``initiatoren``), `Sachgebiet`e,
+    `Lobbyregistereintrag` entries and `VgIdent` cross-references.
+    """
+
     api_id: Annotated[
         UUID,
         Field(description="Use UUID version 5 with your collector id as namespace"),
@@ -427,6 +848,8 @@ class Vorgang(PaZuFaBaseModel):
     kurztitel: str | None = None
     links: list[AnyHttpUrl] | None = None
     lobbyregister: list[Lobbyregistereintrag] | None = None
+    ressort: Ressort | None = None
+    sachgebiete: list[Sachgebiet] | None = None
     stationen: list[Station]
     titel: str
     touched_by: Annotated[
@@ -448,6 +871,13 @@ class Vorgang(PaZuFaBaseModel):
 
 
 class Sitzung(PaZuFaBaseModel):
+    """A Sitzung of a `Gremium`, with its Tagesordnung and `Dokument`e.
+
+    Represents a meeting held by a Gremium; if ``experten`` is non-empty the
+    Sitzung is an Anhörung (hearing). The Tagesordnung is carried as `Top`
+    (Tagesordnungspunkt) entries.
+    """
+
     api_id: Annotated[
         UUID | None,
         Field(
@@ -557,4 +987,3 @@ if TYPE_CHECKING:
     # plain alias: mypy resolves the type correctly, but only the runtime
     # warning above flags them as deprecated.
     Scope = ApiKeyScope
-    EnumerationNames = EnumerationName

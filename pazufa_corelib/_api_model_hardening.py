@@ -11,7 +11,7 @@ import logging
 import re
 from datetime import UTC, datetime
 from types import UnionType
-from typing import Annotated, Any, Union, get_args, get_origin
+from typing import Annotated, Any, NamedTuple, Union, get_args, get_origin
 
 from pydantic import (
     AfterValidator,
@@ -104,26 +104,150 @@ def check_meinung_scope(meinung: int | None, typ: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _check_sha256_hex(value: str, info: ValidationInfo) -> str:
+class HashRule(NamedTuple):
+    """What a single ``HashStrategy`` demands of the other two fields."""
 
+    allowed_mimes: frozenset[str]
+    algorithm: str
+    length: int
+    pattern: re.Pattern[str]
+
+
+HASH_RULES: dict[str, HashRule] = {
+    "sha256+bytes": HashRule(
+        allowed_mimes=frozenset({"application/pdf"}),
+        algorithm="sha256",
+        length=SHA256_HEX_LENGTH,
+        pattern=SHA256_HEX_RE,
+    ),
+    "sha1+bytes": HashRule(
+        allowed_mimes=frozenset({"application/pdf"}),
+        algorithm="sha1",
+        length=SHA1_HEX_LENGTH,
+        pattern=SHA1_HEX_RE,
+    ),
+    "sha256+text": HashRule(
+        allowed_mimes=frozenset({"text/plain", "text/html"}),
+        algorithm="sha256",
+        length=SHA256_HEX_LENGTH,
+        pattern=SHA256_HEX_RE,
+    ),
+}
+"""The legal ``(strategy, mime, digest)`` combinations, keyed by strategy.
+
+The strategy determines both other fields, which is why it is the key. Note that
+``application/json`` appears in no rule: it is a member of ``Mime``, but there is
+no strategy under which hashing a JSON body is meaningful.
+
+Keys and mimes are plain strings on purpose — see :func:`check_hash_combination`.
+The specification is ambiguous about ``sha256+text``: the ``mime`` description
+demands ``text/plain``, the ``strategy`` description allows ``text/plain`` or
+``text/html``. The wider reading is used here, so that a scraper hashing
+extracted HTML is not rejected over a documentation inconsistency.
+"""
+
+
+def _normalise_hex_digest(
+    value: str, *, algorithm: str, length: int, pattern: re.Pattern[str], field: str
+) -> str:
+    """Reject anything that is not a hex digest of *algorithm*, and lowercase it.
+
+    Shared by the ``Sha256Hex``/``Sha1Hex`` annotations and by
+    :func:`check_hash_combination`, so that a digest is judged by exactly the
+    same rule whether its algorithm is known from the annotation or only from a
+    sibling field.
+
+    Raises:
+        ValueError: if *value* is not ``length`` characters of ``0-9a-f``.
+    """
     to_test = value.lower()
-    if not SHA256_HEX_RE.fullmatch(to_test):
+    if not pattern.fullmatch(to_test):
         raise ValueError(  # noqa: TRY003
-            f"'hash' must be a hex-encoded sha256 digest "
-            f"({SHA256_HEX_LENGTH} characters, 0-9a-f), "
+            f"'{field}' must be a hex-encoded {algorithm} digest "
+            f"({length} characters, 0-9a-f), "
             f"got {len(value)} characters: {value[:16]!r}"
         )
 
     if to_test != value:
-        LOGGER.warning(
-            "Uppercase digest on %s; normalised to lowercase.", info.field_name
-        )
+        LOGGER.warning("Uppercase digest on %s; normalised to lowercase.", field)
 
     return to_test
 
 
+def _check_sha256_hex(value: str, info: ValidationInfo) -> str:
+    return _normalise_hex_digest(
+        value,
+        algorithm="sha256",
+        length=SHA256_HEX_LENGTH,
+        pattern=SHA256_HEX_RE,
+        field=info.field_name or "hash",
+    )
+
+
+def _check_sha1_hex(value: str, info: ValidationInfo) -> str:
+    return _normalise_hex_digest(
+        value,
+        algorithm="sha1",
+        length=SHA1_HEX_LENGTH,
+        pattern=SHA1_HEX_RE,
+        field=info.field_name or "hash",
+    )
+
+
 Sha256Hex = Annotated[str, AfterValidator(_check_sha256_hex)]
 """A hex encoded sha256 String always lowercase and 64 charachters."""
+
+Sha1Hex = Annotated[str, AfterValidator(_check_sha1_hex)]
+"""A hex encoded sha1 String always lowercase and 40 charachters.
+
+Only usable where the algorithm is known from the field alone. Inside
+``DokumentHash`` it is the ``strategy`` that decides, so the digest is checked by
+:func:`check_hash_combination` instead.
+"""
+
+
+def check_hash_combination(strategy: str, mime: str, value: str) -> str:
+    """Validate a ``DokumentHash`` as a whole and return the normalised digest.
+
+    The three fields are not independent: the strategy fixes both the mime of
+    the hashed content and the digest length. A ``sha1+bytes`` hash of 64
+    characters, or a ``sha256+text`` hash announced as ``application/pdf``, is a
+    bug in the calling extraction — the backend would take it and the resulting
+    duplicate detection would quietly be wrong.
+
+    Called from a ``@model_validator(mode="after")`` in `api_model.py`; the rule
+    lives here because `api_model.py` is regenerated. ``strategy`` and ``mime``
+    are accepted as ``str`` (``StrEnum`` members fit directly) so that this file
+    does not need to import any models — :data:`HASH_RULES` is kept in sync with
+    the enums by a test, not by an import.
+
+    Returns:
+        The digest, lowercased.
+
+    Raises:
+        ValueError: if the mime does not fit the strategy, or the digest is not
+            a hex digest of the strategy's algorithm.
+    """
+    rule = HASH_RULES.get(str(strategy))
+    if rule is None:
+        raise ValueError(  # noqa: TRY003
+            f"Unknown hash strategy '{strategy}'; expected one of {sorted(HASH_RULES)}"
+        )
+
+    if str(mime) not in rule.allowed_mimes:
+        raise ValueError(  # noqa: TRY003
+            f"Strategy '{strategy}' requires a mime of "
+            f"{sorted(rule.allowed_mimes)}, got '{mime}'"
+        )
+
+    return _normalise_hex_digest(
+        value,
+        algorithm=rule.algorithm,
+        length=rule.length,
+        pattern=rule.pattern,
+        field="value",
+    )
+
 
 # ---------------------------------------------------------------------------
 # PaZuFaBaseModel
@@ -218,9 +342,12 @@ class PaZuFaBaseModel(BaseModel):
 
 
 __all__ = [
+    "HASH_RULES",
     "MEINUNG_ALLOWED_IF",
     "PaZuFaBaseModel",
     "TzDatetime",
+    "check_hash_combination",
     "check_meinung_scope",
+    "Sha1Hex",
     "Sha256Hex",
 ]

@@ -4,12 +4,8 @@ import hashlib
 
 import pytest
 
+from pazufa_corelib.api_model import HashStrategy
 from pazufa_corelib.normalization.hash import (
-    HASH_ALGORITHM_SHA_1,
-    HASH_ALGORITHM_SHA_256,
-    HASH_CONNECTOR,
-    HASH_VARIANT_BYTES,
-    HASH_VARIANT_TEXT,
     hash_bytes,
     hash_bytes_sha_1,
     hash_bytes_sha_256,
@@ -18,9 +14,13 @@ from pazufa_corelib.normalization.hash import (
 )
 from pazufa_corelib.normalization.text import normalize_volltext
 
-SHA1_BYTES_VARIANT = HASH_ALGORITHM_SHA_1 + HASH_CONNECTOR + HASH_VARIANT_BYTES
-SHA256_BYTES_VARIANT = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_BYTES
-SHA256_TEXT_VARIANT = HASH_ALGORITHM_SHA_256 + HASH_CONNECTOR + HASH_VARIANT_TEXT
+# The hashing functions used to assemble their variant string from module-level
+# constants; they now return `HashStrategy` members, so the expectations are
+# taken from the enum. Naming a value the backend does not know is thereby a
+# collection error here rather than a rejected payload in production.
+SHA1_BYTES_VARIANT = HashStrategy.sha1_bytes
+SHA256_BYTES_VARIANT = HashStrategy.sha256_bytes
+SHA256_TEXT_VARIANT = HashStrategy.sha256_text
 
 
 class TestHashBytesSha256:

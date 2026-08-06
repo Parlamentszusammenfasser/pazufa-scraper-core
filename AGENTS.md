@@ -202,12 +202,17 @@ poetry run pytest tests/test_specific.py::test_function
 
 These paths are generated and should not be hand-edited unless the task explicitly requires it:
 
-- [pazufa_corelib/api_model.py](pazufa_corelib/api_model.py)
+- [pazufa_corelib/_api_model_generated.py](pazufa_corelib/_api_model_generated.py)
+- [pazufa_corelib/api_model_working.py](pazufa_corelib/api_model_working.py)
 - [pazufa_corelib/api_client/](pazufa_corelib/api_client/)
+
+[pazufa_corelib/api_model.py](pazufa_corelib/api_model.py) is handcrafted and is
+the input for `api_model_working.py` — edit it directly.
 
 Prefer changing one of these inputs instead:
 
 - [pyproject.toml](pyproject.toml) - `tool.datamodel-codegen`
+- [tools/generate_working_models.py](tools/generate_working_models.py)
 - [tools/openapi-python-client.yaml](tools/openapi-python-client.yaml)
 - [tools/generate_openapi_client.py](tools/generate_openapi_client.py)
 - See [CONTRIBUTING.md](CONTRIBUTING.md#openapi) for OpenAPI source-of-truth notes
