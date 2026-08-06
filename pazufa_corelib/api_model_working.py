@@ -36,6 +36,8 @@ from pazufa_corelib.api_model import (
 
 
 class WorkingApiKeyStatus(PaZuFaBaseModel):
+    """Current state of an API key, as returned when querying its status."""
+
     expires_at: Annotated[
         TzDatetime | None,
         Field(
@@ -50,10 +52,22 @@ class WorkingApiKeyStatus(PaZuFaBaseModel):
 
 
 class WorkingAuthDeleteHeaderParams(PaZuFaBaseModel):
+    """Header parameters for the API-key deletion endpoint.
+
+    Carries the key that authorises (and identifies) the deletion request.
+    """
+
     api_key_delete: str | None = None
 
 
 class WorkingAutor(PaZuFaBaseModel):
+    """Urheber of a `Dokument` or `Vorgang`: a person, Organisation or Gremium.
+
+    Only ``organisation`` is required; ``person`` names an individual within it,
+    and ``lobbyregister`` links to the entry in the Lobbyregister where
+    applicable.
+    """
+
     fachgebiet: str | None = None
     lobbyregister: AnyHttpUrl | None = None
     organisation: str | None = None
@@ -61,6 +75,8 @@ class WorkingAutor(PaZuFaBaseModel):
 
 
 class WorkingCreateApiKey(PaZuFaBaseModel):
+    """Request body for minting a new API key with a given scope and lifetime."""
+
     expires_at: Annotated[
         TzDatetime | None, Field(description="The expiration date of the API Key")
     ] = None
@@ -68,6 +84,12 @@ class WorkingCreateApiKey(PaZuFaBaseModel):
 
 
 class WorkingKeytagListing(PaZuFaBaseModel):
+    """Keytags grouped by the object kind they belong to.
+
+    Each list holds the keytags known for that object type: `Dokument`e,
+    `Sitzung`en, `Station`en and `Vorgang`/Vorgänge.
+    """
+
     dokumente: list[str] | None = None
     sitzungen: list[str] | None = None
     stationen: list[str] | None = None
@@ -75,6 +97,12 @@ class WorkingKeytagListing(PaZuFaBaseModel):
 
 
 class WorkingLobbyregistereintrag(PaZuFaBaseModel):
+    """An entry from the Lobbyregister linked to a `Vorgang`.
+
+    Records the Organisation that tried to influence the legislative process,
+    its stated ``intention``, and the Drucksachen the entry references.
+    """
+
     betroffene_drucksachen: Annotated[
         list[str] | None,
         Field(
@@ -135,6 +163,12 @@ class WorkingRotationResponse(PaZuFaBaseModel):
 
 
 class WorkingTouchedByEntry(PaZuFaBaseModel):
+    """A single scraper's fingerprint on an object it created or modified.
+
+    Attached to most top-level objects to record provenance: which scraper
+    (by key hash and/or uuid) last touched the record.
+    """
+
     key: Annotated[
         str | None, Field(description="Key hash of the scraper that touched the object")
     ] = None
@@ -144,11 +178,23 @@ class WorkingTouchedByEntry(PaZuFaBaseModel):
 
 
 class WorkingVgIdent(PaZuFaBaseModel):
+    """An external Vorgang-Ident, tagged with its id scheme.
+
+    ``typ`` names the kind of id (e.g. a Drucksachennummer scheme) and ``id`` is
+    its value, letting the same `Vorgang` carry several cross-references.
+    """
+
     id: str | None = None
     typ: str | None = None
 
 
 class WorkingZusammenfassungstupel(PaZuFaBaseModel):
+    """One part of a structured Zusammenfassung of a `Dokument`.
+
+    A Zusammenfassung may be split into several typed parts; ``typ`` labels the
+    part (see the reserved ``full*`` names) and ``inhalt`` holds its text.
+    """
+
     inhalt: Annotated[
         str | None,
         Field(
@@ -175,6 +221,13 @@ class WorkingAutorenPutRequest(PaZuFaBaseModel):
 
 
 class WorkingDokumentHash(PaZuFaBaseModel):
+    """A typed content hash of a `Dokument`.
+
+    The ``strategy`` (see `HashStrategy`) fixes both which ``mime`` types are
+    legal and the expected digest length; the ``_check_hash_combination``
+    validator enforces that table rather than any single field annotation.
+    """
+
     mime: Annotated[
         Mime | None,
         Field(
@@ -200,6 +253,12 @@ class WorkingEnumerationPutRequest(PaZuFaBaseModel):
 
 
 class WorkingGremium(PaZuFaBaseModel):
+    """A Gremium (Plenum, Ausschuss, Regierung, ...) within a given Wahlperiode.
+
+    Identified by its ``name`` within a `Parlament` and ``wahlperiode``; the
+    names ``plenum``, ``regierung`` and ``volk`` are reserved.
+    """
+
     link: AnyHttpUrl | None = None
     name: Annotated[
         str | None,
@@ -233,10 +292,24 @@ class WorkingReplacingEntryGremium(PaZuFaBaseModel):
 class WorkingZusammenfassungWrapper(
     RootModel[str | list[WorkingZusammenfassungstupel] | None]
 ):
-    root: str | list[WorkingZusammenfassungstupel] | None = None
+    root: Annotated[
+        str | list[WorkingZusammenfassungstupel] | None,
+        Field(
+            description="A Zusammenfassung as either plain text or a list of typed parts.\n\nThe bare string is a single unstructured Zusammenfassung; the list form\ncarries the structured, per-part variant (see `Zusammenfassungstupel`)."
+        ),
+    ] = None
 
 
 class WorkingDokument(PaZuFaBaseModel):
+    """A single Dokument with its Volltext, metadata and provenance.
+
+    The core payload of the API: ``volltext``, hash, `Autor`en and `Doktyp`,
+    plus optional Zusammenfassungen and a ``meinung``. Two validators enforce
+    domain rules the field types cannot — ``_check_meinung`` restricts on which
+    Doktypen a ``meinung`` is allowed, and the `HashWrapper` guards digest
+    integrity.
+    """
+
     api_id: Annotated[
         UUID | None,
         Field(
@@ -312,7 +385,12 @@ class WorkingDokument(PaZuFaBaseModel):
 
 
 class WorkingDokumentOrApiId(RootModel[WorkingDokument | UUID | None]):
-    root: WorkingDokument | UUID | None = None
+    root: Annotated[
+        WorkingDokument | UUID | None,
+        Field(
+            description="A `Dokument` reference: the full object on upload, a bare api id on download.\n\nUploads send complete Dokumente inline; downloads replace them with the\nserver-assigned ``api_id``, so both spellings must validate."
+        ),
+    ] = None
 
 
 class WorkingGremienPutRequest(PaZuFaBaseModel):
@@ -323,6 +401,13 @@ class WorkingGremienPutRequest(PaZuFaBaseModel):
 
 
 class WorkingStation(PaZuFaBaseModel):
+    """One Station of a `Vorgang`, handled by a specific `Gremium`.
+
+    A Station bundles the `Dokument`e and (optionally) Stellungnahmen produced
+    at a given step of the Vorgang (see `Stationstyp`), together with the
+    federführende Gremium and the timespan it covers.
+    """
+
     additional_links: Annotated[
         list[AnyUrl] | None,
         Field(
@@ -385,6 +470,12 @@ class WorkingStation(PaZuFaBaseModel):
 
 
 class WorkingTop(PaZuFaBaseModel):
+    """A single Tagesordnungspunkt (TOP) within a `Sitzung`.
+
+    Numbered by ``nummer`` on the Tagesordnung; ``vorgang_id`` back-references
+    are derived server-side from the attached `Dokument`e and ignored on upload.
+    """
+
     dokumente: Annotated[
         list[WorkingDokumentOrApiId] | None,
         Field(description="documents handled in this agenda item"),
@@ -402,6 +493,13 @@ class WorkingTop(PaZuFaBaseModel):
 
 
 class WorkingVorgang(PaZuFaBaseModel):
+    """A Vorgang (legislative process) and its `Station`en.
+
+    The top-level unit of the domain: it groups the ordered Stationen a matter
+    passes through, together with its `Autor`en (``initiatoren``), `Sachgebiet`e,
+    `Lobbyregistereintrag` entries and `VgIdent` cross-references.
+    """
+
     api_id: Annotated[
         UUID | None,
         Field(description="Use UUID version 5 with your collector id as namespace"),
@@ -439,6 +537,13 @@ class WorkingVorgang(PaZuFaBaseModel):
 
 
 class WorkingSitzung(PaZuFaBaseModel):
+    """A Sitzung of a `Gremium`, with its Tagesordnung and `Dokument`e.
+
+    Represents a meeting held by a Gremium; if ``experten`` is non-empty the
+    Sitzung is an Anhörung (hearing). The Tagesordnung is carried as `Top`
+    (Tagesordnungspunkt) entries.
+    """
+
     api_id: Annotated[
         UUID | None,
         Field(
