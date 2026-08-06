@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - **Serialization errors** — fixed multiple serialization errors, especially when exporting to JSON. 
-- **Empty Strings exported**
+- **Empty Strings exported** model_drop and model_drop_json no longer export empty strings by default.
 - **Two endpoints no longer disappear from the generated client.** Spec 0.2.5 declares the `GET /api/v2/autoren` filters as `in: path` even though `/api/v2/autoren` has no path placeholders, and types the `DELETE /api/v2/auth` header as an object wrapper. Both are invalid as written and made `openapi-python-client` skip the whole endpoint. `tools/generate_openapi_client.py` now normalises them (query parameters / unwrapped scalar header) at generation time; the file on disk is untouched. Both should be fixed upstream.
 
 ### Added
