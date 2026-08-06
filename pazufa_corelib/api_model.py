@@ -10,7 +10,7 @@ from enum import IntEnum, StrEnum
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
-from pydantic import AnyHttpUrl, Field, RootModel, model_validator
+from pydantic import AnyHttpUrl, Field, RootModel, model_validator, ConfigDict
 
 from pazufa_corelib._api_model_hardening import (
     PaZuFaBaseModel,
@@ -626,6 +626,8 @@ class ZusammenfassungWrapper(RootModel[str | list[Zusammenfassungstupel]]):
     The bare string is a single unstructured Zusammenfassung; the list form
     carries the structured, per-part variant (see `Zusammenfassungstupel`).
     """
+
+    model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
 
     root: str | list[Zusammenfassungstupel]
 
