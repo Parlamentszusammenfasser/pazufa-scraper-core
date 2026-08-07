@@ -41,7 +41,7 @@ def _check_type(data: Any, expected_type: type) -> None:
 # =====================================================================
 
 
-def hash_bytes_sha_1(data: bytes) -> tuple[str, str]:
+def hash_bytes_sha_1(data: bytes) -> tuple[str, HashStrategy]:
     """SHA-1 hash of raw bytes.
 
     Not implemented in Backend yet,therefore excluded in hash_text.
@@ -60,7 +60,7 @@ def hash_bytes_sha_1(data: bytes) -> tuple[str, str]:
     return hash_content, hash_type
 
 
-def hash_bytes_sha_256(data: bytes) -> tuple[str, str]:
+def hash_bytes_sha_256(data: bytes) -> tuple[str, HashStrategy]:
     """SHA-256 hash of raw bytes (please use when possible).
 
     Hash is computed directly from the raw bytes without any normalization.
@@ -77,7 +77,7 @@ def hash_bytes_sha_256(data: bytes) -> tuple[str, str]:
     return hash_content, hash_type
 
 
-def hash_text_sha_256(text: str) -> tuple[str, str]:
+def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
     """SHA-256 hash of normalized text (please only use when rawbyte-hash not possible).
 
     Hashes over the output of :func:`normalise_volltext` so that minor
@@ -109,7 +109,7 @@ def hash_text_sha_256(text: str) -> tuple[str, str]:
 # =====================================================================
 
 
-def hash_text(text: str) -> tuple[str, str]:
+def hash_text(text: str) -> tuple[str, HashStrategy]:
     """Hash text with SHA-256, returning ``(digest, variant)``.
 
     Args:
@@ -122,7 +122,7 @@ def hash_text(text: str) -> tuple[str, str]:
     return hash_text_sha_256(text)
 
 
-def hash_bytes(data: bytes) -> list[tuple[str, str]]:
+def hash_bytes(data: bytes) -> list[tuple[str, HashStrategy]]:
     """Computes hash values for the given byte data using multiple hashing algorithms.
 
     (Currently this is not supported by the backend, so only sha 256 is used currently)
