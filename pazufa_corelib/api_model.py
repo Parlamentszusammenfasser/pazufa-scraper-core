@@ -10,7 +10,7 @@ from enum import IntEnum, StrEnum
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
-from pydantic import AnyHttpUrl, Field, RootModel, model_validator, ConfigDict
+from pydantic import AnyHttpUrl, ConfigDict, Field, RootModel, model_validator
 
 from pazufa_corelib._api_model_hardening import (
     PaZuFaBaseModel,
