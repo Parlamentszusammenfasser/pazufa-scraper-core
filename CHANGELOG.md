@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
+## [0.2.1] - 07-08-2026
+### Changed
+- **normalization: Hashfunctions** — Instead of tuple(string,string) now returns tuple(string,HashStrategy).
+
+### Fixed
+- **Zusammenfassungen** — Empty Zusammenfassungen are now currectly rejected by pydanticmodel.
+
+
+
 ## [0.2.0] - 06-08-2026
 ### Changed
 - **api_model.py** — Is no longer completely automatically generated. It no contains Handwritten extensions
