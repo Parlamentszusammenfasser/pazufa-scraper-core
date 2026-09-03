@@ -56,6 +56,7 @@ _RE_PARAGRAPH_SPLIT = re.compile(r"\n\s*\n")
 
 _RE_ISO_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 _RE_GERMAN_DOT = re.compile(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})$")
+_RE_GERMAN_NONSTANDARD = re.compile(r"^(\d{1,2})\.(\d{1,2})\.(\d{2})$")
 _RE_GERMAN_LONG = re.compile(r"^(\d{1,2})\.?\s*([A-Za-zäöüÄÖÜ]+)\.?\s+(\d{4})$")
 
 _GERMAN_MONTHS: dict[str, int] = {
@@ -291,6 +292,7 @@ def normalize_datum(text: str) -> str:
     - ``02.04.2026`` / ``2.4.2026`` — German dot notation
     - ``2. April 2026``             — German long format (full and abbreviated month
       names)
+    - ``02.04.26`` / ``2.4.26``     — Not standardized, but used in some documents
     - ``2026-04-02``                — ISO 8601 passthrough
 
     Unicode spaces (e.g. U+00A0 NBSP, U+202F narrow no-break space) are
@@ -316,6 +318,11 @@ def normalize_datum(text: str) -> str:
         return date(year, month, day).isoformat()
 
     m = _RE_GERMAN_DOT.match(text)
+    if m:
+        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        return date(year, month, day).isoformat()
+
+    m = _RE_GERMAN_NONSTANDARD.match(text)
     if m:
         day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
         return date(year, month, day).isoformat()
