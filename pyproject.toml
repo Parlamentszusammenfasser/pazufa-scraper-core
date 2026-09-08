@@ -1,7 +1,7 @@
 [project]
 name = "pazufa_corelib"
 license = "GPL-3.0-only"
-version = "0.2.2"
+version = "0.2.1"
 description = "Core library for collecting parliamentary data"
 authors = [{ name = "PaZuFa team" }]
 maintainers = [{ name = "PaZuFa team", email = "pub@pazufa.de" }]
@@ -133,7 +133,7 @@ input-file-type = "openapi"
 output = "pazufa_corelib/_api_model_generated.py"
 output-model-type = "pydantic_v2.BaseModel"
 target-python-version = "3.12"
-url = "https://codeberg.org/PaZuFa/parlamentszusammenfasser/raw/tag/v0.2.6+v0.0.7/openapi.yml"
+url = "https://codeberg.org/PaZuFa/parlamentszusammenfasser/raw/tag/v0.2.5+v0.0.7/openapi.yml"
 use-annotated = true
 use-double-quotes = true
 use-standard-collections = true
