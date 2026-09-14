@@ -1,7 +1,7 @@
 """Contains all the data models used in inputs/outputs"""
 
 from .api_key_status import ApiKeyStatus
-from .auth_delete_header_params import AuthDeleteHeaderParams
+from .api_scope import APIScope
 from .auth_rotate_response_201 import AuthRotateResponse201
 from .autor import Autor
 from .autoren_get_response_200_item import AutorenGetResponse200Item
@@ -17,7 +17,7 @@ from .hash_strategy import HashStrategy
 from .kal_date_get_response_200 import KalDateGetResponse200
 from .kal_get_response_200 import KalGetResponse200
 from .keytag_listing import KeytagListing
-from .lobbyregeintrag import Lobbyregeintrag
+from .lobbyregistereintrag import Lobbyregistereintrag
 from .mime import Mime
 from .parlament import Parlament
 from .replacement_put_request_autor import ReplacementPutRequestAutor
@@ -54,7 +54,7 @@ from .zusammenfassungstupel import Zusammenfassungstupel
 
 __all__ = (
     "ApiKeyStatus",
-    "AuthDeleteHeaderParams",
+    "APIScope",
     "AuthRotateResponse201",
     "Autor",
     "AutorenGetResponse200Item",
@@ -70,7 +70,7 @@ __all__ = (
     "KalDateGetResponse200",
     "KalGetResponse200",
     "KeytagListing",
-    "Lobbyregeintrag",
+    "Lobbyregistereintrag",
     "Mime",
     "Parlament",
     "ReplacementPutRequestAutor",

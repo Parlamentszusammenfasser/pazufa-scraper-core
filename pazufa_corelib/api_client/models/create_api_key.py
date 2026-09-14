@@ -8,6 +8,7 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
+from ..models.api_scope import APIScope
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="CreateApiKey")
@@ -18,16 +19,20 @@ class CreateApiKey:
     """Requests a new API key. The key will be saved as hash in the database and only produced once in clear text.
 
     Attributes:
-        scope (str): Note: inline enums are not fully supported by openapi-generator
+        scope (APIScope):
         expires_at (datetime.datetime | None | Unset): The expiration date of the API Key
+        keytag_prefix (None | str | Unset): Keytag name, maximal length is 10 Characters, the rest of the keytag will be
+            filled with
+            random data. It is recommended to use this to later identify the keys more easily
     """
 
-    scope: str
+    scope: APIScope
     expires_at: datetime.datetime | None | Unset = UNSET
+    keytag_prefix: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        scope = self.scope
+        scope = self.scope.value
 
         expires_at: None | str | Unset
         if isinstance(self.expires_at, Unset):
@@ -36,6 +41,12 @@ class CreateApiKey:
             expires_at = self.expires_at.isoformat()
         else:
             expires_at = self.expires_at
+
+        keytag_prefix: None | str | Unset
+        if isinstance(self.keytag_prefix, Unset):
+            keytag_prefix = UNSET
+        else:
+            keytag_prefix = self.keytag_prefix
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -46,13 +57,15 @@ class CreateApiKey:
         )
         if expires_at is not UNSET:
             field_dict["expires_at"] = expires_at
+        if keytag_prefix is not UNSET:
+            field_dict["keytag_prefix"] = keytag_prefix
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        scope = d.pop("scope")
+        scope = APIScope(d.pop("scope"))
 
         def _parse_expires_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -71,9 +84,19 @@ class CreateApiKey:
 
         expires_at = _parse_expires_at(d.pop("expires_at", UNSET))
 
+        def _parse_keytag_prefix(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        keytag_prefix = _parse_keytag_prefix(d.pop("keytag_prefix", UNSET))
+
         create_api_key = cls(
             scope=scope,
             expires_at=expires_at,
+            keytag_prefix=keytag_prefix,
         )
 
         create_api_key.additional_properties = d

@@ -1,5 +1,11 @@
 components:
   schemas:
+    APIScope:
+      enum:
+        - keyadder
+        - admin
+        - collector
+      type: string
     ApiKeyStatus:
       description: Status information about the API key used in the current request
       properties:
@@ -18,13 +24,6 @@ components:
         - scope
         - expires_at
         - is_being_rotated
-      type: object
-    AuthDeleteHeaderParams:
-      properties:
-        api_key_delete:
-          type: string
-      required:
-        - api_key_delete
       type: object
     Autor:
       description: 'Person or organisation in some function. e.g.:
@@ -65,9 +64,18 @@ components:
           type:
             - string
             - 'null'
+        keytag_prefix:
+          description: 'Keytag name, maximal length is 10 Characters, the rest of
+            the keytag will be filled with
+
+            random data. It is recommended to use this to later identify the keys
+            more easily'
+          type:
+            - string
+            - 'null'
         scope:
+          $ref: '#/components/schemas/APIScope'
           description: 'Note: inline enums are not fully supported by openapi-generator'
-          type: string
       required:
         - scope
       type: object
@@ -321,7 +329,7 @@ components:
             - array
             - 'null'
       type: object
-    Lobbyregeintrag:
+    Lobbyregistereintrag:
       description: Entry of the Bundestagslobbyregister for a specific Vorgang
       properties:
         betroffene_drucksachen:
@@ -887,6 +895,11 @@ components:
             - string
             - 'null'
         schlagworte:
+          description: 'DEPRECATED: This has been moved to the Vorgang level.
+
+            Please do not submit any data here, it will be merged as Vorgangs-Schlagworte
+
+            For details, see https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54'
           items:
             type: string
           type: array
@@ -945,7 +958,7 @@ components:
         - parl-zurueckgz
         - parl-ggentwurf
         - parl-vermittas
-        - parl-verfgstop
+        - postparl-vgstp
         - postparl-vesja
         - postparl-vesne
         - postparl-gsblt
@@ -1040,7 +1053,7 @@ components:
         lobbyregister:
           description: Lobby register annotations from Bundestag sources
           items:
-            $ref: '#/components/schemas/Lobbyregeintrag'
+            $ref: '#/components/schemas/Lobbyregistereintrag'
           type: array
         ressort:
           oneOf:
@@ -1051,6 +1064,11 @@ components:
           description: Sachgebiet information
           items:
             $ref: '#/components/schemas/Sachgebiet'
+          type: array
+        schlagworte:
+          description: General Vorgangs-Schlagworte
+          items:
+            type: string
           type: array
         stationen:
           description: List of stations, the core of what happens in one Proceeding
@@ -1091,8 +1109,17 @@ components:
       description: The legislative Track we are on. Together with a parliament, this
         tells us about the possible stations that can occurr within
       enum:
-        - gg-einspruch
-        - gg-zustimmung
+        - bu-einspruch-inibreg
+        - bu-einspruch-inibreg-haushalt
+        - bu-zustimmung-inibreg
+        - bu-zustimmung-inibreg-haushalt
+        - bu-einspruch-inibreg-intvertrag
+        - bu-zustimmung-inibreg-intvertrag
+        - bu-einspruch-inisonst
+        - bu-einspruch-inisonst-intvertrag
+        - bu-zustimmung-inisonst
+        - bu-zustimmung-inisonst-intvertrag
+        - bu-antrag-bweinsatz
         - gg-land-parl
         - gg-land-volk
         - bw-einsatz
@@ -1163,14 +1190,14 @@ externalDocs:
 info:
   contact:
     email: info@pazufa.de
-  description: "Description of the PaZuFa API. All listings that are returned by the\
-    \ ser\nver are sorted by:\n  1. last modification date, descending\n  2. if available:\
-    \ alphabeti\ncally by an identifier (e.g. a title)"
+  description: "Description of the PaZuFa API. \n        All listings that are returned\
+    \ by the server are sorted by:\n  \n        1. last modification date, descending\n\
+    \  \n        2. if available: alphabetically by an identifier (e.g. a title)"
   license:
     name: GPLv3
     url: https://www.gnu.org/licenses/gpl-3.0.en.html
   title: LTZF API
-  version: 0.2.5
+  version: 0.2.7
 openapi: 3.1.0
 paths:
   /api/v2/auth:
@@ -1180,12 +1207,11 @@ paths:
         existing API key.
       operationId: auth_delete
       parameters:
-        - description: The Key to delete
-          in: header
+        - in: header
           name: api-key-delete
           required: true
           schema:
-            $ref: '#/components/schemas/AuthDeleteHeaderParams'
+            type: string
       responses:
         '204':
           description: ''
@@ -1505,52 +1531,42 @@ paths:
       parameters:
         - description: Filter by author name substring. Returns items where an author's
             name contains this string (case-insensitive).
-          in: path
+          in: query
           name: person
-          required: true
+          required: false
           schema:
-            type:
-              - string
-              - 'null'
+            type: string
         - description: Filter by author's professional field. Returns items where
             an author has the specified professional expertise.
-          in: path
+          in: query
           name: fach
-          required: true
+          required: false
           schema:
-            type:
-              - string
-              - 'null'
+            type: string
         - description: Filter by author organization. Returns items where an author
             belongs to the specified organization.
-          in: path
+          in: query
           name: org
-          required: true
+          required: false
           schema:
-            type:
-              - string
-              - 'null'
+            type: string
         - description: Page number for paginated results. Starts at 1.
-          in: path
+          in: query
           name: page
-          required: true
+          required: false
           schema:
             format: int32
             minimum: 0
-            type:
-              - integer
-              - 'null'
+            type: integer
         - description: Number of items to return per page. Maximum value is capped
             at server-defined limit.
-          in: path
+          in: query
           name: per_page
-          required: true
+          required: false
           schema:
             format: int32
             minimum: 0
-            type:
-              - integer
-              - 'null'
+            type: integer
       responses:
         '200':
           content:
@@ -1719,6 +1735,14 @@ paths:
         touching the object
       operationId: dokument_get_by_id
       parameters:
+        - in: header
+          name: if-modified-since
+          required: false
+          schema:
+            format: date-time
+            type:
+              - string
+              - 'null'
         - description: Unique identifier (UUID) of the object to identify
           in: path
           name: api_id
@@ -2286,7 +2310,7 @@ paths:
             minimum: 0
             type: integer
         - in: header
-          name: if_modified_since
+          name: if-modified-since
           required: false
           schema:
             format: date-time
@@ -2376,7 +2400,7 @@ paths:
             format: date
             type: string
         - in: header
-          name: if_modified_since
+          name: if-modified-since
           required: false
           schema:
             format: date-time
@@ -2464,6 +2488,12 @@ paths:
           required: true
           schema:
             format: date
+            type: string
+        - in: header
+          name: x-scraper-id
+          required: true
+          schema:
+            format: uuid
             type: string
       requestBody:
         content:
@@ -2583,7 +2613,7 @@ paths:
           schema:
             $ref: '#/components/schemas/Vorgangstyp'
         - in: header
-          name: if_modified_since
+          name: if-modified-since
           required: false
           schema:
             format: date-time
@@ -2701,7 +2731,7 @@ paths:
             format: uuid
             type: string
         - in: header
-          name: if_modified_since
+          name: if-modified-since
           required: false
           schema:
             format: date-time
@@ -2787,6 +2817,111 @@ paths:
         - Sitzung
         - Data-Administration
   /api/v2/vorgang:
+    delete:
+      description: Administrative endpoint to delete Vorgang objects from the system
+        by filter parmeters. This operation cannot be undone. With Empty Filters,
+        this is a NOOP
+      operationId: vorgang_bulk_delete
+      parameters:
+        - description: Filter results to include only items updated on or after this
+            timestamp (inclusive lower bound)
+          in: query
+          name: since
+          required: false
+          schema:
+            format: date-time
+            type: string
+        - description: Filter results to include only items updated on or before this
+            timestamp (inclusive upper bound)
+          in: query
+          name: until
+          required: false
+          schema:
+            format: date-time
+            type: string
+        - description: Filter by parliament code. Returns only items related to the
+            specified parliament (e.g., 'BT' for Bundestag).
+          in: query
+          name: p
+          required: false
+          schema:
+            $ref: '#/components/schemas/Parlament'
+        - description: Filter by electoral period number. Returns only items from
+            the specified electoral period.
+          in: query
+          name: wp
+          required: false
+          schema:
+            format: int32
+            minimum: 0
+            type: integer
+        - description: Filter by author name substring. Returns items where an author's
+            name contains this string (case-insensitive).
+          in: query
+          name: person
+          required: false
+          schema:
+            type: string
+        - description: Filter by author's professional field. Returns items where
+            an author has the specified professional expertise.
+          in: query
+          name: fach
+          required: false
+          schema:
+            type: string
+        - description: Filter by author organization. Returns items where an author
+            belongs to the specified organization.
+          in: query
+          name: org
+          required: false
+          schema:
+            type: string
+        - description: Filter by legislative process type. Returns only items of the
+            specified process type.
+          in: query
+          name: vgtyp
+          required: false
+          schema:
+            $ref: '#/components/schemas/Vorgangstyp'
+        - description: Page number for paginated results. Starts at 1.
+          in: query
+          name: page
+          required: false
+          schema:
+            format: int32
+            minimum: 0
+            type: integer
+        - description: Number of items to return per page. Maximum value is capped
+            at server-defined limit.
+          in: query
+          name: per_page
+          required: false
+          schema:
+            format: int32
+            minimum: 0
+            type: integer
+      responses:
+        '204':
+          description: ''
+        '400':
+          description: Malformed Request
+        '401':
+          description: Authentication failed
+        '403':
+          description: Authorization failed
+        '500':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Internal Server Error
+      security:
+        - apiKey:
+            - admin
+            - keyadder
+      tags:
+        - Vorgang
+        - Data-Administration
     get:
       description: Retrieves a filterable list of legislative processes. Returns up
         to 64 processes per request, which can be filtered by various criteria including
@@ -2871,7 +3006,7 @@ paths:
             minimum: 0
             type: integer
         - in: header
-          name: if_modified_since
+          name: if-modified-since
           required: false
           schema:
             format: date-time
@@ -2924,7 +3059,7 @@ paths:
                     lobbyregister:
                       description: Lobby register annotations from Bundestag sources
                       items:
-                        $ref: '#/components/schemas/Lobbyregeintrag'
+                        $ref: '#/components/schemas/Lobbyregistereintrag'
                       type: array
                     ressort:
                       oneOf:
@@ -2935,6 +3070,11 @@ paths:
                       description: Sachgebiet information
                       items:
                         $ref: '#/components/schemas/Sachgebiet'
+                      type: array
+                    schlagworte:
+                      description: General Vorgangs-Schlagworte
+                      items:
+                        type: string
                       type: array
                     stationen:
                       description: List of stations, the core of what happens in one
@@ -3121,7 +3261,7 @@ paths:
             format: uuid
             type: string
         - in: header
-          name: if_modified_since
+          name: if-modified-since
           required: false
           schema:
             format: date-time

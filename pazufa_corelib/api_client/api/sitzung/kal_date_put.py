@@ -17,8 +17,10 @@ def _get_kwargs(
     datum: datetime.date,
     *,
     body: list[Sitzung],
+    x_scraper_id: str,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
+    headers["x-scraper-id"] = x_scraper_id
 
     _kwargs: dict[str, Any] = {
         "method": "put",
@@ -85,6 +87,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: list[Sitzung],
+    x_scraper_id: str,
 ) -> Response[Any | str]:
     """Collector interface for adding or updating sessions for a specific date and parliament. Completely
     replaces all sessions for the given date, with restrictions based on how far in the past the date
@@ -93,6 +96,7 @@ def sync_detailed(
     Args:
         parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
+        x_scraper_id (str):
         body (list[Sitzung]):
 
     Raises:
@@ -107,6 +111,7 @@ def sync_detailed(
         parlament=parlament,
         datum=datum,
         body=body,
+        x_scraper_id=x_scraper_id,
     )
 
     response = client.get_httpx_client().request(
@@ -122,6 +127,7 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: list[Sitzung],
+    x_scraper_id: str,
 ) -> Any | str | None:
     """Collector interface for adding or updating sessions for a specific date and parliament. Completely
     replaces all sessions for the given date, with restrictions based on how far in the past the date
@@ -130,6 +136,7 @@ def sync(
     Args:
         parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
+        x_scraper_id (str):
         body (list[Sitzung]):
 
     Raises:
@@ -145,6 +152,7 @@ def sync(
         datum=datum,
         client=client,
         body=body,
+        x_scraper_id=x_scraper_id,
     ).parsed
 
 
@@ -154,6 +162,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: list[Sitzung],
+    x_scraper_id: str,
 ) -> Response[Any | str]:
     """Collector interface for adding or updating sessions for a specific date and parliament. Completely
     replaces all sessions for the given date, with restrictions based on how far in the past the date
@@ -162,6 +171,7 @@ async def asyncio_detailed(
     Args:
         parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
+        x_scraper_id (str):
         body (list[Sitzung]):
 
     Raises:
@@ -176,6 +186,7 @@ async def asyncio_detailed(
         parlament=parlament,
         datum=datum,
         body=body,
+        x_scraper_id=x_scraper_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -189,6 +200,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: list[Sitzung],
+    x_scraper_id: str,
 ) -> Any | str | None:
     """Collector interface for adding or updating sessions for a specific date and parliament. Completely
     replaces all sessions for the given date, with restrictions based on how far in the past the date
@@ -197,6 +209,7 @@ async def asyncio(
     Args:
         parlament (Parlament): Enumeration of parliaments or similar bodies in germany
         datum (datetime.date):
+        x_scraper_id (str):
         body (list[Sitzung]):
 
     Raises:
@@ -213,5 +226,6 @@ async def asyncio(
             datum=datum,
             client=client,
             body=body,
+            x_scraper_id=x_scraper_id,
         )
     ).parsed

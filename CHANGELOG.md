@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
+## [0.2.2] - 14-09-2026
+### Changed
+- **Models updated to spec 0.2.7** (tag `v0.2.7+v0.1.0`, from `v0.2.5+v0.0.7`). `_api_model_generated.py` was regenerated from the new spec URL, the handwritten `api_model.py` was updated on top of it, and `api_model_working.py` was regenerated from that.
+- **`Vorgangstyp` — breaking.** `gg-einspruch` and `gg-zustimmung` are gone, replaced by eleven Bundes-level members that encode initiator and subject matter: `bu-einspruch-inibreg`, `bu-einspruch-inibreg-haushalt`, `bu-zustimmung-inibreg`, `bu-zustimmung-inibreg-haushalt`, `bu-einspruch-inibreg-intvertrag`, `bu-zustimmung-inibreg-intvertrag`, `bu-einspruch-inisonst`, `bu-einspruch-inisonst-intvertrag`, `bu-zustimmung-inisonst`, `bu-zustimmung-inisonst-intvertrag`, `bu-antrag-bweinsatz`. Collectors that emitted either old value must pick a new one.
+- **`Stationstyp.parl_verfgstop` renamed to `postparl_vgstp`** (`parl-verfgstop` → `postparl-vgstp`) — breaking for anyone who wrote the old wire value. It was only introduced in 0.2.0.
+- **`Station.schlagworte` is deprecated** — moved to the Vorgang level. Data submitted here is merged into the Vorgangs-Schlagworte by the backend; see [parlamentszusammenfasser#54](https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54). The field still exists and still validates, so nothing breaks today, but collectors should move their tags to `Vorgang.schlagworte`.
+- **date normalization support more formats**
+
+### Added
+- **`Vorgang.schlagworte`** (`list[str] | None`) — the new home for Schlagworte, replacing `Station.schlagworte`.
+- **`CreateApiKey.keytag_prefix`** (`str | None`) — optional name of at most 10 characters, prefixed to the generated keytag so keys can be identified later; the remainder stays random.
+- **Field descriptions** on `CreateApiKey.scope`, `Vorgang.lobbyregister`, `Vorgang.sachgebiete`, and `Vorgang.stationen`, carried over from the spec.
+
+### Removed
+- **`AuthDeleteHeaderParams`** — the spec no longer wraps the `DELETE /api/v2/auth` header in an object. This was one of the two 0.2.5 spec defects `tools/generate_openapi_client.py` normalizes at generation time; the workaround is now redundant for this endpoint.
+
+openapi.yaml` needs to be refreshed to `v0.2.7+v0.1.0` and the client regenerated.
+### Known issues
+- **`openapi.yaml` and `pazufa_corelib/api_client/` are still at spec 0.2.5.** Only the datamodel-codegen path was updated to 0.2.7, so `api_model.Vorgangstyp`/`Stationstyp` and the generated client's enums of the same name now disagree: the client still exposes `GG_EINSPRUCH`, `GG_ZUSTIMMUNG`, and `PARL_VERFGSTOP`, and does not know the new members. Passing one of the new values through the client raises at runtime. `
+
 ## [0.2.1] - 07-08-2026
 ### Changed
 - **normalization: Hashfunctions** — Instead of tuple(string,string) now returns tuple(string,HashStrategy).

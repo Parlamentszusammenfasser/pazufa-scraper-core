@@ -14,7 +14,7 @@ from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.autor import Autor
-    from ..models.lobbyregeintrag import Lobbyregeintrag
+    from ..models.lobbyregistereintrag import Lobbyregistereintrag
     from ..models.station import Station
     from ..models.touched_by_inner import TouchedByInner
     from ..models.vg_ident import VgIdent
@@ -43,9 +43,10 @@ class VorgangGetResponse200Item:
             ids (list[VgIdent] | Unset):
             kurztitel (None | str | Unset):
             links (list[str] | Unset):
-            lobbyregister (list[Lobbyregeintrag] | Unset): Lobby register annotations from Bundestag sources
+            lobbyregister (list[Lobbyregistereintrag] | Unset): Lobby register annotations from Bundestag sources
             ressort (None | Ressort | Unset):
             sachgebiete (list[Sachgebiet] | Unset): Sachgebiet information
+            schlagworte (list[str] | Unset): General Vorgangs-Schlagworte
             touched_by (list[TouchedByInner] | Unset): list of scraper uuids / key database ids that have touched this
                 object
     """
@@ -60,9 +61,10 @@ class VorgangGetResponse200Item:
     ids: list[VgIdent] | Unset = UNSET
     kurztitel: None | str | Unset = UNSET
     links: list[str] | Unset = UNSET
-    lobbyregister: list[Lobbyregeintrag] | Unset = UNSET
+    lobbyregister: list[Lobbyregistereintrag] | Unset = UNSET
     ressort: None | Ressort | Unset = UNSET
     sachgebiete: list[Sachgebiet] | Unset = UNSET
+    schlagworte: list[str] | Unset = UNSET
     touched_by: list[TouchedByInner] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -126,6 +128,10 @@ class VorgangGetResponse200Item:
                 sachgebiete_item = sachgebiete_item_data.value
                 sachgebiete.append(sachgebiete_item)
 
+        schlagworte: list[str] | Unset = UNSET
+        if not isinstance(self.schlagworte, Unset):
+            schlagworte = self.schlagworte
+
         touched_by: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.touched_by, Unset):
             touched_by = []
@@ -158,6 +164,8 @@ class VorgangGetResponse200Item:
             field_dict["ressort"] = ressort
         if sachgebiete is not UNSET:
             field_dict["sachgebiete"] = sachgebiete
+        if schlagworte is not UNSET:
+            field_dict["schlagworte"] = schlagworte
         if touched_by is not UNSET:
             field_dict["touched_by"] = touched_by
 
@@ -166,7 +174,7 @@ class VorgangGetResponse200Item:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.autor import Autor
-        from ..models.lobbyregeintrag import Lobbyregeintrag
+        from ..models.lobbyregistereintrag import Lobbyregistereintrag
         from ..models.station import Station
         from ..models.touched_by_inner import TouchedByInner
         from ..models.vg_ident import VgIdent
@@ -217,11 +225,11 @@ class VorgangGetResponse200Item:
         links = cast(list[str], d.pop("links", UNSET))
 
         _lobbyregister = d.pop("lobbyregister", UNSET)
-        lobbyregister: list[Lobbyregeintrag] | Unset = UNSET
+        lobbyregister: list[Lobbyregistereintrag] | Unset = UNSET
         if _lobbyregister is not UNSET:
             lobbyregister = []
             for lobbyregister_item_data in _lobbyregister:
-                lobbyregister_item = Lobbyregeintrag.from_dict(lobbyregister_item_data)
+                lobbyregister_item = Lobbyregistereintrag.from_dict(lobbyregister_item_data)
 
                 lobbyregister.append(lobbyregister_item)
 
@@ -251,6 +259,8 @@ class VorgangGetResponse200Item:
 
                 sachgebiete.append(sachgebiete_item)
 
+        schlagworte = cast(list[str], d.pop("schlagworte", UNSET))
+
         _touched_by = d.pop("touched_by", UNSET)
         touched_by: list[TouchedByInner] | Unset = UNSET
         if _touched_by is not UNSET:
@@ -274,6 +284,7 @@ class VorgangGetResponse200Item:
             lobbyregister=lobbyregister,
             ressort=ressort,
             sachgebiete=sachgebiete,
+            schlagworte=schlagworte,
             touched_by=touched_by,
         )
 
