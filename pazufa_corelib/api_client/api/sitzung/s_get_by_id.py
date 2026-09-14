@@ -19,7 +19,7 @@ def _get_kwargs(
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
-        headers["if_modified_since"] = if_modified_since
+        headers["if-modified-since"] = if_modified_since
 
     params: dict[str, Any] = {}
 

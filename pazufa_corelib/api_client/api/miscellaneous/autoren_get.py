@@ -11,49 +11,24 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    person: None | str | Unset = UNSET,
-    fach: None | str | Unset = UNSET,
-    org: None | str | Unset = UNSET,
-    page: int | None | Unset = UNSET,
-    per_page: int | None | Unset = UNSET,
+    person: str | Unset = UNSET,
+    fach: str | Unset = UNSET,
+    org: str | Unset = UNSET,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
 
-    json_person: None | str | Unset
-    if isinstance(person, Unset):
-        json_person = UNSET
-    else:
-        json_person = person
-    params["person"] = json_person
+    params["person"] = person
 
-    json_fach: None | str | Unset
-    if isinstance(fach, Unset):
-        json_fach = UNSET
-    else:
-        json_fach = fach
-    params["fach"] = json_fach
+    params["fach"] = fach
 
-    json_org: None | str | Unset
-    if isinstance(org, Unset):
-        json_org = UNSET
-    else:
-        json_org = org
-    params["org"] = json_org
+    params["org"] = org
 
-    json_page: int | None | Unset
-    if isinstance(page, Unset):
-        json_page = UNSET
-    else:
-        json_page = page
-    params["page"] = json_page
+    params["page"] = page
 
-    json_per_page: int | None | Unset
-    if isinstance(per_page, Unset):
-        json_per_page = UNSET
-    else:
-        json_per_page = per_page
-    params["per_page"] = json_per_page
+    params["per_page"] = per_page
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -115,21 +90,21 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    person: None | str | Unset = UNSET,
-    fach: None | str | Unset = UNSET,
-    org: None | str | Unset = UNSET,
-    page: int | None | Unset = UNSET,
-    per_page: int | None | Unset = UNSET,
+    person: str | Unset = UNSET,
+    fach: str | Unset = UNSET,
+    org: str | Unset = UNSET,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
 ) -> Response[Any | list[AutorenGetResponse200Item] | str]:
     """Retrieves a list of authors filtered by optional parameters. Returns authors matching the specified
     criteria including name fragments, professional field, and organization.
 
     Args:
-        person (None | str | Unset):
-        fach (None | str | Unset):
-        org (None | str | Unset):
-        page (int | None | Unset):
-        per_page (int | None | Unset):
+        person (str | Unset):
+        fach (str | Unset):
+        org (str | Unset):
+        page (int | Unset):
+        per_page (int | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -157,21 +132,21 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    person: None | str | Unset = UNSET,
-    fach: None | str | Unset = UNSET,
-    org: None | str | Unset = UNSET,
-    page: int | None | Unset = UNSET,
-    per_page: int | None | Unset = UNSET,
+    person: str | Unset = UNSET,
+    fach: str | Unset = UNSET,
+    org: str | Unset = UNSET,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
 ) -> Any | list[AutorenGetResponse200Item] | str | None:
     """Retrieves a list of authors filtered by optional parameters. Returns authors matching the specified
     criteria including name fragments, professional field, and organization.
 
     Args:
-        person (None | str | Unset):
-        fach (None | str | Unset):
-        org (None | str | Unset):
-        page (int | None | Unset):
-        per_page (int | None | Unset):
+        person (str | Unset):
+        fach (str | Unset):
+        org (str | Unset):
+        page (int | Unset):
+        per_page (int | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -194,21 +169,21 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    person: None | str | Unset = UNSET,
-    fach: None | str | Unset = UNSET,
-    org: None | str | Unset = UNSET,
-    page: int | None | Unset = UNSET,
-    per_page: int | None | Unset = UNSET,
+    person: str | Unset = UNSET,
+    fach: str | Unset = UNSET,
+    org: str | Unset = UNSET,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
 ) -> Response[Any | list[AutorenGetResponse200Item] | str]:
     """Retrieves a list of authors filtered by optional parameters. Returns authors matching the specified
     criteria including name fragments, professional field, and organization.
 
     Args:
-        person (None | str | Unset):
-        fach (None | str | Unset):
-        org (None | str | Unset):
-        page (int | None | Unset):
-        per_page (int | None | Unset):
+        person (str | Unset):
+        fach (str | Unset):
+        org (str | Unset):
+        page (int | Unset):
+        per_page (int | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -234,21 +209,21 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    person: None | str | Unset = UNSET,
-    fach: None | str | Unset = UNSET,
-    org: None | str | Unset = UNSET,
-    page: int | None | Unset = UNSET,
-    per_page: int | None | Unset = UNSET,
+    person: str | Unset = UNSET,
+    fach: str | Unset = UNSET,
+    org: str | Unset = UNSET,
+    page: int | Unset = UNSET,
+    per_page: int | Unset = UNSET,
 ) -> Any | list[AutorenGetResponse200Item] | str | None:
     """Retrieves a list of authors filtered by optional parameters. Returns authors matching the specified
     criteria including name fragments, professional field, and organization.
 
     Args:
-        person (None | str | Unset):
-        fach (None | str | Unset):
-        org (None | str | Unset):
-        page (int | None | Unset):
-        per_page (int | None | Unset):
+        person (str | Unset):
+        fach (str | Unset):
+        org (str | Unset):
+        page (int | Unset):
+        per_page (int | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
