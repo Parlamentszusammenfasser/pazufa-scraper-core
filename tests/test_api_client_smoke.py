@@ -71,7 +71,7 @@ def _vorgang() -> Vorgang:
         titel="Test",
         wahlperiode=20,
         verfassungsaendernd=False,
-        typ=Vorgangstyp.GG_EINSPRUCH,
+        typ=Vorgangstyp.BU_EINSPRUCH_INIBREG,
         initiatoren=[],
         stationen=[],
     )
@@ -86,11 +86,11 @@ def test_if_modified_since_helper_round_trips_through_client(
         client=client,
         if_modified_since=ims,
     )
-    # Spec 0.2.5 renamed this header from "If-Modified-Since" to
-    # "if_modified_since". Underscores make it a genuinely different header on
-    # the wire, not a case variant, so the value is pinned here to make the
-    # change visible if it is reverted upstream.
-    assert captured[-1]["headers"]["if_modified_since"] == "2024-01-01T00:00:00+00:00"
+    # Spec 0.2.5 had spelled this header "if_modified_since"; underscores make
+    # it a genuinely different header on the wire, not a case variant. 0.2.7
+    # restores the standard "If-Modified-Since" spelling, so the value is pinned
+    # here to make a further change visible.
+    assert captured[-1]["headers"]["if-modified-since"] == "2024-01-01T00:00:00+00:00"
 
 
 def test_scraper_id_header_is_sent_on_vorgang_put(
@@ -100,23 +100,23 @@ def test_scraper_id_header_is_sent_on_vorgang_put(
     assert captured[-1]["headers"]["x-scraper-id"] == SCRAPER_ID
 
 
-def test_kal_date_put_no_longer_carries_a_scraper_id(
+def test_scraper_id_header_is_sent_on_kal_date_put(
     client: AuthenticatedClient, captured: list[dict[str, Any]]
 ) -> None:
-    """Spec 0.2.5 dropped ``X-Scraper-Id`` from the calendar collector endpoint.
+    """Spec 0.2.7 restored ``X-Scraper-Id`` on the calendar collector endpoint.
 
-    ``PUT /api/v2/vorgang`` kept the header, so the omission looks accidental
-    rather than a deliberate move to deriving the collector from the API key.
-    Pinned so that restoring it upstream trips this test instead of silently
-    changing what collectors send.
+    0.2.5 had dropped it while ``PUT /api/v2/vorgang`` kept it, which looked
+    accidental; 0.2.7 confirms it was. The header is required again, so
+    ``kal_date_put`` takes ``x_scraper_id`` as a mandatory argument.
     """
     kal_date_put.sync_detailed(
         Parlament.BT,
         datetime(2024, 1, 1, tzinfo=timezone.utc).date(),
         client=client,
         body=[],
+        x_scraper_id=SCRAPER_ID,
     )
-    assert "x-scraper-id" not in captured[-1]["headers"]
+    assert captured[-1]["headers"]["x-scraper-id"] == SCRAPER_ID
 
 
 # --- Spec 0.2.5 model surface -------------------------------------------------
@@ -201,10 +201,22 @@ def test_doktyp_gained_0_2_5_values(value: str) -> None:
 
 @pytest.mark.parametrize(
     "value",
-    ["parl-antragsst", "parl-verfgstop", "parl-vermittas", "preparl-formvs"],
+    ["parl-antragsst", "parl-vermittas", "preparl-formvs"],
 )
 def test_stationstyp_gained_0_2_5_values(value: str) -> None:
     assert Stationstyp(value).value == value
+
+
+def test_stationstyp_verfgstop_was_renamed_in_0_2_7() -> None:
+    """``parl-verfgstop`` (new in 0.2.5) became ``postparl-vgstp`` in 0.2.7.
+
+    A rename, not an addition: the old wire value is gone, so collectors that
+    emitted it must be updated. Pinned in both directions so a revert upstream
+    is noticed.
+    """
+    assert Stationstyp("postparl-vgstp") is Stationstyp.POSTPARL_VGSTP
+    with pytest.raises(ValueError, match="parl-verfgstop"):
+        Stationstyp("parl-verfgstop")
 
 
 def test_station_no_longer_accepts_trojanergefahr() -> None:
