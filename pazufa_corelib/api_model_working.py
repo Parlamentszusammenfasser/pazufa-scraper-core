@@ -80,7 +80,18 @@ class WorkingCreateApiKey(PaZuFaBaseModel):
     expires_at: Annotated[
         TzDatetime | None, Field(description="The expiration date of the API Key")
     ] = None
-    scope: ApiKeyScope | None = None
+    keytag_prefix: Annotated[
+        str | None,
+        Field(
+            description="Keytag name, maximal length is 10 Characters, the rest of the keytag will be filled with\nrandom data. It is recommended to use this to later identify the keys more easily"
+        ),
+    ] = None
+    scope: Annotated[
+        ApiKeyScope | None,
+        Field(
+            description="Note: inline enums are not fully supported by openapi-generator"
+        ),
+    ] = None
 
 
 class WorkingKeytagListing(PaZuFaBaseModel):
@@ -440,7 +451,12 @@ class WorkingStation(PaZuFaBaseModel):
             description="Link to a web page describing this station in more detail, NOT to a pdf document"
         ),
     ] = None
-    schlagworte: list[str] | None = None
+    schlagworte: Annotated[
+        list[str] | None,
+        Field(
+            description="DEPRECATED: This has been moved to the Vorgang level.\nPlease do not submit any data here, it will be merged as Vorgangs-Schlagworte\nFor details, see https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54"
+        ),
+    ] = None
     stellungnahmen: list[WorkingDokumentOrApiId] | None = None
     titel: Annotated[
         str | None,
@@ -513,10 +529,23 @@ class WorkingVorgang(PaZuFaBaseModel):
     ] = None
     kurztitel: str | None = None
     links: list[AnyUrl] | None = None
-    lobbyregister: list[WorkingLobbyregistereintrag] | None = None
+    lobbyregister: Annotated[
+        list[WorkingLobbyregistereintrag] | None,
+        Field(description="Lobby register annotations from Bundestag sources"),
+    ] = None
     ressort: Ressort | None = None
-    sachgebiete: list[Sachgebiet] | None = None
-    stationen: list[WorkingStation] | None = None
+    sachgebiete: Annotated[
+        list[Sachgebiet] | None, Field(description="Sachgebiet information")
+    ] = None
+    schlagworte: Annotated[
+        list[str] | None, Field(description="General Vorgangs-Schlagworte")
+    ] = None
+    stationen: Annotated[
+        list[WorkingStation] | None,
+        Field(
+            description="List of stations, the core of what happens in one Proceeding"
+        ),
+    ] = None
     titel: str | None = None
     touched_by: Annotated[
         list[WorkingTouchedByEntry] | None,

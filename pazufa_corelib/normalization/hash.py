@@ -125,8 +125,6 @@ def hash_text(text: str) -> tuple[str, HashStrategy]:
 def hash_bytes(data: bytes) -> list[tuple[str, HashStrategy]]:
     """Computes hash values for the given byte data using multiple hashing algorithms.
 
-    (Currently this is not supported by the backend, so only sha 256 is used currently)
-
     This function takes a byte sequence as input and calculates its hash values
     using two different hashing algorithms: SHA-1 (currently disabled, backend
     does not support it yet) and SHA-256. The results are

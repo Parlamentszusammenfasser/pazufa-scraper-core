@@ -44,7 +44,9 @@ class Station:
             gremium_federf (bool | None | Unset): If the station if of type parl-ausschbsl, this field should be set if the
                 committee is the main committee ('federführend')
             link (None | str | Unset): Link to a web page describing this station in more detail, NOT to a pdf document
-            schlagworte (list[str] | Unset):
+            schlagworte (list[str] | Unset): DEPRECATED: This has been moved to the Vorgang level.
+                Please do not submit any data here, it will be merged as Vorgangs-Schlagworte
+                For details, see https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54
             stellungnahmen (list[Dokument | UUID] | Unset):
             titel (None | str | Unset): optional title, if other data does not provide a proper description
             touched_by (list[TouchedByInner] | Unset): list of scraper uuids / key database ids that have touched this

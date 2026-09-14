@@ -10,11 +10,11 @@ if TYPE_CHECKING:
     from ..models.autor import Autor
 
 
-T = TypeVar("T", bound="Lobbyregeintrag")
+T = TypeVar("T", bound="Lobbyregistereintrag")
 
 
 @_attrs_define
-class Lobbyregeintrag:
+class Lobbyregistereintrag:
     """Entry of the Bundestagslobbyregister for a specific Vorgang
 
     Attributes:
@@ -77,7 +77,7 @@ class Lobbyregeintrag:
 
         organisation = Autor.from_dict(d.pop("organisation"))
 
-        lobbyregeintrag = cls(
+        lobbyregistereintrag = cls(
             betroffene_drucksachen=betroffene_drucksachen,
             intention=intention,
             interne_id=interne_id,
@@ -85,8 +85,8 @@ class Lobbyregeintrag:
             organisation=organisation,
         )
 
-        lobbyregeintrag.additional_properties = d
-        return lobbyregeintrag
+        lobbyregistereintrag.additional_properties = d
+        return lobbyregistereintrag
 
     @property
     def additional_keys(self) -> list[str]:

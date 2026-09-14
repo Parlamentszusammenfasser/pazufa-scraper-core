@@ -92,7 +92,18 @@ class CreateApiKey(PaZuFaBaseModel):
     expires_at: Annotated[
         TzDatetime | None, Field(description="The expiration date of the API Key")
     ] = None
-    scope: ApiKeyScope
+    keytag_prefix: Annotated[
+        str | None,
+        Field(
+            description="Keytag name, maximal length is 10 Characters, the rest of the keytag will be filled with\nrandom data. It is recommended to use this to later identify the keys more easily"
+        ),
+    ] = None
+    scope: Annotated[
+        ApiKeyScope,
+        Field(
+            description="Note: inline enums are not fully supported by openapi-generator"
+        ),
+    ]
 
 
 class Doktyp(StrEnum):
@@ -483,7 +494,7 @@ class Stationstyp(StrEnum):
     parl_zurueckgz = "parl-zurueckgz"
     parl_ggentwurf = "parl-ggentwurf"
     parl_vermittas = "parl-vermittas"
-    parl_verfgstop = "parl-verfgstop"
+    postparl_vgstp = "postparl-vgstp"
     postparl_vesja = "postparl-vesja"
     postparl_vesne = "postparl-vesne"
     postparl_gsblt = "postparl-gsblt"
@@ -518,10 +529,17 @@ class VgIdent(PaZuFaBaseModel):
 
 
 class Vorgangstyp(StrEnum):
-    """Vorgangstyp of a `Vorgang`, chiefly by the Grundgesetz route it follows."""
-
-    gg_einspruch = "gg-einspruch"
-    gg_zustimmung = "gg-zustimmung"
+    bu_einspruch_inibreg = "bu-einspruch-inibreg"
+    bu_einspruch_inibreg_haushalt = "bu-einspruch-inibreg-haushalt"
+    bu_zustimmung_inibreg = "bu-zustimmung-inibreg"
+    bu_zustimmung_inibreg_haushalt = "bu-zustimmung-inibreg-haushalt"
+    bu_einspruch_inibreg_intvertrag = "bu-einspruch-inibreg-intvertrag"
+    bu_zustimmung_inibreg_intvertrag = "bu-zustimmung-inibreg-intvertrag"
+    bu_einspruch_inisonst = "bu-einspruch-inisonst"
+    bu_einspruch_inisonst_intvertrag = "bu-einspruch-inisonst-intvertrag"
+    bu_zustimmung_inisonst = "bu-zustimmung-inisonst"
+    bu_zustimmung_inisonst_intvertrag = "bu-zustimmung-inisonst-intvertrag"
+    bu_antrag_bweinsatz = "bu-antrag-bweinsatz"
     gg_land_parl = "gg-land-parl"
     gg_land_volk = "gg-land-volk"
     bw_einsatz = "bw-einsatz"
@@ -778,7 +796,12 @@ class Station(PaZuFaBaseModel):
             description="Link to a web page describing this station in more detail, NOT to a pdf document"
         ),
     ] = None
-    schlagworte: list[str] | None = None
+    schlagworte: Annotated[
+        list[str] | None,
+        Field(
+            description="DEPRECATED: This has been moved to the Vorgang level.\nPlease do not submit any data here, it will be merged as Vorgangs-Schlagworte\nFor details, see https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54"
+        ),
+    ] = None
     stellungnahmen: list[DokumentOrApiId] | None = None
     titel: Annotated[
         str | None,
@@ -849,10 +872,23 @@ class Vorgang(PaZuFaBaseModel):
     ]
     kurztitel: str | None = None
     links: list[AnyHttpUrl] | None = None
-    lobbyregister: list[Lobbyregistereintrag] | None = None
+    lobbyregister: Annotated[
+        list[Lobbyregistereintrag] | None,
+        Field(description="Lobby register annotations from Bundestag sources"),
+    ] = None
     ressort: Ressort | None = None
-    sachgebiete: list[Sachgebiet] | None = None
-    stationen: list[Station]
+    sachgebiete: Annotated[
+        list[Sachgebiet] | None, Field(description="Sachgebiet information")
+    ] = None
+    schlagworte: Annotated[
+        list[str] | None, Field(description="General Vorgangs-Schlagworte")
+    ] = None
+    stationen: Annotated[
+        list[Station],
+        Field(
+            description="List of stations, the core of what happens in one Proceeding"
+        ),
+    ]
     titel: str
     touched_by: Annotated[
         list[TouchedByEntry] | None,

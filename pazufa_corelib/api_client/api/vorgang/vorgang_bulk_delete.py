@@ -7,7 +7,6 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.parlament import Parlament
-from ...models.vorgang_get_response_200_item import VorgangGetResponse200Item
 from ...models.vorgangstyp import Vorgangstyp
 from ...types import UNSET, Response, Unset
 
@@ -24,12 +23,7 @@ def _get_kwargs(
     vgtyp: Vorgangstyp | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
-    expand: bool | Unset = UNSET,
-    if_modified_since: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(if_modified_since, Unset):
-        headers["if-modified-since"] = if_modified_since
 
     params: dict[str, Any] = {}
 
@@ -67,44 +61,33 @@ def _get_kwargs(
 
     params["per_page"] = per_page
 
-    params["expand"] = expand
-
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
+        "method": "delete",
         "url": "/api/v2/vorgang",
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | list[VorgangGetResponse200Item] | str | None:
-    if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = VorgangGetResponse200Item.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
-
-        return response_200
-
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | str | None:
     if response.status_code == 204:
         response_204 = cast(Any, None)
         return response_204
 
-    if response.status_code == 304:
-        response_304 = cast(Any, None)
-        return response_304
-
     if response.status_code == 400:
         response_400 = cast(Any, None)
         return response_400
+
+    if response.status_code == 401:
+        response_401 = cast(Any, None)
+        return response_401
+
+    if response.status_code == 403:
+        response_403 = cast(Any, None)
+        return response_403
 
     if response.status_code == 500:
         response_500 = response.text
@@ -116,9 +99,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any | list[VorgangGetResponse200Item] | str]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | str]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -129,7 +110,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
     p: Parlament | Unset = UNSET,
@@ -140,11 +121,9 @@ def sync_detailed(
     vgtyp: Vorgangstyp | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
-    expand: bool | Unset = UNSET,
-    if_modified_since: None | str | Unset = UNSET,
-) -> Response[Any | list[VorgangGetResponse200Item] | str]:
-    """Retrieves a filterable list of legislative processes. Returns up to 64 processes per request, which
-    can be filtered by various criteria including time range, parliament, and electoral period.
+) -> Response[Any | str]:
+    """Administrative endpoint to delete Vorgang objects from the system by filter parmeters. This
+    operation cannot be undone. With Empty Filters, this is a NOOP
 
     Args:
         since (datetime.datetime | Unset):
@@ -158,15 +137,13 @@ def sync_detailed(
             this tells us about the possible stations that can occurr within
         page (int | Unset):
         per_page (int | Unset):
-        expand (bool | Unset):
-        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[VorgangGetResponse200Item] | str]
+        Response[Any | str]
     """
 
     kwargs = _get_kwargs(
@@ -180,8 +157,6 @@ def sync_detailed(
         vgtyp=vgtyp,
         page=page,
         per_page=per_page,
-        expand=expand,
-        if_modified_since=if_modified_since,
     )
 
     response = client.get_httpx_client().request(
@@ -193,7 +168,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
     p: Parlament | Unset = UNSET,
@@ -204,11 +179,9 @@ def sync(
     vgtyp: Vorgangstyp | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
-    expand: bool | Unset = UNSET,
-    if_modified_since: None | str | Unset = UNSET,
-) -> Any | list[VorgangGetResponse200Item] | str | None:
-    """Retrieves a filterable list of legislative processes. Returns up to 64 processes per request, which
-    can be filtered by various criteria including time range, parliament, and electoral period.
+) -> Any | str | None:
+    """Administrative endpoint to delete Vorgang objects from the system by filter parmeters. This
+    operation cannot be undone. With Empty Filters, this is a NOOP
 
     Args:
         since (datetime.datetime | Unset):
@@ -222,15 +195,13 @@ def sync(
             this tells us about the possible stations that can occurr within
         page (int | Unset):
         per_page (int | Unset):
-        expand (bool | Unset):
-        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[VorgangGetResponse200Item] | str
+        Any | str
     """
 
     return sync_detailed(
@@ -245,14 +216,12 @@ def sync(
         vgtyp=vgtyp,
         page=page,
         per_page=per_page,
-        expand=expand,
-        if_modified_since=if_modified_since,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
     p: Parlament | Unset = UNSET,
@@ -263,11 +232,9 @@ async def asyncio_detailed(
     vgtyp: Vorgangstyp | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
-    expand: bool | Unset = UNSET,
-    if_modified_since: None | str | Unset = UNSET,
-) -> Response[Any | list[VorgangGetResponse200Item] | str]:
-    """Retrieves a filterable list of legislative processes. Returns up to 64 processes per request, which
-    can be filtered by various criteria including time range, parliament, and electoral period.
+) -> Response[Any | str]:
+    """Administrative endpoint to delete Vorgang objects from the system by filter parmeters. This
+    operation cannot be undone. With Empty Filters, this is a NOOP
 
     Args:
         since (datetime.datetime | Unset):
@@ -281,15 +248,13 @@ async def asyncio_detailed(
             this tells us about the possible stations that can occurr within
         page (int | Unset):
         per_page (int | Unset):
-        expand (bool | Unset):
-        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[VorgangGetResponse200Item] | str]
+        Response[Any | str]
     """
 
     kwargs = _get_kwargs(
@@ -303,8 +268,6 @@ async def asyncio_detailed(
         vgtyp=vgtyp,
         page=page,
         per_page=per_page,
-        expand=expand,
-        if_modified_since=if_modified_since,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -314,7 +277,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
     p: Parlament | Unset = UNSET,
@@ -325,11 +288,9 @@ async def asyncio(
     vgtyp: Vorgangstyp | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
-    expand: bool | Unset = UNSET,
-    if_modified_since: None | str | Unset = UNSET,
-) -> Any | list[VorgangGetResponse200Item] | str | None:
-    """Retrieves a filterable list of legislative processes. Returns up to 64 processes per request, which
-    can be filtered by various criteria including time range, parliament, and electoral period.
+) -> Any | str | None:
+    """Administrative endpoint to delete Vorgang objects from the system by filter parmeters. This
+    operation cannot be undone. With Empty Filters, this is a NOOP
 
     Args:
         since (datetime.datetime | Unset):
@@ -343,15 +304,13 @@ async def asyncio(
             this tells us about the possible stations that can occurr within
         page (int | Unset):
         per_page (int | Unset):
-        expand (bool | Unset):
-        if_modified_since (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[VorgangGetResponse200Item] | str
+        Any | str
     """
 
     return (
@@ -367,7 +326,5 @@ async def asyncio(
             vgtyp=vgtyp,
             page=page,
             per_page=per_page,
-            expand=expand,
-            if_modified_since=if_modified_since,
         )
     ).parsed

@@ -183,8 +183,8 @@ def test_patch_spec_against_real_openapi_yaml() -> None:
     """Sanity check on the real spec, not just the synthetic fixture."""
     spec = _real_spec()
     before = _header_params(spec)
-    assert before.get("if_modified_since") == "date-time", (
-        "Precondition: spec should still declare if_modified_since as date-time"
+    assert before.get("if-modified-since") == "date-time", (
+        "Precondition: spec should still declare if-modified-since as date-time"
     )
     assert before.get("x-scraper-id") == "uuid", (
         "Precondition: spec should still declare x-scraper-id as uuid"
@@ -192,7 +192,7 @@ def test_patch_spec_against_real_openapi_yaml() -> None:
 
     patched = _patch_spec(copy.deepcopy(spec))
     after = _header_params(patched)
-    assert after["if_modified_since"] is None
+    assert after["if-modified-since"] is None
     assert after["x-scraper-id"] is None
 
 
