@@ -11,6 +11,7 @@ from .authors import (
     AuthorResolver,
     default_author_files,
 )
+from .date import normalize_datum
 from .experimental import normalize_autor
 from .hash import hash_bytes, hash_text
 from .organizations import (
@@ -20,7 +21,6 @@ from .organizations import (
 )
 from .schlagworte import SchlagwortResolver
 from .text import (
-    normalize_datum,
     normalize_name,
     normalize_name_key,
     normalize_volltext,

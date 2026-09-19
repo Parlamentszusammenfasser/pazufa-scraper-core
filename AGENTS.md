@@ -226,6 +226,7 @@ Then regenerate and review the diff carefully.
 - `pazufa_corelib/normalization/` - text, date, URL, hash, name, and Schlagworte helpers
   - `names.py` - `normalize_name`, `AuthorResolver`, `OrganizationResolver`; experimental `normalize_autor`
   - `text.py` - `normalize_name_key`, `normalize_volltext`
+  - `date.py` - `normalize_datum`
   - `hash.py` - content hashing utilities
   - `urls.py` - URL normalization
   - `schlagworte.py` - controlled topic taxonomy helpers
