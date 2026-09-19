@@ -24,20 +24,24 @@ _RE_INVISIBLE = re.compile(
 # Hyphenated line breaks: word-char, hyphen, newline, word-char
 _RE_HYPHEN_BREAK = re.compile(r"(\w)-\n(\w)")
 
+# --- Smart dehyphenation (opt-in: normalize_volltext(smart_dehyphenation=True)) -
+
+# Line-end hyphen after a word: hyphen-minus or U+2010 (NFKC also turns the
+# non-breaking hyphen U+2011 into U+2010). The next word is only looked at, not
+# consumed, so a word broken over three lines is rejoined twice.
+_RE_LINE_END_HYPHEN = re.compile(r"\b(\w+)([-‐])\n(?=(\w+))")
+
+# Soft hyphen at a line end: always a syllable break
+_RE_SOFT_HYPHEN_BREAK = re.compile(r"(\w)­(?:\r\n|\r|\n)(\w)")
+
+# Words after which a line-end hyphen is a suspended hyphen that has to stay
+# ("Bundes- und Landesmittel")
+_SUSPENDED_HYPHEN_FOLLOWERS: frozenset[str] = frozenset(
+    {"und", "oder", "bzw", "sowie", "bis"}
+)
+
 # Multiple spaces/tabs within a line (not newlines)
 _RE_MULTI_SPACE = re.compile(r"[ \t]{2,}")
-
-# Punctuation characters that are not word chars or whitespace
-_RE_NAME_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
-
-# German umlaut fold applied after NFKC + lowercase (so only lowercase umlauts needed)
-_UMLAUT_TABLE: dict[int, str] = {
-    ord("ü"): "ue",
-    ord("ö"): "oe",
-    ord("ä"): "ae",
-    ord("ß"): "ss",
-}
-
 
 # German vowels (including umlauts) for consonant-cluster detection
 _GERMAN_VOWELS: frozenset[str] = frozenset("aeiouäöüAEIOUÄÖÜ")
@@ -50,6 +54,103 @@ _MIN_WORDS_FOR_PENALTIES = 4
 # --- Paragraph splitting ------------------------------------------------------
 
 _RE_PARAGRAPH_SPLIT = re.compile(r"\n\s*\n")
+
+# --- HTML tag stripping (opt-in: normalize_volltext(strip_html=True)) ---------
+
+# HTML element names, one set per role, i.e. per what happens to the tag. Each name
+# belongs to exactly one role. The long sets are wrapped by hand (fmt: off), since
+# the formatter would put every name on a line of its own.
+
+# Start and end tag become a blank line (paragraph break)
+# fmt: off
+_HTML_BLOCK_ELEMENTS: frozenset[str] = frozenset({
+    "address", "article", "aside", "blockquote", "body", "caption", "center", "dd",
+    "details", "dialog", "div", "dl", "dt", "fieldset", "figcaption", "figure",
+    "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr",
+    "html", "main", "nav", "ol", "p", "pre", "section", "summary", "table", "ul",
+})
+# fmt: on
+
+# Start tag begins a new line or a new table cell; the end tag is removed
+_HTML_LINE_ELEMENTS: frozenset[str] = frozenset({"br", "li", "tr"})
+_HTML_CELL_ELEMENTS: frozenset[str] = frozenset({"td", "th"})
+
+# Removed together with their content (see _RE_HTML_SPAN_OPENER). The document
+# head is removed there too, but by a rule of its own, so "head" is not listed.
+_HTML_ELEMENTS_WITHOUT_TEXT: frozenset[str] = frozenset(
+    {"math", "noscript", "script", "style", "svg", "template"}
+)
+
+# Tag is removed without leaving a gap: inline elements, but also elements such
+# as tbody or title whose tags need no separator
+# fmt: off
+_HTML_INLINE_ELEMENTS: frozenset[str] = frozenset({
+    "a", "abbr", "acronym", "area", "audio", "b", "base", "bdi", "bdo", "big", "button",
+    "canvas", "cite", "code", "col", "colgroup", "data", "datalist", "del", "dfn",
+    "dir", "em", "embed", "font", "frame", "frameset", "i", "iframe", "img", "input",
+    "ins", "kbd", "label", "legend", "link", "map", "mark", "menu", "meta", "meter",
+    "nobr", "noframes", "object", "optgroup", "option", "output", "param", "picture",
+    "progress", "q", "rp", "rt", "ruby", "s", "samp", "search", "select", "slot",
+    "small", "source", "span", "strike", "strong", "sub", "sup", "tbody", "textarea",
+    "tfoot", "thead", "time", "title", "track", "tt", "u", "var", "video", "wbr",
+})
+# fmt: on
+
+# All known element names. Only these, plus namespaced and custom element names,
+# count as tags, so angle-bracket text such as <poststelle@lfdi.bwl.de> or
+# "a < b" survives as text.
+_HTML_ELEMENTS: frozenset[str] = (
+    _HTML_BLOCK_ELEMENTS
+    | _HTML_LINE_ELEMENTS
+    | _HTML_CELL_ELEMENTS
+    | _HTML_ELEMENTS_WITHOUT_TEXT
+    | {"head"}
+    | _HTML_INLINE_ELEMENTS
+)
+
+# HTML whitespace is ASCII only; NBSP is left for NFKC to turn into a space
+_RE_HTML_WHITESPACE = re.compile(r"[ \t\n\r\f]+")
+
+# Openers of constructs removed together with their content: comments (incl.
+# Word's <!--[if gte mso 9]>…<![endif]--> blocks), CDATA sections, elements
+# without text and the document head. The matched group name (or element name)
+# selects the closer in _HTML_SPAN_CLOSERS.
+_RE_HTML_SPAN_OPENER = re.compile(
+    r"(?P<comment><!--)|(?P<cdata><!\[CDATA\[)"
+    rf"|<(?P<element>{'|'.join(sorted(_HTML_ELEMENTS_WITHOUT_TEXT))})\b[^<>]*>"
+    r"|(?P<head><head\b[^<>]*>)",
+    re.IGNORECASE,
+)
+_HTML_SPAN_CLOSERS: dict[str, re.Pattern[str]] = {
+    "comment": re.compile(r"-->"),
+    "cdata": re.compile(r"\]\]>"),
+    # an omitted </head> ends where <body> starts
+    "head": re.compile(r"</head\s*>|(?=<body[\s>])", re.IGNORECASE),
+    **{
+        name: re.compile(rf"</{name}\s*>", re.IGNORECASE)
+        for name in _HTML_ELEMENTS_WITHOUT_TEXT
+    },
+}
+
+# Word's <![if …]> / <![endif]> markers, doctype, XML declaration
+_RE_HTML_DECLARATION = re.compile(
+    r"<!\[(?:if\b[^\]<>]*|endif)\]>|<!doctype[^<>]*>|<\?xml[^<>]*\?>",
+    re.IGNORECASE,
+)
+
+# Start or end tag of a known, namespaced (Word's <o:p>) or custom (<my-widget>)
+# element. Group 1 is "/" for end tags, group 2 the element name. Quoted attribute
+# values may contain ">".
+_RE_HTML_TAG = re.compile(
+    r"<(/?)((?:"
+    + "|".join(sorted(_HTML_ELEMENTS, key=len, reverse=True))
+    + r")(?![\w:-])|[a-z][a-z0-9]*(?:[:-][\w.-]+)+)"
+    r"""(?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'<>=`]+))?)*\s*/?>""",
+    re.IGNORECASE,
+)
+
+# Spaces left around the line breaks inserted for block and line elements
+_RE_HTML_NEWLINE_PADDING = re.compile(r"[ \t]*\n[ \t]*")
 
 # --- Private helpers ----------------------------------------------------------
 
@@ -111,89 +212,111 @@ def _paragraph_quality_score(paragraph: str) -> float:
     return max(0.0, min(1.0, score))
 
 
-# German academic titles and parliamentary post-nominals.
-# Stripped before key derivation so they don't influence matching.
-_RE_HONORIFICS = re.compile(
-    r"(?<!\w)(?:"
-    r"Dr\.(?:-Ing\.|-rer\.nat\.|-phil\.|-jur\.)?"
-    r"|Prof\.(?:\s+Dr\.)?"
-    r"|Dipl\.-\w+"
-    r"|M\.(?:A|Sc|Ed|B)\."
-    r"|B\.(?:A|Sc|Ed)\."
-    r"|Ph\.D\."
-    r"|MdB|MdL|MdEP"
-    r"|a\.D\."
-    r")(?!\w)",
-    re.IGNORECASE,
-)
+def _rejoin_line_end_hyphen(match: re.Match[str]) -> str:
+    r"""Rejoin a word split by a line-end hyphen unless the hyphen is real.
+
+    Replacement for ``_RE_LINE_END_HYPHEN``. A suspended hyphen before a
+    conjunction stays and the line break becomes a space (``Bundes-\nund`` →
+    ``Bundes- und``); keeping the line break would let a later default
+    normalization, as ``hash_text`` runs it, join the words after all. Next to a
+    digit (``20-jährige``) or before a capitalised word (``Baden-Württemberg``,
+    ``CDU-Fraktion``) the hyphen stays and only the line break goes. Otherwise
+    the hyphen is a syllable break and both go; all-caps words
+    (``BESCHLUSS-\nEMPFEHLUNG``) are joined as well.
+    """
+    left, hyphen, right = match.groups()
+    if right in _SUSPENDED_HYPHEN_FOLLOWERS:
+        return f"{left}{hyphen} "
+    if (
+        left[-1].isdigit()
+        or right[0].isdigit()
+        or (right[0].isupper() and right[1:2].islower())
+    ):
+        return left + hyphen
+    return left
+
+
+def _html_tag_separator(match: re.Match[str]) -> str:
+    """Return the text that replaces a tag matched by ``_RE_HTML_TAG``."""
+    is_end_tag, name = bool(match.group(1)), match.group(2).lower()
+    if name in _HTML_BLOCK_ELEMENTS:
+        return "\n\n"
+    if not is_end_tag and name in _HTML_LINE_ELEMENTS:
+        return "\n"
+    if not is_end_tag and name in _HTML_CELL_ELEMENTS:
+        return " "
+    return ""
+
+
+def _remove_html_spans(text: str) -> str:
+    """Remove comments, CDATA, the head and elements without text, with content.
+
+    Scans left to right, so whichever construct opens first wins (a ``<!--``
+    inside a script is script content). An opener without a closer is left in
+    place, and its kind is skipped from then on: no later opener of that kind
+    can be closed either. This keeps the scan linear where a lazy
+    ``<x>.*?</x>`` regex would rescan the rest of the text for every opener.
+
+    Args:
+        text: HTML with whitespace already collapsed.
+
+    Returns:
+        The HTML without those constructs.
+    """
+    parts: list[str] = []
+    unclosed: set[str] = set()
+    kept_from = scan_from = 0
+    while (opener := _RE_HTML_SPAN_OPENER.search(text, scan_from)) is not None:
+        kind = opener.lastgroup or ""
+        if kind == "element":
+            kind = opener.group("element").lower()
+        closer = None
+        if kind not in unclosed:
+            closer = _HTML_SPAN_CLOSERS[kind].search(text, opener.end())
+        if closer is None:
+            unclosed.add(kind)
+            scan_from = opener.end()
+            continue
+        parts.append(text[kept_from : opener.start()])
+        kept_from = scan_from = closer.end()
+    parts.append(text[kept_from:])
+    return "".join(parts)
+
+
+def _strip_html_tags(text: str) -> str:
+    """Convert HTML markup to plain text for :func:`normalize_volltext`.
+
+    Applies HTML whitespace rules (line breaks and indentation in the source are
+    not text), drops comments, declarations and non-text elements (``script``,
+    ``style``, ``head``, …), turns block elements into blank lines, ``br`` /
+    ``li`` / ``tr`` into line breaks and table cells into spaces, and removes all
+    other tags without leaving a gap. Entities stay encoded for the decoding
+    step that follows, so escaped markup such as ``&lt;b&gt;`` remains text.
+
+    Args:
+        text: Raw HTML.
+
+    Returns:
+        Text without markup, with paragraph structure expressed as newlines.
+    """
+    text = _RE_HTML_WHITESPACE.sub(" ", text)
+    text = _remove_html_spans(text)
+    text = _RE_HTML_DECLARATION.sub("", text)
+    text = _RE_HTML_TAG.sub(_html_tag_separator, text)
+    return _RE_HTML_NEWLINE_PADDING.sub("\n", text)
 
 
 # --- Public Functions ---------------------------------------------------------------
 
 
-def normalize_name(raw: str) -> str:
-    """Normalize a person or organization name to a stable comparison key.
-
-    Pipeline:
-
-    1. Strip honorifics and post-nominals (``Dr.``, ``Prof.``, ``MdB``, …)
-    2. Apply :func:`normalize_name_key` (NFKC, umlaut fold, lowercase,
-       strip punctuation, collapse whitespace)
-    3. Token-sort — ``"Maria Müller"`` and ``"Müller, Maria"`` produce the
-       same key
-
-    Args:
-        raw: Raw name string, e.g., from scraped parliamentary data.
-
-    Returns:
-        Lowercase, umlaut-folded, honorific-stripped, token-sorted key.
-    """
-    text = _RE_HONORIFICS.sub(" ", raw)
-    text = normalize_name_key(text)
-    tokens = text.split()
-    tokens.sort()
-    return " ".join(tokens)
-
-
-def normalize_name_key(text: str) -> str:
-    r"""Produce a normalised comparison key for a name string.
-
-    Applies character-level transformations only — no structural changes
-    (honorific stripping, token sorting). Intended as the shared base for
-    all name resolver preprocessing.
-
-    Pipeline:
-
-    1. NFKC unicode normalisation (ligatures, full-width, NBSP, …)
-    2. Strip invisible/zero-width and C1 control characters
-    3. Lowercase
-    4. German umlaut fold (``ü→ue``, ``ö→oe``, ``ä→ae``, ``ß→ss``)
-    5. Strip punctuation (everything that is not ``\\w`` or whitespace)
-    6. Collapse multiple spaces/tabs to a single space and strip ends
-
-    Args:
-        text: Raw name string.
-
-    Returns:
-        Normalised key suitable for exact lookup or as input to a fuzzy
-        or n-gram matcher.
-    """
-    text = unicodedata.normalize("NFKC", text)
-    text = _RE_INVISIBLE.sub("", text)
-    text = _RE_C1_CONTROLS.sub("", text)
-    text = text.lower()
-    text = text.translate(_UMLAUT_TABLE)
-    text = text.replace("/", " ")  # slash as separator: CDU/CSU, Bündnis 90/Die Grünen
-    text = _RE_NAME_PUNCT.sub("", text)
-    text = _RE_MULTI_SPACE.sub(" ", text)
-    return text.strip()
-
-
-def normalize_volltext(text: str) -> str:
+def normalize_volltext(
+    text: str, *, strip_html: bool = False, smart_dehyphenation: bool = False
+) -> str:
     r"""Normalize German fulltext.
 
     Applies a sequential cleaning pipeline:
 
+    0. Only with ``strip_html=True``: convert HTML markup to plain text
     1. HTML entity decoding (``&amp;``, ``&uuml;``, ``&#160;``, …)
     2. NFKC unicode normalisation
     3. Strip invisible/zero-width characters (soft hyphen, BOM, ZWJ, ZWSP)
@@ -202,7 +325,8 @@ def normalize_volltext(text: str) -> str:
     5. Strip C1 control characters (U+0080–U+009F)
     6. Normalize line endings to ``\\n``
     7. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` →
-       ``Landesregierung``)
+       ``Landesregierung``); with ``smart_dehyphenation=True`` real hyphens
+       are kept
     8. Collapse multiple spaces/tabs within a line to a single space
     9. Remove paragraphs with quality score < 0.5
     10. Replace ``<`` / ``>`` with guillemets ‹ › to neutralize XSS triggers
@@ -212,14 +336,45 @@ def normalize_volltext(text: str) -> str:
 
     Args:
         text: Raw extracted text from a PDF parser or HTML source.
+        strip_html: Treat ``text`` as HTML and remove its markup first: block
+            elements become paragraph breaks, ``<br>``, ``<li>`` and ``<tr>``
+            become line breaks, table cells are separated by spaces and other
+            tags are removed; ``script``, ``style``, ``head``, comments and
+            similar non-text content are dropped. HTML whitespace rules apply,
+            so line breaks and indentation in the source are collapsed (also
+            inside ``<pre>``) — pass ``True`` for raw HTML only. Angle brackets
+            that are not tags (``a < b``, e-mail addresses) are kept. Defaults
+            to ``False``, which leaves the output unchanged; ``hash_text``
+            always uses the default, so its digests are not affected.
+        smart_dehyphenation: Keep real hyphens when rejoining words split at a
+            line end. By default every ``word-\\nword`` is joined, which also
+            turns ``Baden-\\nWürttemberg`` into ``BadenWürttemberg``. With
+            ``True`` the hyphen stays next to a digit (``20-jährige``) and
+            before a capitalised word (``Baden-Württemberg``,
+            ``CDU-Fraktion``), a suspended hyphen before ``und``, ``oder``,
+            ``bzw``, ``sowie`` or ``bis`` stays (``Bundes- und
+            Landesmittel``), and line ends with a soft hyphen or the
+            typographic hyphens U+2010/U+2011 are rejoined too. The result is
+            not changed by a later default normalization, so ``hash_text`` of
+            the stored text is the SHA-256 of exactly that text. Compounds of
+            two lowercase words (``deutsch-\\nfranzösische``) are still
+            joined. Defaults to ``False``, which leaves the output and
+            ``hash_text`` digests unchanged.
 
     Returns:
         Cleaned text with garbled paragraphs removed and whitespace normalized.
         Returns an empty string if the input is empty or all paragraphs are
         filtered out.
     """
+    if strip_html:
+        # Before entity decoding, so escaped markup (&lt;b&gt;) stays text.
+        text = _strip_html_tags(text)
     text = html.unescape(text)
     text = unicodedata.normalize("NFKC", text)
+    if smart_dehyphenation:
+        # Before invisible characters are stripped: without its soft hyphen the
+        # word would stay split across the line break.
+        text = _RE_SOFT_HYPHEN_BREAK.sub(r"\1\2", text)
     text = _RE_INVISIBLE.sub("", text)
     # Strip C0 controls (incl. NUL) and DEL but keep \t \n \r; a stray NUL
     # would otherwise break the backend's PostgreSQL text insert.
@@ -231,7 +386,10 @@ def normalize_volltext(text: str) -> str:
     # _RE_HYPHEN_BREAK will not fire across paragraph boundaries (those are
     # separated by \n\s*\n, never a bare word-hyphen-newline-word sequence).
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = _RE_HYPHEN_BREAK.sub(r"\1\2", text)
+    if smart_dehyphenation:
+        text = _RE_LINE_END_HYPHEN.sub(_rejoin_line_end_hyphen, text)
+    else:
+        text = _RE_HYPHEN_BREAK.sub(r"\1\2", text)
     # Collapse intra-line whitespace after rejoining so PDF-extracted extra
     # spaces don't interfere with paragraph splitting (which relies on blank
     # lines, not spaces).
