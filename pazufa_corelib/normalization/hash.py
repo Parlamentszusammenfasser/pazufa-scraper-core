@@ -77,7 +77,9 @@ def hash_bytes_sha_256(data: bytes) -> tuple[str, HashStrategy]:
     return hash_content, hash_type
 
 
-def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
+def hash_text_sha_256(
+    text: str, strip_html: bool = False, smart_dehyphenation: bool = False
+) -> tuple[str, HashStrategy]:
     """SHA-256 hash of normalized text (please only use when rawbyte-hash not possible).
 
     Hashes over the output of :func:`normalise_volltext` so that minor
@@ -92,7 +94,9 @@ def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
     """
     _check_type(text, str)
 
-    normalized = normalize_volltext(text)
+    normalized = normalize_volltext(
+        text, strip_html=strip_html, smart_dehyphenation=smart_dehyphenation
+    )
     if not normalized:
         raise ValueError(
             "Cannot hash text: normalization produced an empty string "
@@ -109,7 +113,9 @@ def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
 # =====================================================================
 
 
-def hash_text(text: str) -> tuple[str, HashStrategy]:
+def hash_text(
+    text: str, strip_html: bool = False, smart_dehyphenation: bool = False
+) -> tuple[str, HashStrategy]:
     """Hash text with SHA-256, returning ``(digest, variant)``.
 
     Args:
@@ -119,7 +125,9 @@ def hash_text(text: str) -> tuple[str, HashStrategy]:
         tuple[str, str]: A tuple containing the binary hash and its hexadecimal
         representation.
     """
-    return hash_text_sha_256(text)
+    return hash_text_sha_256(
+        text, strip_html=strip_html, smart_dehyphenation=smart_dehyphenation
+    )
 
 
 def hash_bytes(data: bytes) -> list[tuple[str, HashStrategy]]:

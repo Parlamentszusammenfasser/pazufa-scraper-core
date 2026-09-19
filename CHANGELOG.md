@@ -8,10 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - **`normalize_volltext(text, strip_html=True)`** — optional removal of HTML markup before normalization: block elements become paragraph breaks, `<br>`/`<li>`/`<tr>` line breaks, table cells spaces; `script`, `style`, `head`, comments and Word markup (`<o:p>`, conditional comments) are dropped, and angle brackets that are not tags (`a < b`, e-mail addresses) are kept. Off by default, so existing output and `hash_text` digests are unchanged and scrapers can switch over one at a time.
 - **`normalize_volltext(text, smart_dehyphenation=True)`** — keeps real hyphens when rejoining words split at a line end: `Baden-\nWürttemberg` → `Baden-Württemberg` (default: `BadenWürttemberg`), `CDU-Fraktion`, `20-jährige`, and suspended hyphens are kept (`Bundes-\nund Landesmittel` → `Bundes- und Landesmittel`). Line ends with a soft hyphen or the typographic hyphens U+2010/U+2011, which the default leaves split, are rejoined too. Compounds of two lowercase words (`deutsch-\nfranzösische`) are still joined. The result is stable under the default normalization that `hash_text` applies, so hashing the stored text gives the SHA-256 of exactly that text. Off by default for the same hash-stability reason as `strip_html`.
+- **Hash Text Functions** — The Hash text functions now also have these two options to allow controll over the underlining 'normalize_volltext' function.
 
 ### Changed
 - **normalize_datum** and accompaning regex moved into new file 'date.py'. This was done to shorten 'text.py'.
-- **normalize_name** and **normalize_name_key** and their regexes moved into new file 'names.py', also to shorten 'text.py'. Imports from `pazufa_corelib.normalization` are unchanged; code importing them from `pazufa_corelib.normalization.text` must import from `pazufa_corelib.normalization.names` instead.
+- **normalize_name** and **normalize_name_key** and their regexes moved into new file 'names.py', also to shorten 'text.py'.
 
 
 
