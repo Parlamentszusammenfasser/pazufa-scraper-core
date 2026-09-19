@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [unreleased]
+### Changed
+- **normalize_datum** and accompaning regex moved into new file 'date.py'. This was done to shorten 'text.py'.
+
+
+
 ---
 ## [0.2.2] - 14-09-2026
 ### Changed
