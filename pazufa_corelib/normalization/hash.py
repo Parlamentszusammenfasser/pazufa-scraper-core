@@ -119,6 +119,8 @@ def hash_text(
     """Hash text with SHA-256, returning ``(digest, variant)``.
 
     Args:
+        strip_html: bool if the html tags should be striped
+        smart_dehyphenation: bool if the dehyphenation should be used
         text (str): The input text to be hashed.
 
     Returns:
