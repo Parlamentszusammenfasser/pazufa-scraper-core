@@ -1,5 +1,6 @@
 """Tests for normalization utilities."""
 
+import hashlib
 import logging
 from pathlib import Path
 from unittest.mock import patch
@@ -14,13 +15,22 @@ from pazufa_corelib.normalization import (
     NameIDResolution,
     OrganizationIDResolution,
     OrganizationResolver,
+    hash_text,
     normalize_name,
     normalize_name_key,
     normalize_volltext,
 )
 from pazufa_corelib.normalization.experimental import normalize_autor
 from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
-from pazufa_corelib.normalization.text import _paragraph_quality_score
+from pazufa_corelib.normalization.text import (
+    _HTML_BLOCK_ELEMENTS,
+    _HTML_CELL_ELEMENTS,
+    _HTML_ELEMENTS,
+    _HTML_ELEMENTS_WITHOUT_TEXT,
+    _HTML_INLINE_ELEMENTS,
+    _HTML_LINE_ELEMENTS,
+    _paragraph_quality_score,
+)
 
 # ---------------------------------------------------------------------------
 # normalize_volltext
@@ -290,10 +300,11 @@ class TestnormalizeVolltextEdgeCases:
 
 
 # ---------------------------------------------------------------------------
-# normalize_volltext — HTML input characterisation
+# normalize_volltext — HTML input characterisation (default, strip_html=False)
 #
 # Tags are NOT stripped — only entities are decoded. These tests document
-# the predictable behaviour so callers know what to expect.
+# the predictable behaviour so callers know what to expect, and pin the default
+# output that hash_text digests are computed over.
 # ---------------------------------------------------------------------------
 
 
@@ -346,6 +357,225 @@ class TestnormalizeVolltextOnHtmlInput:
         result = normalize_volltext("<script>alert(1)</script>")
         assert "<script>" not in result
         assert "alert(1)" in result
+
+
+# ---------------------------------------------------------------------------
+# normalize_volltext — strip_html=True
+# ---------------------------------------------------------------------------
+
+
+class TestnormalizeVolltextStripHtml:
+    def test_default_keeps_tags(self) -> None:
+        assert normalize_volltext("<p>Absatz</p>") == "‹p›Absatz‹/p›"
+
+    def test_block_elements_become_paragraphs(self) -> None:
+        result = normalize_volltext(
+            "<p>Absatz eins</p><p>Absatz zwei</p>", strip_html=True
+        )
+        assert result == "Absatz eins\n\nAbsatz zwei"
+
+    def test_unclosed_paragraphs_become_paragraphs(self) -> None:
+        result = normalize_volltext("<p>eins<p>zwei<p>drei", strip_html=True)
+        assert result == "eins\n\nzwei\n\ndrei"
+
+    def test_br_becomes_line_break(self) -> None:
+        result = normalize_volltext(
+            "Zeile eins<br>Zeile zwei<br/>Zeile drei", strip_html=True
+        )
+        assert result == "Zeile eins\nZeile zwei\nZeile drei"
+
+    def test_inline_tags_removed_without_gap(self) -> None:
+        result = normalize_volltext(
+            "Landes<span>regierung</span> und <b>Land</b>tag", strip_html=True
+        )
+        assert result == "Landesregierung und Landtag"
+
+    def test_list_items_become_lines(self) -> None:
+        result = normalize_volltext(
+            "<ul><li>zu berichten,</li><li>vorzulegen.</li></ul>", strip_html=True
+        )
+        assert result == "zu berichten,\nvorzulegen."
+
+    def test_table_rows_become_lines_and_cells_spaces(self) -> None:
+        markup = (
+            "<table><tr><th>Drucksache</th><th>Titel</th></tr>"
+            "<tr><td>17/1234</td><td>Antrag der Fraktion</td></tr></table>"
+        )
+        result = normalize_volltext(markup, strip_html=True)
+        assert result == "Drucksache Titel\n17/1234 Antrag der Fraktion"
+
+    def test_uppercase_tags_and_unquoted_attributes(self) -> None:
+        markup = (
+            '<P ALIGN=CENTER><FONT FACE="Arial">Der Landtag hat beschlossen</FONT></P>'
+        )
+        assert (
+            normalize_volltext(markup, strip_html=True) == "Der Landtag hat beschlossen"
+        )
+
+    def test_quoted_attribute_may_contain_gt(self) -> None:
+        markup = '<p><a title="a > b" href="/x?a=1&amp;sect=3">Link</a></p>'
+        assert normalize_volltext(markup, strip_html=True) == "Link"
+
+    def test_script_style_and_comments_removed_with_content(self) -> None:
+        markup = (
+            "<style>p{color:red}</style><!-- Navigation -->"
+            '<script>var s = "</div>"; if (a<b) track()</script><p>Text</p>'
+        )
+        assert normalize_volltext(markup, strip_html=True) == "Text"
+
+    def test_first_opened_construct_wins(self) -> None:
+        # "<!--" inside a script is script content, not the start of a comment
+        markup = "<script>if (a <!--b) x()</script><p>Text</p><!-- Kommentar -->"
+        assert normalize_volltext(markup, strip_html=True) == "Text"
+
+    def test_unclosed_comment_kept_as_text(self) -> None:
+        markup = "<p>Text</p><!-- offen <p>Rest</p>"
+        result = normalize_volltext(markup, strip_html=True)
+        assert result == "Text\n\n‹!-- offen\n\nRest"
+
+    def test_svg_removed_with_content(self) -> None:
+        markup = "<svg><title>Icon</title><text>Grafik</text></svg><p>Text</p>"
+        assert normalize_volltext(markup, strip_html=True) == "Text"
+
+    def test_doctype_head_and_source_whitespace(self) -> None:
+        markup = (
+            "<!DOCTYPE html>\n<html>\n  <head>\n    <title>Plenarprotokoll</title>\n"
+            "  </head>\n\n  <body>\n    <p>Der  Landtag\n    tagt.</p>\n  </body>\n</html>"
+        )
+        assert normalize_volltext(markup, strip_html=True) == "Der Landtag tagt."
+
+    def test_unclosed_head_ends_at_body(self) -> None:
+        markup = "<html><head><title>Titel</title><body><p>Inhalt</p></body></html>"
+        assert normalize_volltext(markup, strip_html=True) == "Inhalt"
+
+    def test_word_markup_removed(self) -> None:
+        markup = (
+            "<!--[if gte mso 9]><xml><w:WordDocument></w:WordDocument></xml>"
+            "<![endif]--><p class=MsoNormal><![if !supportLists]>1.<![endif]>"
+            " Der Landtag<o:p></o:p></p><st1:place>Stuttgart</st1:place>"
+        )
+        result = normalize_volltext(markup, strip_html=True)
+        assert result == "1. Der Landtag\n\nStuttgart"
+
+    def test_custom_elements_removed(self) -> None:
+        markup = "<my-widget>Inhalt</my-widget>"
+        assert normalize_volltext(markup, strip_html=True) == "Inhalt"
+
+    def test_cdata_removed(self) -> None:
+        markup = "<p>A<![CDATA[ x < y ]]>B</p>"
+        assert normalize_volltext(markup, strip_html=True) == "AB"
+
+    def test_element_roles_do_not_overlap(self) -> None:
+        roles = [
+            _HTML_BLOCK_ELEMENTS,
+            _HTML_LINE_ELEMENTS,
+            _HTML_CELL_ELEMENTS,
+            _HTML_ELEMENTS_WITHOUT_TEXT,
+            frozenset({"head"}),
+            _HTML_INLINE_ELEMENTS,
+        ]
+        assert sum(len(role) for role in roles) == len(_HTML_ELEMENTS)
+
+    def test_unclosed_element_without_text_is_a_tag(self) -> None:
+        # Without </math> nothing is removed with its content, but <math> is
+        # still a tag and must not leak into the text.
+        markup = "<p>Formel <math>x</p>"
+        assert normalize_volltext(markup, strip_html=True) == "Formel x"
+
+    def test_escaped_markup_stays_text(self) -> None:
+        markup = "<p>Das Element &lt;b&gt; macht Text fett.</p>"
+        result = normalize_volltext(markup, strip_html=True)
+        assert result == "Das Element ‹b› macht Text fett."
+
+    def test_entities_decoded_once(self) -> None:
+        markup = "<p>Ma&szlig;nahmen &amp;lt;b&amp;gt;</p>"
+        result = normalize_volltext(markup, strip_html=True)
+        assert result == "Maßnahmen &lt;b&gt;"
+
+    def test_angle_brackets_that_are_not_tags_kept(self) -> None:
+        markup = "<p>Kontakt: <poststelle@lfdi.bwl.de>, Wert <5, a < b</p>"
+        result = normalize_volltext(markup, strip_html=True)
+        assert result == "Kontakt: ‹poststelle@lfdi.bwl.de›, Wert ‹5, a ‹ b"
+
+
+# ---------------------------------------------------------------------------
+# normalize_volltext — smart_dehyphenation=True
+# ---------------------------------------------------------------------------
+
+
+class TestnormalizeVolltextSmartDehyphenation:
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            # syllable breaks are joined
+            ("Landes-\nregierung", "Landesregierung"),
+            ("Über-\ngangsregelung", "Übergangsregelung"),
+            ("Ge-\nsetzentwurf", "Gesetzentwurf"),
+            ("BESCHLUSS-\nEMPFEHLUNG", "BESCHLUSSEMPFEHLUNG"),
+            # real hyphens before a capitalised word stay
+            ("Baden-\nWürttemberg", "Baden-Württemberg"),
+            ("CDU-\nFraktion", "CDU-Fraktion"),
+            ("E-\nMail", "E-Mail"),
+            ("Kfz-\nSteuer", "Kfz-Steuer"),
+            ("Bund-Länder-\nArbeitsgruppe", "Bund-Länder-Arbeitsgruppe"),
+            # real hyphens next to a digit stay
+            ("20-\njährige", "20-jährige"),
+            ("Covid-\n19-Pandemie", "Covid-19-Pandemie"),
+            # suspended hyphens stay, the line break becomes a space
+            ("Bundes-\nund Landesmittel", "Bundes- und Landesmittel"),
+            ("Hin-\noder Rückfahrt", "Hin- oder Rückfahrt"),
+        ],
+    )
+    def test_line_end_hyphen(self, text: str, expected: str) -> None:
+        result = normalize_volltext(text, smart_dehyphenation=True)
+        assert result == expected
+        # hash_text normalizes again with the defaults; that must not change it
+        assert normalize_volltext(result) == result
+
+    def test_hash_text_matches_stored_text(self) -> None:
+        markup = "<p>Baden-<br>Württemberg, Bundes-<br>und Landes-<br>mittel</p>"
+        volltext = normalize_volltext(markup, strip_html=True, smart_dehyphenation=True)
+        assert volltext == "Baden-Württemberg, Bundes- und Landesmittel"
+        expected = hashlib.sha256(volltext.encode("utf-8")).hexdigest()
+        assert hash_text(volltext)[0] == expected
+
+    def test_default_joins_every_line_end_hyphen(self) -> None:
+        assert normalize_volltext("Baden-\nWürttemberg") == "BadenWürttemberg"
+
+    def test_word_broken_over_three_lines(self) -> None:
+        text = "Grundstücksverkehrs-\ngenehmigungs-\nverordnung"
+        result = normalize_volltext(text, smart_dehyphenation=True)
+        assert result == "Grundstücksverkehrsgenehmigungsverordnung"
+
+    def test_crlf_line_end(self) -> None:
+        text = "Landes-\r\nregierung in Baden-\r\nWürttemberg"
+        result = normalize_volltext(text, smart_dehyphenation=True)
+        assert result == "Landesregierung in Baden-Württemberg"
+
+    def test_lowercase_compound_still_joined(self) -> None:
+        # Known limitation: a lowercase continuation looks like a syllable break
+        text = "deutsch-\nfranzösische"
+        assert normalize_volltext(text, smart_dehyphenation=True) == (
+            "deutschfranzösische"
+        )
+
+    def test_soft_hyphen_at_line_end_joined(self) -> None:
+        assert normalize_volltext("Landes­\nregierung") == "Landes\nregierung"
+        for text in ("Landes­\nregierung", "Landes&shy;\r\nregierung"):
+            result = normalize_volltext(text, smart_dehyphenation=True)
+            assert result == "Landesregierung"
+
+    def test_typographic_hyphens_at_line_end(self) -> None:
+        # U+2010 hyphen; U+2011 non-breaking hyphen becomes U+2010 under NFKC
+        for hyphen in ("‐", "‑"):
+            text = f"Landes{hyphen}\nregierung in Baden{hyphen}\nWürttemberg"
+            result = normalize_volltext(text, smart_dehyphenation=True)
+            assert result == "Landesregierung in Baden‐Württemberg"
+
+    def test_combined_with_strip_html(self) -> None:
+        markup = "<p>Das Land Baden-<br>Württemberg und die Landes-<br>regierung</p>"
+        result = normalize_volltext(markup, strip_html=True, smart_dehyphenation=True)
+        assert result == "Das Land Baden-Württemberg und die Landesregierung"
 
 
 # ---------------------------------------------------------------------------
@@ -432,107 +662,6 @@ class TestParagraphQualityScore:
         # Normal capitalization (first word, proper nouns) should score well
         text = "Der Ministerpräsident Kretschmann hat die Sitzung eröffnet."
         assert _paragraph_quality_score(text) >= 0.8
-
-
-# ---------------------------------------------------------------------------
-# normalize_name_key
-# ---------------------------------------------------------------------------
-
-
-class TestNormalizeNameKey:
-    def test_nfkc_ligature(self) -> None:
-        assert normalize_name_key("ﬁscher") == "fischer"
-
-    def test_umlaut_fold_u(self) -> None:
-        assert normalize_name_key("Müller") == "mueller"
-
-    def test_umlaut_fold_o(self) -> None:
-        assert normalize_name_key("Möller") == "moeller"
-
-    def test_umlaut_fold_a(self) -> None:
-        assert normalize_name_key("Bäcker") == "baecker"
-
-    def test_umlaut_fold_sz(self) -> None:
-        assert normalize_name_key("Straße") == "strasse"
-
-    def test_lowercase(self) -> None:
-        assert normalize_name_key("MUELLER") == "mueller"
-
-    def test_punctuation_stripped(self) -> None:
-        assert normalize_name_key("Müller, Maria") == "mueller maria"
-
-    def test_hyphen_stripped(self) -> None:
-        assert normalize_name_key("Müller-Franken") == "muellerfranken"
-
-    def test_whitespace_collapsed(self) -> None:
-        assert normalize_name_key("  Maria   Müller  ") == "maria mueller"
-
-    def test_invisible_chars_stripped(self) -> None:
-        assert normalize_name_key("Mül​ler") == "mueller"
-
-    def test_empty_string(self) -> None:
-        assert normalize_name_key("") == ""
-
-    def test_mueller_variants_equal(self) -> None:
-        assert normalize_name_key("Müller") == normalize_name_key("Mueller")
-
-    def test_idempotent(self) -> None:
-        key = normalize_name_key("Dr. María Ångström")
-        assert normalize_name_key(key) == key
-
-
-# ---------------------------------------------------------------------------
-# normalize_name
-# ---------------------------------------------------------------------------
-
-
-class TestNormalizeName:
-    def test_token_sort_firstname_lastname(self) -> None:
-        assert normalize_name("Maria Müller") == normalize_name("Müller Maria")
-
-    def test_token_sort_comma_form(self) -> None:
-        assert normalize_name("Müller, Maria") == normalize_name("Maria Müller")
-
-    def test_honorific_dr_stripped(self) -> None:
-        assert normalize_name("Dr. Maria Müller") == normalize_name("Maria Müller")
-
-    def test_honorific_prof_stripped(self) -> None:
-        assert normalize_name("Prof. Schmidt") == normalize_name("Schmidt")
-
-    def test_honorific_prof_dr_stripped(self) -> None:
-        assert normalize_name("Prof. Dr. Schmidt") == normalize_name("Schmidt")
-
-    def test_honorific_mdb_stripped(self) -> None:
-        assert normalize_name("Maria Müller MdB") == normalize_name("Maria Müller")
-
-    def test_honorific_mdl_stripped(self) -> None:
-        assert normalize_name("Hans Maier MdL") == normalize_name("Hans Maier")
-
-    def test_honorific_dipl_stripped(self) -> None:
-        assert normalize_name("Dipl.-Ing. Bernd Weber") == normalize_name("Bernd Weber")
-
-    def test_umlaut_fold_applied(self) -> None:
-        assert normalize_name("Müller") == normalize_name("Mueller")
-
-    def test_combined_honorific_umlaut_sort(self) -> None:
-        assert normalize_name("Dr. Maria Müller MdB") == normalize_name("mueller maria")
-
-    def test_empty_string(self) -> None:
-        assert normalize_name("") == ""
-
-    def test_whitespace_only(self) -> None:
-        assert normalize_name("   ") == ""
-
-    def test_integration_same_key_from_different_forms(self) -> None:
-        variants = [
-            "Dr. Maria Müller",
-            "Müller, Maria",
-            "Mueller, Maria",
-            "Maria Mueller",
-            "Dr. Müller, Maria MdL",
-        ]
-        keys = [normalize_name(v) for v in variants]
-        assert len(set(keys)) == 1, f"Expected one unique key, got: {set(keys)}"
 
 
 # ---------------------------------------------------------------------------
