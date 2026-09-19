@@ -13,7 +13,7 @@ from pazufa_corelib.names_model import (
     AuthorIDResolution,
 )
 from pazufa_corelib.normalization._fuzzy import _EXACT_MATCH_THRESHOLD, fuzzy_resolve
-from pazufa_corelib.normalization.text import normalize_name
+from pazufa_corelib.normalization.names import normalize_name
 
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
