@@ -198,6 +198,15 @@ def normalize_volltext(text: str) -> str:
     Step 1 is a no-op on plain text containing no entity sequences, so
     applying this function to PDF-extracted text has no side effects.
 
+    Cost grows linearly with the input: roughly half a second and three to six
+    times the input size in peak memory per megabyte, the upper end for HTML.
+    A 1000-page Plenarprotokoll is about 3–5 MB of text, so ordinary documents
+    are cheap. There is deliberately no size limit here: how large a document
+    may be is a question for the scraper's downloader, which knows what it
+    fetched and can reject it before it reaches this function. Note that
+    ``hash_text`` normalizes again, so normalizing and then hashing pays the
+    cost twice.
+
     Args:
         text: Raw extracted text from a PDF parser or HTML source.
 
