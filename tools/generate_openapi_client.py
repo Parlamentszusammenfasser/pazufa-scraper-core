@@ -12,6 +12,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 OPENAPI = REPO_ROOT / "openapi.yaml"
 CONFIG = Path(__file__).resolve().parent / "openapi-python-client.yaml"
 
+# Jinja templates that override the generator's own. Only files present here are
+# replaced; everything else still comes from the installed package. Currently
+# just `types.py.jinja`, which adds a `__repr__` to `Unset` so `UNSET` prints as
+# "UNSET" instead of an object address in logs and reprs of generated models.
+# See `test_types_template_matches_upstream` for the drift guard.
+TEMPLATES = Path(__file__).resolve().parent / "openapi_templates"
+
 GEN_PKG_NAME = "pazufa_corelib_api_client"
 DEST = REPO_ROOT / "pazufa_corelib" / "api_client"
 
@@ -144,6 +151,8 @@ def main() -> None:
                 str(patched_spec_path),
                 "--config",
                 str(CONFIG),
+                "--custom-template-path",
+                str(TEMPLATES),
                 "--output-path",
                 str(build_dir),
                 "--overwrite",
