@@ -25,10 +25,12 @@ from pazufa_corelib.normalization.experimental import normalize_autor
 from pazufa_corelib.normalization.html_text import (
     _HTML_BLOCK_ELEMENTS,
     _HTML_CELL_ELEMENTS,
+    _HTML_DOCUMENT_MARKERS,
     _HTML_ELEMENTS,
     _HTML_ELEMENTS_WITHOUT_TEXT,
     _HTML_INLINE_ELEMENTS,
     _HTML_LINE_ELEMENTS,
+    _RE_HTML_TAG,
 )
 from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
 from pazufa_corelib.normalization.text import _RE_INVISIBLE, _paragraph_quality_score
@@ -524,6 +526,17 @@ class TestnormalizeVolltextHtml:
             _HTML_INLINE_ELEMENTS,
         ]
         assert sum(len(role) for role in roles) == len(_HTML_ELEMENTS)
+
+    def test_document_markers_are_known_elements(self) -> None:
+        # The detector keeps its own short list; it must not drift away from the
+        # role sets, or a page would stop being recognised as HTML.
+        assert _HTML_DOCUMENT_MARKERS <= _HTML_ELEMENTS
+
+    def test_tag_pattern_order_is_deterministic(self) -> None:
+        # Longest first so no name is shadowed by a prefix of it, ties broken
+        # alphabetically so the pattern does not depend on the hash seed.
+        expected = "|".join(sorted(_HTML_ELEMENTS, key=lambda name: (-len(name), name)))
+        assert expected in _RE_HTML_TAG.pattern
 
     def test_unclosed_element_without_text_is_a_tag(self) -> None:
         # Without </math> nothing is removed with its content, but <math> is
