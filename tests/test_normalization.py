@@ -300,15 +300,13 @@ class TestnormalizeVolltextEdgeCases:
 
 
 # ---------------------------------------------------------------------------
-# normalize_volltext — HTML input characterisation (default, strip_html=False)
+# normalize_volltext — HTML entities
 #
-# Tags are NOT stripped — only entities are decoded. These tests document
-# the predictable behaviour so callers know what to expect, and pin the default
-# output that hash_text digests are computed over.
+# Entity decoding applies to every input, with or without markup.
 # ---------------------------------------------------------------------------
 
 
-class TestnormalizeVolltextOnHtmlInput:
+class TestnormalizeVolltextEntities:
     def test_plain_text_unaffected_by_unescape(self) -> None:
         # html.unescape() is a no-op on text with no entity sequences.
         text = "Der Landtag von Baden-Württemberg hat beschlossen."
@@ -332,67 +330,32 @@ class TestnormalizeVolltextOnHtmlInput:
         assert "&#160;" not in result
         assert "Wort Wort" == result
 
-    def test_html_tags_become_guillemets(self) -> None:
-        # Tags are NOT stripped — angle brackets are replaced by ‹ ›.
-        result = normalize_volltext("<p>Absatz</p>")
-        assert "<" not in result
-        assert "\u2039p\u203a" in result
-        assert "Absatz" in result
-
-    def test_inline_tags_mangle_surrounding_text(self) -> None:
-        result = normalize_volltext("Ein <b>wichtiger</b> Antrag")
-        assert "\u2039b\u203a" in result
-        assert "\u2039/b\u203a" in result
-
-    def test_paragraph_tag_not_a_line_break(self) -> None:
-        result = normalize_volltext("<p>Absatz eins</p><p>Absatz zwei</p>")
-        assert "\n\n" not in result
-
-    def test_br_tag_not_a_line_break(self) -> None:
-        result = normalize_volltext("Zeile eins<br>Zeile zwei")
-        assert "Zeile eins\nZeile zwei" not in result
-        assert "\u2039br\u203a" in result
-
-    def test_script_tag_content_survives(self) -> None:
-        result = normalize_volltext("<script>alert(1)</script>")
-        assert "<script>" not in result
-        assert "alert(1)" in result
-
 
 # ---------------------------------------------------------------------------
-# normalize_volltext — strip_html=True
+# normalize_volltext — HTML markup
 # ---------------------------------------------------------------------------
 
 
-class TestnormalizeVolltextStripHtml:
-    def test_default_keeps_tags(self) -> None:
-        assert normalize_volltext("<p>Absatz</p>") == "‹p›Absatz‹/p›"
-
+class TestnormalizeVolltextHtml:
     def test_block_elements_become_paragraphs(self) -> None:
-        result = normalize_volltext(
-            "<p>Absatz eins</p><p>Absatz zwei</p>", strip_html=True
-        )
+        result = normalize_volltext("<p>Absatz eins</p><p>Absatz zwei</p>")
         assert result == "Absatz eins\n\nAbsatz zwei"
 
     def test_unclosed_paragraphs_become_paragraphs(self) -> None:
-        result = normalize_volltext("<p>eins<p>zwei<p>drei", strip_html=True)
+        result = normalize_volltext("<p>eins<p>zwei<p>drei")
         assert result == "eins\n\nzwei\n\ndrei"
 
     def test_br_becomes_line_break(self) -> None:
-        result = normalize_volltext(
-            "Zeile eins<br>Zeile zwei<br/>Zeile drei", strip_html=True
-        )
+        result = normalize_volltext("Zeile eins<br>Zeile zwei<br/>Zeile drei")
         assert result == "Zeile eins\nZeile zwei\nZeile drei"
 
     def test_inline_tags_removed_without_gap(self) -> None:
-        result = normalize_volltext(
-            "Landes<span>regierung</span> und <b>Land</b>tag", strip_html=True
-        )
+        result = normalize_volltext("Landes<span>regierung</span> und <b>Land</b>tag")
         assert result == "Landesregierung und Landtag"
 
     def test_list_items_become_lines(self) -> None:
         result = normalize_volltext(
-            "<ul><li>zu berichten,</li><li>vorzulegen.</li></ul>", strip_html=True
+            "<ul><li>zu berichten,</li><li>vorzulegen.</li></ul>"
         )
         assert result == "zu berichten,\nvorzulegen."
 
@@ -401,52 +364,50 @@ class TestnormalizeVolltextStripHtml:
             "<table><tr><th>Drucksache</th><th>Titel</th></tr>"
             "<tr><td>17/1234</td><td>Antrag der Fraktion</td></tr></table>"
         )
-        result = normalize_volltext(markup, strip_html=True)
+        result = normalize_volltext(markup)
         assert result == "Drucksache Titel\n17/1234 Antrag der Fraktion"
 
     def test_uppercase_tags_and_unquoted_attributes(self) -> None:
         markup = (
             '<P ALIGN=CENTER><FONT FACE="Arial">Der Landtag hat beschlossen</FONT></P>'
         )
-        assert (
-            normalize_volltext(markup, strip_html=True) == "Der Landtag hat beschlossen"
-        )
+        assert normalize_volltext(markup) == "Der Landtag hat beschlossen"
 
     def test_quoted_attribute_may_contain_gt(self) -> None:
         markup = '<p><a title="a > b" href="/x?a=1&amp;sect=3">Link</a></p>'
-        assert normalize_volltext(markup, strip_html=True) == "Link"
+        assert normalize_volltext(markup) == "Link"
 
     def test_script_style_and_comments_removed_with_content(self) -> None:
         markup = (
             "<style>p{color:red}</style><!-- Navigation -->"
             '<script>var s = "</div>"; if (a<b) track()</script><p>Text</p>'
         )
-        assert normalize_volltext(markup, strip_html=True) == "Text"
+        assert normalize_volltext(markup) == "Text"
 
     def test_first_opened_construct_wins(self) -> None:
         # "<!--" inside a script is script content, not the start of a comment
         markup = "<script>if (a <!--b) x()</script><p>Text</p><!-- Kommentar -->"
-        assert normalize_volltext(markup, strip_html=True) == "Text"
+        assert normalize_volltext(markup) == "Text"
 
     def test_unclosed_comment_kept_as_text(self) -> None:
         markup = "<p>Text</p><!-- offen <p>Rest</p>"
-        result = normalize_volltext(markup, strip_html=True)
+        result = normalize_volltext(markup)
         assert result == "Text\n\n‹!-- offen\n\nRest"
 
     def test_svg_removed_with_content(self) -> None:
         markup = "<svg><title>Icon</title><text>Grafik</text></svg><p>Text</p>"
-        assert normalize_volltext(markup, strip_html=True) == "Text"
+        assert normalize_volltext(markup) == "Text"
 
     def test_doctype_head_and_source_whitespace(self) -> None:
         markup = (
             "<!DOCTYPE html>\n<html>\n  <head>\n    <title>Plenarprotokoll</title>\n"
             "  </head>\n\n  <body>\n    <p>Der  Landtag\n    tagt.</p>\n  </body>\n</html>"
         )
-        assert normalize_volltext(markup, strip_html=True) == "Der Landtag tagt."
+        assert normalize_volltext(markup) == "Der Landtag tagt."
 
     def test_unclosed_head_ends_at_body(self) -> None:
         markup = "<html><head><title>Titel</title><body><p>Inhalt</p></body></html>"
-        assert normalize_volltext(markup, strip_html=True) == "Inhalt"
+        assert normalize_volltext(markup) == "Inhalt"
 
     def test_word_markup_removed(self) -> None:
         markup = (
@@ -454,16 +415,16 @@ class TestnormalizeVolltextStripHtml:
             "<![endif]--><p class=MsoNormal><![if !supportLists]>1.<![endif]>"
             " Der Landtag<o:p></o:p></p><st1:place>Stuttgart</st1:place>"
         )
-        result = normalize_volltext(markup, strip_html=True)
+        result = normalize_volltext(markup)
         assert result == "1. Der Landtag\n\nStuttgart"
 
     def test_custom_elements_removed(self) -> None:
         markup = "<my-widget>Inhalt</my-widget>"
-        assert normalize_volltext(markup, strip_html=True) == "Inhalt"
+        assert normalize_volltext(markup) == "Inhalt"
 
     def test_cdata_removed(self) -> None:
         markup = "<p>A<![CDATA[ x < y ]]>B</p>"
-        assert normalize_volltext(markup, strip_html=True) == "AB"
+        assert normalize_volltext(markup) == "AB"
 
     def test_element_roles_do_not_overlap(self) -> None:
         roles = [
@@ -480,30 +441,30 @@ class TestnormalizeVolltextStripHtml:
         # Without </math> nothing is removed with its content, but <math> is
         # still a tag and must not leak into the text.
         markup = "<p>Formel <math>x</p>"
-        assert normalize_volltext(markup, strip_html=True) == "Formel x"
+        assert normalize_volltext(markup) == "Formel x"
 
     def test_escaped_markup_stays_text(self) -> None:
         markup = "<p>Das Element &lt;b&gt; macht Text fett.</p>"
-        result = normalize_volltext(markup, strip_html=True)
+        result = normalize_volltext(markup)
         assert result == "Das Element ‹b› macht Text fett."
 
     def test_entities_decoded_once(self) -> None:
         markup = "<p>Ma&szlig;nahmen &amp;lt;b&amp;gt;</p>"
-        result = normalize_volltext(markup, strip_html=True)
+        result = normalize_volltext(markup)
         assert result == "Maßnahmen &lt;b&gt;"
 
     def test_angle_brackets_that_are_not_tags_kept(self) -> None:
         markup = "<p>Kontakt: <poststelle@lfdi.bwl.de>, Wert <5, a < b</p>"
-        result = normalize_volltext(markup, strip_html=True)
+        result = normalize_volltext(markup)
         assert result == "Kontakt: ‹poststelle@lfdi.bwl.de›, Wert ‹5, a ‹ b"
 
 
 # ---------------------------------------------------------------------------
-# normalize_volltext — smart_dehyphenation=True
+# normalize_volltext — line-end hyphens
 # ---------------------------------------------------------------------------
 
 
-class TestnormalizeVolltextSmartDehyphenation:
+class TestnormalizeVolltextDehyphenation:
     @pytest.mark.parametrize(
         ("text", "expected"),
         [
@@ -527,54 +488,48 @@ class TestnormalizeVolltextSmartDehyphenation:
         ],
     )
     def test_line_end_hyphen(self, text: str, expected: str) -> None:
-        result = normalize_volltext(text, smart_dehyphenation=True)
+        result = normalize_volltext(text)
         assert result == expected
         # hash_text normalizes again with the defaults; that must not change it
         assert normalize_volltext(result) == result
 
     def test_hash_text_matches_stored_text(self) -> None:
         markup = "<p>Baden-<br>Württemberg, Bundes-<br>und Landes-<br>mittel</p>"
-        volltext = normalize_volltext(markup, strip_html=True, smart_dehyphenation=True)
+        volltext = normalize_volltext(markup)
         assert volltext == "Baden-Württemberg, Bundes- und Landesmittel"
         expected = hashlib.sha256(volltext.encode("utf-8")).hexdigest()
         assert hash_text(volltext)[0] == expected
 
-    def test_default_joins_every_line_end_hyphen(self) -> None:
-        assert normalize_volltext("Baden-\nWürttemberg") == "BadenWürttemberg"
-
     def test_word_broken_over_three_lines(self) -> None:
         text = "Grundstücksverkehrs-\ngenehmigungs-\nverordnung"
-        result = normalize_volltext(text, smart_dehyphenation=True)
+        result = normalize_volltext(text)
         assert result == "Grundstücksverkehrsgenehmigungsverordnung"
 
     def test_crlf_line_end(self) -> None:
         text = "Landes-\r\nregierung in Baden-\r\nWürttemberg"
-        result = normalize_volltext(text, smart_dehyphenation=True)
+        result = normalize_volltext(text)
         assert result == "Landesregierung in Baden-Württemberg"
 
     def test_lowercase_compound_still_joined(self) -> None:
         # Known limitation: a lowercase continuation looks like a syllable break
         text = "deutsch-\nfranzösische"
-        assert normalize_volltext(text, smart_dehyphenation=True) == (
-            "deutschfranzösische"
-        )
+        assert normalize_volltext(text) == ("deutschfranzösische")
 
     def test_soft_hyphen_at_line_end_joined(self) -> None:
-        assert normalize_volltext("Landes­\nregierung") == "Landes\nregierung"
         for text in ("Landes­\nregierung", "Landes&shy;\r\nregierung"):
-            result = normalize_volltext(text, smart_dehyphenation=True)
+            result = normalize_volltext(text)
             assert result == "Landesregierung"
 
     def test_typographic_hyphens_at_line_end(self) -> None:
         # U+2010 hyphen; U+2011 non-breaking hyphen becomes U+2010 under NFKC
         for hyphen in ("‐", "‑"):
             text = f"Landes{hyphen}\nregierung in Baden{hyphen}\nWürttemberg"
-            result = normalize_volltext(text, smart_dehyphenation=True)
+            result = normalize_volltext(text)
             assert result == "Landesregierung in Baden‐Württemberg"
 
-    def test_combined_with_strip_html(self) -> None:
+    def test_line_end_hyphen_from_br_tag(self) -> None:
         markup = "<p>Das Land Baden-<br>Württemberg und die Landes-<br>regierung</p>"
-        result = normalize_volltext(markup, strip_html=True, smart_dehyphenation=True)
+        result = normalize_volltext(markup)
         assert result == "Das Land Baden-Württemberg und die Landesregierung"
 
 
