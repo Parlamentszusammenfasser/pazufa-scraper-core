@@ -37,6 +37,11 @@ _SUSPENDED_HYPHEN_FOLLOWERS: frozenset[str] = frozenset(
     {"und", "oder", "bzw", "sowie", "bis"}
 )
 
+# Longest all-caps part that still counts as an acronym next to a line-end
+# hyphen ("CDU-geführte", "Vitamin-D"). Anything longer is read as an all-caps
+# word that was split across the line ("ZUSAMMEN-\nfassung").
+_MAX_ACRONYM_LENGTH = 5
+
 # Multiple spaces/tabs within a line (not newlines)
 _RE_MULTI_SPACE = re.compile(r"[ \t]{2,}")
 
@@ -69,7 +74,7 @@ _HTML_BLOCK_ELEMENTS: frozenset[str] = frozenset({
 # fmt: on
 
 # Start tag begins a new line or a new table cell; the end tag is removed
-_HTML_LINE_ELEMENTS: frozenset[str] = frozenset({"br", "li", "tr"})
+_HTML_LINE_ELEMENTS: frozenset[str] = frozenset({"br", "li", "tr", "option"})
 _HTML_CELL_ELEMENTS: frozenset[str] = frozenset({"td", "th"})
 
 # Removed together with their content (see _RE_HTML_SPAN_OPENER). The document
@@ -86,7 +91,7 @@ _HTML_INLINE_ELEMENTS: frozenset[str] = frozenset({
     "canvas", "cite", "code", "col", "colgroup", "data", "datalist", "del", "dfn",
     "dir", "em", "embed", "font", "frame", "frameset", "i", "iframe", "img", "input",
     "ins", "kbd", "label", "legend", "link", "map", "mark", "menu", "meta", "meter",
-    "nobr", "noframes", "object", "optgroup", "option", "output", "param", "picture",
+    "nobr", "noframes", "object", "optgroup", "output", "param", "picture",
     "progress", "q", "rp", "rt", "ruby", "s", "samp", "search", "select", "slot",
     "small", "source", "span", "strike", "strong", "sub", "sup", "tbody", "textarea",
     "tfoot", "thead", "time", "title", "track", "tt", "u", "var", "video", "wbr",
@@ -144,16 +149,31 @@ _RE_HTML_DECLARATION = re.compile(
     re.IGNORECASE,
 )
 
-# Start or end tag of a known, namespaced (Word's <o:p>) or custom (<my-widget>)
-# element. Group 1 is "/" for end tags, group 2 the element name. Quoted attribute
-# values may contain ">".
+# Attribute list that ends a start tag; quoted values may contain ">"
+_HTML_TAG_ATTRIBUTES = (
+    r"""(?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'<>=`]+))?)*\s*/?>"""
+)
+
+# Start or end tag of a known element or of a namespaced one (Word's <o:p>).
+# Group 1 is "/" for end tags, group 2 the element name.
 _RE_HTML_TAG = re.compile(
     r"<(/?)((?:"
     + "|".join(sorted(_HTML_ELEMENTS, key=len, reverse=True))
-    + r")(?![\w:-])|[a-z][a-z0-9]*(?:[:-][\w.-]+)+)"
-    r"""(?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'<>=`]+))?)*\s*/?>""",
+    + r")(?![\w:-])|[a-z][a-z0-9]*(?::[\w.-]+)+)"
+    + _HTML_TAG_ATTRIBUTES,
     re.IGNORECASE,
 )
+
+# Start or end tag of a custom element (<my-widget>). The same shape also fits
+# ordinary text in angle brackets (<Baden-Württemberg>), so every match is put to
+# _replace_custom_element_tags, which needs the attribute list to decide.
+_RE_HTML_CUSTOM_TAG = re.compile(
+    rf"<(/?)([a-z][a-z0-9]*(?:-[\w.-]+)+)(?P<attributes>{_HTML_TAG_ATTRIBUTES})",
+    re.IGNORECASE,
+)
+
+# Any end tag; evidence that a custom element name is markup rather than text
+_RE_HTML_CLOSING_TAG = re.compile(r"</([a-z][\w.:-]*)\s*>", re.IGNORECASE)
 
 # Spaces left around the line breaks inserted for block and line elements
 _RE_HTML_NEWLINE_PADDING = re.compile(r"[ \t]*\n[ \t]*")
@@ -224,19 +244,27 @@ def _rejoin_line_end_hyphen(match: re.Match[str]) -> str:
     Replacement for ``_RE_LINE_END_HYPHEN``. A suspended hyphen before a
     conjunction stays and the line break becomes a space (``Bundes-\nund`` →
     ``Bundes- und``); keeping the line break would let a later default
-    normalization, as ``hash_text`` runs it, join the words after all. Next to a
-    digit (``20-jährige``) or before a capitalised word (``Baden-Württemberg``,
-    ``CDU-Fraktion``) the hyphen stays and only the line break goes. Otherwise
-    the hyphen is a syllable break and both go; all-caps words
-    (``BESCHLUSS-\nEMPFEHLUNG``) are joined as well.
+    normalization, as ``hash_text`` runs it, join the words after all.
+
+    Otherwise only the line break goes and the hyphen stays when it is next to a
+    digit (``20-jährige``), before a capitalised word (``Baden-Württemberg``,
+    ``CDU-Fraktion``), after an acronym (``CDU-geführte``, ``EU-weit``) or
+    before one (``Vitamin-D``, ``Typ-A``). When both sides are all-caps, an
+    all-caps word was split and is joined (``BESCHLUSS-\nEMPFEHLUNG``,
+    ``EU-\nROPA``); the same holds for every other syllable break, where hyphen
+    and line break both go.
     """
     left, hyphen, right = match.groups()
     if right in _SUSPENDED_HYPHEN_FOLLOWERS:
         return f"{left}{hyphen} "
+    left_is_acronym = left.isupper() and 2 <= len(left) <= _MAX_ACRONYM_LENGTH
+    right_is_acronym = right.isupper() and len(right) <= _MAX_ACRONYM_LENGTH
     if (
         left[-1].isdigit()
         or right[0].isdigit()
         or (right[0].isupper() and right[1:2].islower())
+        or (left_is_acronym and not right.isupper())
+        or (right_is_acronym and not left.isupper())
     ):
         return left + hyphen
     return left
@@ -289,6 +317,34 @@ def _remove_html_spans(text: str) -> str:
     return "".join(parts)
 
 
+def _replace_custom_element_tags(text: str) -> str:
+    """Remove the tags of custom elements, but only where they really are tags.
+
+    A hyphenated name in angle brackets has the shape of a custom element
+    (``<my-widget>``), but so does ordinary text (``<Baden-Württemberg>``,
+    ``<vor-nachname>``). Removing the latter would silently swallow content, so
+    a name counts as markup only when the document backs it up: the tag carries
+    attributes, or the text closes it somewhere. Custom element names are
+    lowercase per the HTML specification, so a capitalised name is text.
+
+    Args:
+        text: HTML whose known and namespaced tags have already been replaced.
+
+    Returns:
+        The text with genuine custom element tags removed.
+    """
+    closed = {m.group(1).lower() for m in _RE_HTML_CLOSING_TAG.finditer(text)}
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(2)
+        has_attributes = match.group("attributes").strip() not in (">", "/>")
+        if name.islower() and (name in closed or has_attributes):
+            return _html_tag_separator(match)
+        return match.group(0)
+
+    return _RE_HTML_CUSTOM_TAG.sub(replace, text)
+
+
 def _strip_html_tags(text: str) -> str:
     """Convert HTML markup to plain text for :func:`normalize_volltext`.
 
@@ -314,6 +370,7 @@ def _strip_html_tags(text: str) -> str:
     text = _remove_html_spans(text)
     text = _RE_HTML_DECLARATION.sub("", text)
     text = _RE_HTML_TAG.sub(_html_tag_separator, text)
+    text = _replace_custom_element_tags(text)
     return _RE_HTML_NEWLINE_PADDING.sub("\n", text)
 
 
