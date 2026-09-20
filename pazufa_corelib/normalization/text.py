@@ -21,10 +21,7 @@ _RE_INVISIBLE = re.compile(
     r"[\x00-\x08\x0b\x0c\x0e-\x1f\u00ad\u200b\u200c\u200d\ufeff\ufffd]"
 )
 
-# Hyphenated line breaks: word-char, hyphen, newline, word-char
-_RE_HYPHEN_BREAK = re.compile(r"(\w)-\n(\w)")
-
-# --- Smart dehyphenation (opt-in: normalize_volltext(smart_dehyphenation=True)) -
+# --- Dehyphenation ------------------------------------------------------------
 
 # Line-end hyphen after a word: hyphen-minus or U+2010 (NFKC also turns the
 # non-breaking hyphen U+2011 into U+2010). The next word is only looked at, not
@@ -55,7 +52,7 @@ _MIN_WORDS_FOR_PENALTIES = 4
 
 _RE_PARAGRAPH_SPLIT = re.compile(r"\n\s*\n")
 
-# --- HTML tag stripping (opt-in: normalize_volltext(strip_html=True)) ---------
+# --- HTML tag stripping -------------------------------------------------------
 
 # HTML element names, one set per role, i.e. per what happens to the tag. Each name
 # belongs to exactly one role. The long sets are wrapped by hand (fmt: off), since
@@ -110,6 +107,15 @@ _HTML_ELEMENTS: frozenset[str] = (
 
 # HTML whitespace is ASCII only; NBSP is left for NFKC to turn into a space
 _RE_HTML_WHITESPACE = re.compile(r"[ \t\n\r\f]+")
+
+# Evidence that the input really is an HTML document, not text that merely
+# contains a stray tag. Only then do HTML whitespace rules apply: in text from a
+# PDF, line breaks are content and must survive.
+_RE_HTML_DOCUMENT = re.compile(
+    r"<!doctype\s+html|<html[\s>]|<body[\s>]|<br\s*/?>"
+    r"|</(?:p|div|span|a|b|i|strong|em|td|th|tr|li|ul|ol|table|h[1-6])\s*>",
+    re.IGNORECASE,
+)
 
 # Openers of constructs removed together with their content: comments (incl.
 # Word's <!--[if gte mso 9]>…<![endif]--> blocks), CDATA sections, elements
@@ -286,20 +292,25 @@ def _remove_html_spans(text: str) -> str:
 def _strip_html_tags(text: str) -> str:
     """Convert HTML markup to plain text for :func:`normalize_volltext`.
 
-    Applies HTML whitespace rules (line breaks and indentation in the source are
-    not text), drops comments, declarations and non-text elements (``script``,
-    ``style``, ``head``, …), turns block elements into blank lines, ``br`` /
-    ``li`` / ``tr`` into line breaks and table cells into spaces, and removes all
-    other tags without leaving a gap. Entities stay encoded for the decoding
-    step that follows, so escaped markup such as ``&lt;b&gt;`` remains text.
+    Drops comments, declarations and non-text elements (``script``, ``style``,
+    ``head``, …), turns block elements into blank lines, ``br`` / ``li`` /
+    ``tr`` into line breaks and table cells into spaces, and removes all other
+    tags without leaving a gap. Entities stay encoded for the decoding step that
+    follows, so escaped markup such as ``&lt;b&gt;`` remains text.
+
+    HTML whitespace rules (line breaks and indentation in the source are not
+    text) are applied only to input that looks like an HTML document. In text
+    from a PDF a line break is content, and collapsing it would destroy the
+    paragraphs that the quality filter and dehyphenation rely on.
 
     Args:
-        text: Raw HTML.
+        text: Raw HTML, or text that contains no markup at all.
 
     Returns:
         Text without markup, with paragraph structure expressed as newlines.
     """
-    text = _RE_HTML_WHITESPACE.sub(" ", text)
+    if _RE_HTML_DOCUMENT.search(text):
+        text = _RE_HTML_WHITESPACE.sub(" ", text)
     text = _remove_html_spans(text)
     text = _RE_HTML_DECLARATION.sub("", text)
     text = _RE_HTML_TAG.sub(_html_tag_separator, text)
@@ -309,14 +320,13 @@ def _strip_html_tags(text: str) -> str:
 # --- Public Functions ---------------------------------------------------------------
 
 
-def normalize_volltext(
-    text: str, *, strip_html: bool = False, smart_dehyphenation: bool = False
-) -> str:
+def normalize_volltext(text: str) -> str:
     r"""Normalize German fulltext.
 
     Applies a sequential cleaning pipeline:
 
-    0. Only with ``strip_html=True``: convert HTML markup to plain text
+    0. Convert HTML markup to plain text (block elements become paragraph
+       breaks; ``script``, ``style``, ``head`` and comments are dropped)
     1. HTML entity decoding (``&amp;``, ``&uuml;``, ``&#160;``, …)
     2. NFKC unicode normalisation
     3. Strip invisible/zero-width characters (soft hyphen, BOM, ZWJ, ZWSP)
@@ -325,8 +335,8 @@ def normalize_volltext(
     5. Strip C1 control characters (U+0080–U+009F)
     6. Normalize line endings to ``\\n``
     7. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` →
-       ``Landesregierung``); with ``smart_dehyphenation=True`` real hyphens
-       are kept
+       ``Landesregierung``), keeping real hyphens (``Baden-Württemberg``,
+       ``20-jährige``, ``Bundes- und Landesmittel``)
     8. Collapse multiple spaces/tabs within a line to a single space
     9. Remove paragraphs with quality score < 0.5
     10. Replace ``<`` / ``>`` with guillemets ‹ › to neutralize XSS triggers
@@ -336,45 +346,19 @@ def normalize_volltext(
 
     Args:
         text: Raw extracted text from a PDF parser or HTML source.
-        strip_html: Treat ``text`` as HTML and remove its markup first: block
-            elements become paragraph breaks, ``<br>``, ``<li>`` and ``<tr>``
-            become line breaks, table cells are separated by spaces and other
-            tags are removed; ``script``, ``style``, ``head``, comments and
-            similar non-text content are dropped. HTML whitespace rules apply,
-            so line breaks and indentation in the source are collapsed (also
-            inside ``<pre>``) — pass ``True`` for raw HTML only. Angle brackets
-            that are not tags (``a < b``, e-mail addresses) are kept. Defaults
-            to ``False``, which leaves the output unchanged; ``hash_text``
-            always uses the default, so its digests are not affected.
-        smart_dehyphenation: Keep real hyphens when rejoining words split at a
-            line end. By default every ``word-\\nword`` is joined, which also
-            turns ``Baden-\\nWürttemberg`` into ``BadenWürttemberg``. With
-            ``True`` the hyphen stays next to a digit (``20-jährige``) and
-            before a capitalised word (``Baden-Württemberg``,
-            ``CDU-Fraktion``), a suspended hyphen before ``und``, ``oder``,
-            ``bzw``, ``sowie`` or ``bis`` stays (``Bundes- und
-            Landesmittel``), and line ends with a soft hyphen or the
-            typographic hyphens U+2010/U+2011 are rejoined too. The result is
-            not changed by a later default normalization, so ``hash_text`` of
-            the stored text is the SHA-256 of exactly that text. Compounds of
-            two lowercase words (``deutsch-\\nfranzösische``) are still
-            joined. Defaults to ``False``, which leaves the output and
-            ``hash_text`` digests unchanged.
 
     Returns:
         Cleaned text with garbled paragraphs removed and whitespace normalized.
         Returns an empty string if the input is empty or all paragraphs are
         filtered out.
     """
-    if strip_html:
-        # Before entity decoding, so escaped markup (&lt;b&gt;) stays text.
-        text = _strip_html_tags(text)
+    # Before entity decoding, so escaped markup (&lt;b&gt;) stays text.
+    text = _strip_html_tags(text)
     text = html.unescape(text)
     text = unicodedata.normalize("NFKC", text)
-    if smart_dehyphenation:
-        # Before invisible characters are stripped: without its soft hyphen the
-        # word would stay split across the line break.
-        text = _RE_SOFT_HYPHEN_BREAK.sub(r"\1\2", text)
+    # Before invisible characters are stripped: without its soft hyphen the
+    # word would stay split across the line break.
+    text = _RE_SOFT_HYPHEN_BREAK.sub(r"\1\2", text)
     text = _RE_INVISIBLE.sub("", text)
     # Strip C0 controls (incl. NUL) and DEL but keep \t \n \r; a stray NUL
     # would otherwise break the backend's PostgreSQL text insert.
@@ -383,13 +367,10 @@ def normalize_volltext(
     text = _RE_C1_CONTROLS.sub("", text)
     # Normalize line endings before hyphen-break rejoining, so the pattern
     # always sees bare \n.  Note: this runs before paragraph splitting, so
-    # _RE_HYPHEN_BREAK will not fire across paragraph boundaries (those are
+    # _RE_LINE_END_HYPHEN will not fire across paragraph boundaries (those are
     # separated by \n\s*\n, never a bare word-hyphen-newline-word sequence).
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    if smart_dehyphenation:
-        text = _RE_LINE_END_HYPHEN.sub(_rejoin_line_end_hyphen, text)
-    else:
-        text = _RE_HYPHEN_BREAK.sub(r"\1\2", text)
+    text = _RE_LINE_END_HYPHEN.sub(_rejoin_line_end_hyphen, text)
     # Collapse intra-line whitespace after rejoining so PDF-extracted extra
     # spaces don't interfere with paragraph splitting (which relies on blank
     # lines, not spaces).
