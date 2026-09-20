@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import unicodedata
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,16 +22,16 @@ from pazufa_corelib.normalization import (
     normalize_volltext,
 )
 from pazufa_corelib.normalization.experimental import normalize_autor
-from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
-from pazufa_corelib.normalization.text import (
+from pazufa_corelib.normalization.html_text import (
     _HTML_BLOCK_ELEMENTS,
     _HTML_CELL_ELEMENTS,
     _HTML_ELEMENTS,
     _HTML_ELEMENTS_WITHOUT_TEXT,
     _HTML_INLINE_ELEMENTS,
     _HTML_LINE_ELEMENTS,
-    _paragraph_quality_score,
 )
+from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
+from pazufa_corelib.normalization.text import _RE_INVISIBLE, _paragraph_quality_score
 
 # ---------------------------------------------------------------------------
 # normalize_volltext
@@ -80,6 +81,51 @@ class TestnormalizeVolltextInvisibleChars:
     def test_multiple_invisible_chars_at_once(self) -> None:
         result = normalize_volltext("\ufeffBundes\u00adtag\u200b Berlin\u200c")
         assert result == "Bundestag Berlin"
+
+    @pytest.mark.parametrize(
+        ("name", "char"),
+        [
+            ("LRM", "\u200e"),
+            ("RLM", "\u200f"),
+            ("LRE", "\u202a"),
+            ("RLO", "\u202e"),
+            ("LRI", "\u2066"),
+            ("PDI", "\u2069"),
+            ("ALM", "\u061c"),
+        ],
+    )
+    def test_bidi_controls_stripped(self, name: str, char: str) -> None:
+        # These reorder the rendering, so the text could display differently
+        # from what it contains.
+        assert normalize_volltext(f"Rechnung {char}00,01 EUR") == "Rechnung 00,01 EUR"
+
+    def test_unicode_tag_characters_stripped(self) -> None:
+        assert normalize_volltext("A\U000e0041\U000e007fB") == "AB"
+
+    def test_word_joiner_and_invisible_operators_stripped(self) -> None:
+        assert normalize_volltext("A\u2060B\u2061C") == "ABC"
+
+    def test_every_unicode_format_character_is_stripped(self) -> None:
+        # Pins the hand-written ranges in _RE_INVISIBLE against unicodedata, so
+        # a Unicode upgrade that adds format characters is noticed here.
+        missed = [
+            f"U+{cp:04X}"
+            for cp in range(0x110000)
+            if unicodedata.category(chr(cp)) == "Cf"
+            and not _RE_INVISIBLE.fullmatch(chr(cp))
+        ]
+        assert missed == []
+
+    def test_only_format_and_control_characters_are_stripped(self) -> None:
+        # The class must not swallow printable text; U+FFFD is the one addition.
+        extra = [
+            f"U+{cp:04X}"
+            for cp in range(0x110000)
+            if _RE_INVISIBLE.fullmatch(chr(cp))
+            and unicodedata.category(chr(cp)) not in ("Cf", "Cc")
+            and cp != 0xFFFD
+        ]
+        assert extra == []
 
 
 class TestnormalizeVolltextC1Controls:
@@ -137,6 +183,16 @@ class TestnormalizeVolltextLineEndings:
     def test_mixed_line_endings(self) -> None:
         result = normalize_volltext("Eins\r\nZwei\rDrei\nVier")
         assert result == "Eins\nZwei\nDrei\nVier"
+
+    def test_unicode_line_separator_becomes_newline(self) -> None:
+        assert normalize_volltext("Zeile eins Zeile zwei") == "Zeile eins\nZeile zwei"
+
+    def test_unicode_paragraph_separator_becomes_blank_line(self) -> None:
+        result = normalize_volltext("Absatz eins Absatz zwei")
+        assert result == "Absatz eins\n\nAbsatz zwei"
+
+    def test_line_separator_before_hyphen_break_rejoined(self) -> None:
+        assert normalize_volltext("Landes- regierung") == "Landesregierung"
 
 
 class TestnormalizeVolltextHyphenBreak:

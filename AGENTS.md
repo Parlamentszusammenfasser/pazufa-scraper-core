@@ -229,6 +229,7 @@ Then regenerate and review the diff carefully.
   - `organizations.py` - `OrganizationResolver`
   - `experimental.py` - experimental `normalize_autor`
   - `text.py` - `normalize_volltext`
+  - `html_text.py` - `html_to_text`, the HTML-to-plain-text step of `normalize_volltext`
   - `date.py` - `normalize_datum`
   - `hash.py` - content hashing utilities
   - `urls.py` - URL normalization
