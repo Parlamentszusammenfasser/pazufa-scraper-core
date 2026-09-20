@@ -422,6 +422,38 @@ class TestnormalizeVolltextHtml:
         markup = "<my-widget>Inhalt</my-widget>"
         assert normalize_volltext(markup) == "Inhalt"
 
+    def test_custom_element_with_attributes_removed(self) -> None:
+        # no closing tag, but attributes are evidence enough
+        markup = '<p><my-widget data-id="7">Inhalt</p>'
+        assert normalize_volltext(markup) == "Inhalt"
+
+    @pytest.mark.parametrize(
+        ("markup", "expected"),
+        [
+            # hyphenated words in angle brackets have the shape of a custom
+            # element, but they are text and must not be swallowed
+            ("<p>Text <Baden-Württemberg> x</p>", "Text ‹Baden-Württemberg› x"),
+            (
+                "<p>Die <Bund-Länder-Kommission> tagt</p>",
+                "Die ‹Bund-Länder-Kommission› tagt",
+            ),
+            (
+                "<p>Formular <vor-nachname> ausfüllen</p>",
+                "Formular ‹vor-nachname› ausfüllen",
+            ),
+            ("<p>Siehe <anlage-1> unten</p>", "Siehe ‹anlage-1› unten"),
+            ("<p>Zeitraum <2020-2024></p>", "Zeitraum ‹2020-2024›"),
+        ],
+    )
+    def test_hyphenated_text_in_angle_brackets_kept(
+        self, markup: str, expected: str
+    ) -> None:
+        assert normalize_volltext(markup) == expected
+
+    def test_uppercase_word_namespace_tags_removed(self) -> None:
+        markup = "<P CLASS=MsoNormal>Der Landtag<O:P></O:P></P>"
+        assert normalize_volltext(markup) == "Der Landtag"
+
     def test_cdata_removed(self) -> None:
         markup = "<p>A<![CDATA[ x < y ]]>B</p>"
         assert normalize_volltext(markup) == "AB"
@@ -485,6 +517,21 @@ class TestnormalizeVolltextDehyphenation:
             # suspended hyphens stay, the line break becomes a space
             ("Bundes-\nund Landesmittel", "Bundes- und Landesmittel"),
             ("Hin-\noder Rückfahrt", "Hin- oder Rückfahrt"),
+            # hyphens after an acronym stay, even before a lowercase word
+            ("CDU-\ngeführte", "CDU-geführte"),
+            ("EU-\nweit", "EU-weit"),
+            ("US-\namerikanische", "US-amerikanische"),
+            ("SPD-\nnahe", "SPD-nahe"),
+            ("ÖPNV-\nAngebot", "ÖPNV-Angebot"),
+            # … and hyphens before a short all-caps part
+            ("Vitamin-\nD", "Vitamin-D"),
+            ("Typ-\nA-Fälle", "Typ-A-Fälle"),
+            # all-caps words split across the line are still joined
+            ("ABSCHLUSS-\nBERICHT", "ABSCHLUSSBERICHT"),
+            ("EU-\nROPA", "EUROPA"),
+            # an all-caps part longer than _MAX_ACRONYM_LENGTH is not an acronym
+            ("ZUSAMMEN-\nfassung", "ZUSAMMENfassung"),
+            ("Sonder-\nAUSSCHUSS", "SonderAUSSCHUSS"),
         ],
     )
     def test_line_end_hyphen(self, text: str, expected: str) -> None:
