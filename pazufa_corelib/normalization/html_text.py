@@ -7,6 +7,10 @@ name, which ``text.py`` uses to decode entities.
 
 Only :func:`html_to_text` is meant to be called from outside; everything else
 is an implementation detail of that conversion.
+
+Our own HTML conversion is used, as this handles the text before it is hashed.
+I we would use a lib, changes in that lib may lead to different text and these
+changes would not be tracked in this repo.
 """
 
 import re
@@ -69,12 +73,23 @@ _HTML_ELEMENTS: frozenset[str] = (
 # HTML whitespace is ASCII only; NBSP is left for NFKC to turn into a space
 _RE_HTML_WHITESPACE = re.compile(r"[ \t\n\r\f]+")
 
+# Elements whose end tag marks the input as an HTML document. Deliberately a
+# small selection of everyday elements: a single stray tag in text from a PDF
+# must not be enough. Every name also exists in _HTML_ELEMENTS, pinned by a test.
+# fmt: off
+_HTML_DOCUMENT_MARKERS: frozenset[str] = frozenset({
+    "a", "b", "div", "em", "h1", "h2", "h3", "h4", "h5", "h6", "i", "li", "ol",
+    "p", "span", "strong", "table", "td", "th", "tr", "ul",
+})
+# fmt: on
+
 # Evidence that the input really is an HTML document, not text that merely
 # contains a stray tag. Only then do HTML whitespace rules apply: in text from a
 # PDF, line breaks are content and must survive.
 _RE_HTML_DOCUMENT = re.compile(
-    r"<!doctype\s+html|<html[\s>]|<body[\s>]|<br\s*/?>"
-    r"|</(?:p|div|span|a|b|i|strong|em|td|th|tr|li|ul|ol|table|h[1-6])\s*>",
+    r"<!doctype\s+html|<html[\s>]|<body[\s>]|<br\s*/?>|</(?:"
+    + "|".join(sorted(_HTML_DOCUMENT_MARKERS))
+    + r")\s*>",
     re.IGNORECASE,
 )
 
@@ -111,10 +126,14 @@ _HTML_TAG_ATTRIBUTES = (
 )
 
 # Start or end tag of a known element or of a namespaced one (Word's <o:p>).
-# Group 1 is "/" for end tags, group 2 the element name.
+# Group 1 is "/" for end tags, group 2 the element name. Longest name first, so
+# no name can be shadowed by a shorter one that prefixes it; ties are broken
+# alphabetically to keep the compiled pattern identical between runs (sorting by
+# length alone would leave equal-length names in set order, which varies with the
+# hash seed).
 _RE_HTML_TAG = re.compile(
     r"<(/?)((?:"
-    + "|".join(sorted(_HTML_ELEMENTS, key=len, reverse=True))
+    + "|".join(sorted(_HTML_ELEMENTS, key=lambda name: (-len(name), name)))
     + r")(?![\w:-])|[a-z][a-z0-9]*(?::[\w.-]+)+)"
     + _HTML_TAG_ATTRIBUTES,
     re.IGNORECASE,

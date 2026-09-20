@@ -88,6 +88,10 @@ def _paragraph_quality_score(paragraph: str) -> float:
     Short paragraphs (fewer than ``_MIN_WORDS_FOR_PENALTIES`` words) are exempt
     from the uppercase penalty to avoid dropping valid all-caps headings.
 
+    Note that the C1 signal never fires when :func:`normalize_volltext` calls
+    this function: its step 5 has already removed those characters. It is kept
+    for callers that score text which has not been through the pipeline.
+
     Args:
         paragraph: Raw paragraph text to evaluate.
 
