@@ -112,6 +112,9 @@ def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
 def hash_text(text: str) -> tuple[str, HashStrategy]:
     """Hash text with SHA-256, returning ``(digest, variant)``.
 
+    If you have a PDF with text already assigned, it is intended to use the
+    'hash_bytes' function instead. This approach produces more stable Hashes.
+
     Args:
         text (str): The input text to be hashed.
 
