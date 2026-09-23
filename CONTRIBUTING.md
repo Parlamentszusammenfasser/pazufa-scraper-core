@@ -245,6 +245,23 @@ of the tagged spec — pin it with a test instead, and raise it upstream. Every
 `_patch_spec` rule needs a test in
 [tests/test_generate_openapi_client.py](tests/test_generate_openapi_client.py).
 
+### Customising generated output
+
+Hand-edits to `pazufa_corelib/api_client/` are wiped by the next
+`make generate-client`. Changes that must survive belong in a Jinja override in
+[tools/openapi_templates/](tools/openapi_templates/), which the generator loads
+via `--custom-template-path`: files placed there replace the generator's own of
+the same name, everything else still comes from the installed package.
+
+The only override today is `types.py.jinja`, which gives `Unset` a `__repr__` so
+`UNSET` prints as `UNSET` rather than an object address.
+
+An override is a frozen copy of an upstream template, so a generator bump can
+silently strip improvements it made to that file.
+`test_custom_types_template_matches_upstream_apart_from_the_repr` fails when the
+installed `types.py.jinja` stops matching ours minus the added block — re-fork
+the new upstream file and re-apply the change when it does.
+
 ## Project Context
 
 This library is one part of the broader [PaZuFa](https://codeberg.org/PaZuFa/parlamentszusammenfasser) system:
