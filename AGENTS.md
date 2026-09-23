@@ -178,7 +178,7 @@ Each function raises `ValueError` on collisions / schema problems and `FileNotFo
 - Use `@pytest.mark.asyncio` for async behavior
 - Cover retry, validation, and failure paths when changing connector logic
 - If you change generated API models or clients, verify regeneration and affected tests together
-- To cover `if LOGGER.isEnabledFor(logging.DEBUG):` branches, use `caplog.at_level(logging.DEBUG, logger="pazufa_corelib.normalization.names")` in the test
+- To cover `if LOGGER.isEnabledFor(logging.DEBUG):` branches, use `caplog.at_level(logging.DEBUG, logger=...)` with the logger of the module under test; each module logs via `logging.getLogger(__name__)`. In `normalization/`, such branches live in `authors.py`, `organizations.py`, `schlagworte.py` and `experimental.py`, e.g. `logger="pazufa_corelib.normalization.authors"`
 
 Run a specific test file or function:
 
@@ -224,8 +224,13 @@ Then regenerate and review the diff carefully.
 - `pazufa_corelib/__init__.py` - public package exports
 - `pazufa_corelib/llm/` - LLM connector, models, and prompts
 - `pazufa_corelib/normalization/` - text, date, URL, hash, name, and Schlagworte helpers
-  - `names.py` - `normalize_name`, `AuthorResolver`, `OrganizationResolver`; experimental `normalize_autor`
-  - `text.py` - `normalize_name_key`, `normalize_volltext`
+  - `names.py` - `normalize_name`, `normalize_name_key`
+  - `authors.py` - `AuthorResolver`
+  - `organizations.py` - `OrganizationResolver`
+  - `experimental.py` - experimental `normalize_autor`
+  - `text.py` - `normalize_volltext`
+  - `html_text.py` - `html_to_text`, the HTML-to-plain-text step of `normalize_volltext`
+  - `date.py` - `normalize_datum`
   - `hash.py` - content hashing utilities
   - `urls.py` - URL normalization
   - `schlagworte.py` - controlled topic taxonomy helpers

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 23.09.2026
+### Added
+- **`normalize_volltext` now removes HTML markup** — block elements become paragraph breaks, `<br>`/`<li>`/`<tr>` line breaks, table cells spaces; `script`, `style`, `head`, comments and Word markup (`<o:p>`, conditional comments) are dropped, and angle brackets that are not tags (`a < b`, e-mail addresses) are kept as before. HTML whitespace rules (source line breaks and indentation are not text) are applied only when the input looks like an HTML document, so text from a PDF keeps its paragraphs. A hyphenated name in angle brackets counts as a custom element only when the document backs it up — the tag has attributes, or the text closes it — so `<my-widget>…</my-widget>` is removed while text such as `<Baden-Württemberg>` or `<vor-nachname>` is kept.
+- **`normalize_volltext` keeps real hyphens when rejoining words split at a line end** — `Baden-\nWürttemberg` → `Baden-Württemberg` (previously `BadenWürttemberg`), likewise `CDU-Fraktion` and `20-jährige`; suspended hyphens are kept (`Bundes-\nund Landesmittel` → `Bundes- und Landesmittel`). A hyphen after an acronym also stays, even before a lowercase word (`CDU-\ngeführte` → `CDU-geführte`, `EU-weit`, `US-amerikanische`), as does one before a short all-caps part (`Vitamin-D`, `Typ-A`); all-caps words split across a line are still joined (`BESCHLUSS-\nEMPFEHLUNG`, `ZUSAMMEN-\nfassung`). Line ends with a soft hyphen or the typographic hyphens U+2010/U+2011, previously left split, are rejoined too. Compounds of two lowercase words (`deutsch-\nfranzösische`) are still joined.
+- **`normalize_volltext` strips every Unicode format character and maps U+2028/U+2029 onto line breaks** — previously only soft hyphen, zero-width space/joiners and the BOM were removed (5 of 170 format characters). The bidi controls (U+202A–U+202E, U+2066–U+2069, LRM/RLM, ALM) now go as well: they reorder the rendering, so a volltext could display differently from what it contains and from what was hashed — on the website and in the text handed to the summarizing model. Unicode tag characters (U+E0000 block) and the invisible maths operators are removed too, while U+2028 becomes a line break and U+2029 a paragraph break instead of surviving into the output, where they break naive JSON/JS serializers. The ranges are pinned against `unicodedata` by a test, so a Unicode upgrade that adds format characters fails the suite.
+
+### Changed
+- **hash_text** no longer calls normalize_text function on given text.
+- **normalize_datum** and accompaning regex moved into new file 'date.py'. This was done to shorten 'text.py'.
+- **normalize_name** and **normalize_name_key** and their regexes moved into new file 'names.py', also to shorten 'text.py'.
+- **The HTML-to-plain-text conversion moved into new file 'html_text.py'**, again to shorten 'text.py'.
+
+### Known limitations
+- **Only known element names count as tags** — `normalize_volltext` treats as a tag what matches the element names in `_HTML_ELEMENTS` (`html_text.py`), plus namespaced (`<o:p>`) and custom (`<my-widget>`) elements. Obsolete elements that are not on the list stay in the text and show up as `‹marquee›Inhalt‹/marquee›`; known cases are `<marquee>`, `<blink>`, `<spacer>`, `<applet>`, `<isindex>` and `<plaintext>`. This is the price of the allow-list, which is what keeps angle-bracket text such as `<poststelle@lfdi.bwl.de>` or `a < b` from being deleted. Older Wahlperioden and older Landtag pages may still use such tags — when one turns up, add its name to the matching role set in `html_text.py`. Legacy elements that are already covered: `center`, `font`, `nobr`, `noframes`, `frame`, `frameset`, `dir`, `big`, `strike`, `tt` and `acronym`.
+- **A custom element without attributes that is never closed stays in the text** — a lone `<my-widget>` with no `</my-widget>` anywhere shows up as `‹my-widget›`. Nothing in the line distinguishes it from text in angle brackets, and leaving markup behind is the harmless direction; deleting it would swallow whatever follows up to the next `>`.
+- **A line-end hyphen between two lowercase words is removed** — `deutsch-\nfranzösische` → `deutschfranzösische`, `rot-\ngrüne` → `rotgrüne`, `sozial-\nökologische` → `sozialökologische`. A lowercase continuation is exactly what a syllable break looks like (`Landes-\nregierung`), so the two cannot be told apart from the line alone. Compounds of two adjectives and colour pairs are the common victims.
+- **Acronyms longer than `_MAX_ACRONYM_LENGTH` are not recognised as such** — `UNESCO-\nweit` → `UNESCOweit`, while `BAFÖG-antrag`, `BAMF-entscheidung` and `ÖPNV-nah` come out right. The limit is what keeps split all-caps words joined (`ZUSAMMEN-\nfassung` → `ZUSAMMENfassung`), so raising it trades one error for the other.
+
+
+
 ---
 ## [0.2.2] - 14-09-2026
 ### Changed

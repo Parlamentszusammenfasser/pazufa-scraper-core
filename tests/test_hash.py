@@ -12,7 +12,6 @@ from pazufa_corelib.normalization.hash import (
     hash_text,
     hash_text_sha_256,
 )
-from pazufa_corelib.normalization.text import normalize_volltext
 
 # The hashing functions used to assemble their variant string from module-level
 # constants; they now return `HashStrategy` members, so the expectations are
@@ -95,10 +94,10 @@ class TestHashTextSha256:
         assert isinstance(result, tuple)
         assert len(result) == 2
 
-    def test_hash_is_sha256_of_normalized_text(self) -> None:
+    def test_hash_is_sha256_of_raw_text(self) -> None:
         text = "Hallo Welt"
         digest, _ = hash_text_sha_256(text)
-        expected = hashlib.sha256(normalize_volltext(text).encode("utf-8")).hexdigest()
+        expected = hashlib.sha256(text.encode("utf-8")).hexdigest()
         assert digest == expected
 
     def test_variant_is_correct(self) -> None:
@@ -106,29 +105,38 @@ class TestHashTextSha256:
         assert variant == SHA256_TEXT_VARIANT
 
     def test_empty_string_raises_value_error(self) -> None:
-        with pytest.raises(ValueError, match="garbled or blank"):
+        with pytest.raises(ValueError, match="empty string"):
             hash_text_sha_256("")
 
     def test_whitespace_only_raises_value_error(self) -> None:
-        with pytest.raises(ValueError, match="garbled or blank"):
+        with pytest.raises(ValueError, match="empty string"):
             hash_text_sha_256("   \n\t  ")
 
-    def test_garbled_text_raises_value_error(self) -> None:
-        # C1 control characters and Latin-Extended-B — triggers quality filter
+    def test_garbled_text_is_hashed_as_given(self) -> None:
+        # The function no longer normalizes, so it has no quality filter left:
+        # anything that is not blank is hashed byte for byte.
         garbled = "\x80\x81\x82\x83\x84 \u0180\u0181\u0182\u0183\u0184"
-        with pytest.raises(ValueError, match="garbled or blank"):
-            hash_text_sha_256(garbled)
+        digest, variant = hash_text_sha_256(garbled)
+        assert digest == hashlib.sha256(garbled.encode("utf-8")).hexdigest()
+        assert variant == SHA256_TEXT_VARIANT
+
+    def test_markup_is_not_stripped(self) -> None:
+        # Callers who want markup removed must run normalize_volltext themselves.
+        with_markup = "<p>Hallo Welt</p>"
+        digest, _ = hash_text_sha_256(with_markup)
+        assert digest == hashlib.sha256(with_markup.encode("utf-8")).hexdigest()
+        assert digest != hash_text_sha_256("Hallo Welt")[0]
 
     def test_different_inputs_produce_different_hashes(self) -> None:
         digest_a, _ = hash_text_sha_256("foo")
         digest_b, _ = hash_text_sha_256("bar")
         assert digest_a != digest_b
 
-    def test_normalisation_produces_same_hash(self) -> None:
-        # Minor formatting differences must yield the same hash.
+    def test_formatting_differences_produce_different_hashes(self) -> None:
+        # Without normalization even the line ending is part of the digest.
         digest_a, _ = hash_text_sha_256("Hallo\r\nWelt")
         digest_b, _ = hash_text_sha_256("Hallo\nWelt")
-        assert digest_a == digest_b
+        assert digest_a != digest_b
 
     def test_raises_type_error_for_bytes(self) -> None:
         with pytest.raises(TypeError):
@@ -190,20 +198,24 @@ class TestHashText:
         assert isinstance(result, tuple)
         assert len(result) == 2
 
-    def test_hash_is_sha256_of_normalized_text(self) -> None:
+    def test_hash_is_sha256_of_raw_text(self) -> None:
         text = "Hallo Welt"
         digest, _ = hash_text(text)
-        expected = hashlib.sha256(normalize_volltext(text).encode("utf-8")).hexdigest()
+        expected = hashlib.sha256(text.encode("utf-8")).hexdigest()
         assert digest == expected
 
     def test_variant_is_correct(self) -> None:
         _, variant = hash_text("Hallo Welt")
         assert variant == SHA256_TEXT_VARIANT
 
-    def test_normalisation_produces_same_hash(self) -> None:
+    def test_formatting_differences_produce_different_hashes(self) -> None:
         digest_a, _ = hash_text("Hallo\r\nWelt")
         digest_b, _ = hash_text("Hallo\nWelt")
-        assert digest_a == digest_b
+        assert digest_a != digest_b
+
+    def test_blank_input_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="empty string"):
+            hash_text("   \n\t  ")
 
     def test_raises_type_error_for_bytes(self) -> None:
         with pytest.raises(TypeError):

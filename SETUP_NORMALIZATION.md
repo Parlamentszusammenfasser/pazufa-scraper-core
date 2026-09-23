@@ -26,7 +26,7 @@ All three resolvers accept caller-supplied YAML files, but they differ in **how 
 
 In other words: for **Authors / Organizations** the caller-supplied list is the *complete* source of truth (replacement) and later files override earlier ones on collision. For **Tags** the caller-supplied list is an *additive* overlay that loses to the built-ins on collision — see the [Load priority](#using-extra-tag-files-local-tags-only) section for details.
 
-The helpers `default_author_files()` and `default_organization_files()` in `pazufa_corelib.normalization.names` return the built-in paths so you can concatenate them with your extras without hard-coding paths — see [Calling the validators from Python](#calling-the-validators-from-python) for an example.
+The helpers `default_author_files()` and `default_organization_files()` (exported from `pazufa_corelib.normalization`) return the built-in paths so you can concatenate them with your extras without hard-coding paths — see [Calling the validators from Python](#calling-the-validators-from-python) for an example.
 
 ---
 
@@ -76,8 +76,7 @@ resolver = AuthorResolver(files=[Path("my_authors.yaml")])
 
 ```python
 from pathlib import Path
-from pazufa_corelib.normalization import AuthorResolver
-from pazufa_corelib.normalization.names import default_author_files
+from pazufa_corelib.normalization import AuthorResolver, default_author_files
 
 resolver = AuthorResolver(
     files=[*default_author_files().values(), Path("my_authors.yaml")],
@@ -154,8 +153,7 @@ resolver = OrganizationResolver(files=[Path("my_orgs.yaml")])
 
 ```python
 from pathlib import Path
-from pazufa_corelib.normalization import OrganizationResolver
-from pazufa_corelib.normalization.names import default_organization_files
+from pazufa_corelib.normalization import OrganizationResolver, default_organization_files
 
 # Keep all built-ins:
 resolver = OrganizationResolver(
@@ -302,8 +300,8 @@ yaml_validator_organizations(
 
 # Extend the defaults instead of replacing them — use the
 # default_author_files() / default_organization_files() helpers from
-# pazufa_corelib.normalization.names to discover the built-in paths:
-from pazufa_corelib.normalization.names import (
+# pazufa_corelib.normalization to discover the built-in paths:
+from pazufa_corelib.normalization import (
     default_author_files,
     default_organization_files,
 )

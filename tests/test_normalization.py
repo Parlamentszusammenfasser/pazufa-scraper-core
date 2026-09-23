@@ -1,6 +1,8 @@
 """Tests for normalization utilities."""
 
+import hashlib
 import logging
+import unicodedata
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,14 +16,24 @@ from pazufa_corelib.normalization import (
     NameIDResolution,
     OrganizationIDResolution,
     OrganizationResolver,
-    normalize_datum,
+    hash_text,
     normalize_name,
     normalize_name_key,
     normalize_volltext,
 )
 from pazufa_corelib.normalization.experimental import normalize_autor
+from pazufa_corelib.normalization.html_text import (
+    _HTML_BLOCK_ELEMENTS,
+    _HTML_CELL_ELEMENTS,
+    _HTML_DOCUMENT_MARKERS,
+    _HTML_ELEMENTS,
+    _HTML_ELEMENTS_WITHOUT_TEXT,
+    _HTML_INLINE_ELEMENTS,
+    _HTML_LINE_ELEMENTS,
+    _RE_HTML_TAG,
+)
 from pazufa_corelib.normalization.schlagworte import SchlagwortResolver
-from pazufa_corelib.normalization.text import _paragraph_quality_score
+from pazufa_corelib.normalization.text import _RE_INVISIBLE, _paragraph_quality_score
 
 # ---------------------------------------------------------------------------
 # normalize_volltext
@@ -71,6 +83,51 @@ class TestnormalizeVolltextInvisibleChars:
     def test_multiple_invisible_chars_at_once(self) -> None:
         result = normalize_volltext("\ufeffBundes\u00adtag\u200b Berlin\u200c")
         assert result == "Bundestag Berlin"
+
+    @pytest.mark.parametrize(
+        ("name", "char"),
+        [
+            ("LRM", "\u200e"),
+            ("RLM", "\u200f"),
+            ("LRE", "\u202a"),
+            ("RLO", "\u202e"),
+            ("LRI", "\u2066"),
+            ("PDI", "\u2069"),
+            ("ALM", "\u061c"),
+        ],
+    )
+    def test_bidi_controls_stripped(self, name: str, char: str) -> None:
+        # These reorder the rendering, so the text could display differently
+        # from what it contains.
+        assert normalize_volltext(f"Rechnung {char}00,01 EUR") == "Rechnung 00,01 EUR"
+
+    def test_unicode_tag_characters_stripped(self) -> None:
+        assert normalize_volltext("A\U000e0041\U000e007fB") == "AB"
+
+    def test_word_joiner_and_invisible_operators_stripped(self) -> None:
+        assert normalize_volltext("A\u2060B\u2061C") == "ABC"
+
+    def test_every_unicode_format_character_is_stripped(self) -> None:
+        # Pins the hand-written ranges in _RE_INVISIBLE against unicodedata, so
+        # a Unicode upgrade that adds format characters is noticed here.
+        missed = [
+            f"U+{cp:04X}"
+            for cp in range(0x110000)
+            if unicodedata.category(chr(cp)) == "Cf"
+            and not _RE_INVISIBLE.fullmatch(chr(cp))
+        ]
+        assert missed == []
+
+    def test_only_format_and_control_characters_are_stripped(self) -> None:
+        # The class must not swallow printable text; U+FFFD is the one addition.
+        extra = [
+            f"U+{cp:04X}"
+            for cp in range(0x110000)
+            if _RE_INVISIBLE.fullmatch(chr(cp))
+            and unicodedata.category(chr(cp)) not in ("Cf", "Cc")
+            and cp != 0xFFFD
+        ]
+        assert extra == []
 
 
 class TestnormalizeVolltextC1Controls:
@@ -128,6 +185,16 @@ class TestnormalizeVolltextLineEndings:
     def test_mixed_line_endings(self) -> None:
         result = normalize_volltext("Eins\r\nZwei\rDrei\nVier")
         assert result == "Eins\nZwei\nDrei\nVier"
+
+    def test_unicode_line_separator_becomes_newline(self) -> None:
+        assert normalize_volltext("Zeile eins Zeile zwei") == "Zeile eins\nZeile zwei"
+
+    def test_unicode_paragraph_separator_becomes_blank_line(self) -> None:
+        result = normalize_volltext("Absatz eins Absatz zwei")
+        assert result == "Absatz eins\n\nAbsatz zwei"
+
+    def test_line_separator_before_hyphen_break_rejoined(self) -> None:
+        assert normalize_volltext("Landes- regierung") == "Landesregierung"
 
 
 class TestnormalizeVolltextHyphenBreak:
@@ -291,14 +358,13 @@ class TestnormalizeVolltextEdgeCases:
 
 
 # ---------------------------------------------------------------------------
-# normalize_volltext — HTML input characterisation
+# normalize_volltext — HTML entities
 #
-# Tags are NOT stripped — only entities are decoded. These tests document
-# the predictable behaviour so callers know what to expect.
+# Entity decoding applies to every input, with or without markup.
 # ---------------------------------------------------------------------------
 
 
-class TestnormalizeVolltextOnHtmlInput:
+class TestnormalizeVolltextEntities:
     def test_plain_text_unaffected_by_unescape(self) -> None:
         # html.unescape() is a no-op on text with no entity sequences.
         text = "Der Landtag von Baden-Württemberg hat beschlossen."
@@ -322,31 +388,270 @@ class TestnormalizeVolltextOnHtmlInput:
         assert "&#160;" not in result
         assert "Wort Wort" == result
 
-    def test_html_tags_become_guillemets(self) -> None:
-        # Tags are NOT stripped — angle brackets are replaced by ‹ ›.
-        result = normalize_volltext("<p>Absatz</p>")
-        assert "<" not in result
-        assert "\u2039p\u203a" in result
-        assert "Absatz" in result
 
-    def test_inline_tags_mangle_surrounding_text(self) -> None:
-        result = normalize_volltext("Ein <b>wichtiger</b> Antrag")
-        assert "\u2039b\u203a" in result
-        assert "\u2039/b\u203a" in result
+# ---------------------------------------------------------------------------
+# normalize_volltext — HTML markup
+# ---------------------------------------------------------------------------
 
-    def test_paragraph_tag_not_a_line_break(self) -> None:
+
+class TestnormalizeVolltextHtml:
+    def test_block_elements_become_paragraphs(self) -> None:
         result = normalize_volltext("<p>Absatz eins</p><p>Absatz zwei</p>")
-        assert "\n\n" not in result
+        assert result == "Absatz eins\n\nAbsatz zwei"
 
-    def test_br_tag_not_a_line_break(self) -> None:
-        result = normalize_volltext("Zeile eins<br>Zeile zwei")
-        assert "Zeile eins\nZeile zwei" not in result
-        assert "\u2039br\u203a" in result
+    def test_unclosed_paragraphs_become_paragraphs(self) -> None:
+        result = normalize_volltext("<p>eins<p>zwei<p>drei")
+        assert result == "eins\n\nzwei\n\ndrei"
 
-    def test_script_tag_content_survives(self) -> None:
-        result = normalize_volltext("<script>alert(1)</script>")
-        assert "<script>" not in result
-        assert "alert(1)" in result
+    def test_br_becomes_line_break(self) -> None:
+        result = normalize_volltext("Zeile eins<br>Zeile zwei<br/>Zeile drei")
+        assert result == "Zeile eins\nZeile zwei\nZeile drei"
+
+    def test_inline_tags_removed_without_gap(self) -> None:
+        result = normalize_volltext("Landes<span>regierung</span> und <b>Land</b>tag")
+        assert result == "Landesregierung und Landtag"
+
+    def test_list_items_become_lines(self) -> None:
+        result = normalize_volltext(
+            "<ul><li>zu berichten,</li><li>vorzulegen.</li></ul>"
+        )
+        assert result == "zu berichten,\nvorzulegen."
+
+    def test_table_rows_become_lines_and_cells_spaces(self) -> None:
+        markup = (
+            "<table><tr><th>Drucksache</th><th>Titel</th></tr>"
+            "<tr><td>17/1234</td><td>Antrag der Fraktion</td></tr></table>"
+        )
+        result = normalize_volltext(markup)
+        assert result == "Drucksache Titel\n17/1234 Antrag der Fraktion"
+
+    def test_uppercase_tags_and_unquoted_attributes(self) -> None:
+        markup = (
+            '<P ALIGN=CENTER><FONT FACE="Arial">Der Landtag hat beschlossen</FONT></P>'
+        )
+        assert normalize_volltext(markup) == "Der Landtag hat beschlossen"
+
+    def test_quoted_attribute_may_contain_gt(self) -> None:
+        markup = '<p><a title="a > b" href="/x?a=1&amp;sect=3">Link</a></p>'
+        assert normalize_volltext(markup) == "Link"
+
+    def test_script_style_and_comments_removed_with_content(self) -> None:
+        markup = (
+            "<style>p{color:red}</style><!-- Navigation -->"
+            '<script>var s = "</div>"; if (a<b) track()</script><p>Text</p>'
+        )
+        assert normalize_volltext(markup) == "Text"
+
+    def test_first_opened_construct_wins(self) -> None:
+        # "<!--" inside a script is script content, not the start of a comment
+        markup = "<script>if (a <!--b) x()</script><p>Text</p><!-- Kommentar -->"
+        assert normalize_volltext(markup) == "Text"
+
+    def test_unclosed_comment_kept_as_text(self) -> None:
+        markup = "<p>Text</p><!-- offen <p>Rest</p>"
+        result = normalize_volltext(markup)
+        assert result == "Text\n\n‹!-- offen\n\nRest"
+
+    def test_svg_removed_with_content(self) -> None:
+        markup = "<svg><title>Icon</title><text>Grafik</text></svg><p>Text</p>"
+        assert normalize_volltext(markup) == "Text"
+
+    def test_doctype_head_and_source_whitespace(self) -> None:
+        markup = (
+            "<!DOCTYPE html>\n<html>\n  <head>\n    <title>Plenarprotokoll</title>\n"
+            "  </head>\n\n  <body>\n    <p>Der  Landtag\n    tagt.</p>\n  </body>\n</html>"
+        )
+        assert normalize_volltext(markup) == "Der Landtag tagt."
+
+    def test_unclosed_head_ends_at_body(self) -> None:
+        markup = "<html><head><title>Titel</title><body><p>Inhalt</p></body></html>"
+        assert normalize_volltext(markup) == "Inhalt"
+
+    def test_word_markup_removed(self) -> None:
+        markup = (
+            "<!--[if gte mso 9]><xml><w:WordDocument></w:WordDocument></xml>"
+            "<![endif]--><p class=MsoNormal><![if !supportLists]>1.<![endif]>"
+            " Der Landtag<o:p></o:p></p><st1:place>Stuttgart</st1:place>"
+        )
+        result = normalize_volltext(markup)
+        assert result == "1. Der Landtag\n\nStuttgart"
+
+    def test_custom_elements_removed(self) -> None:
+        markup = "<my-widget>Inhalt</my-widget>"
+        assert normalize_volltext(markup) == "Inhalt"
+
+    def test_custom_element_with_attributes_removed(self) -> None:
+        # no closing tag, but attributes are evidence enough
+        markup = '<p><my-widget data-id="7">Inhalt</p>'
+        assert normalize_volltext(markup) == "Inhalt"
+
+    @pytest.mark.parametrize(
+        ("markup", "expected"),
+        [
+            # hyphenated words in angle brackets have the shape of a custom
+            # element, but they are text and must not be swallowed
+            ("<p>Text <Baden-Württemberg> x</p>", "Text ‹Baden-Württemberg› x"),
+            (
+                "<p>Die <Bund-Länder-Kommission> tagt</p>",
+                "Die ‹Bund-Länder-Kommission› tagt",
+            ),
+            (
+                "<p>Formular <vor-nachname> ausfüllen</p>",
+                "Formular ‹vor-nachname› ausfüllen",
+            ),
+            ("<p>Siehe <anlage-1> unten</p>", "Siehe ‹anlage-1› unten"),
+            ("<p>Zeitraum <2020-2024></p>", "Zeitraum ‹2020-2024›"),
+        ],
+    )
+    def test_hyphenated_text_in_angle_brackets_kept(
+        self, markup: str, expected: str
+    ) -> None:
+        assert normalize_volltext(markup) == expected
+
+    def test_uppercase_word_namespace_tags_removed(self) -> None:
+        markup = "<P CLASS=MsoNormal>Der Landtag<O:P></O:P></P>"
+        assert normalize_volltext(markup) == "Der Landtag"
+
+    def test_cdata_removed(self) -> None:
+        markup = "<p>A<![CDATA[ x < y ]]>B</p>"
+        assert normalize_volltext(markup) == "AB"
+
+    def test_element_roles_do_not_overlap(self) -> None:
+        roles = [
+            _HTML_BLOCK_ELEMENTS,
+            _HTML_LINE_ELEMENTS,
+            _HTML_CELL_ELEMENTS,
+            _HTML_ELEMENTS_WITHOUT_TEXT,
+            frozenset({"head"}),
+            _HTML_INLINE_ELEMENTS,
+        ]
+        assert sum(len(role) for role in roles) == len(_HTML_ELEMENTS)
+
+    def test_document_markers_are_known_elements(self) -> None:
+        # The detector keeps its own short list; it must not drift away from the
+        # role sets, or a page would stop being recognised as HTML.
+        assert _HTML_DOCUMENT_MARKERS <= _HTML_ELEMENTS
+
+    def test_tag_pattern_order_is_deterministic(self) -> None:
+        # Longest first so no name is shadowed by a prefix of it, ties broken
+        # alphabetically so the pattern does not depend on the hash seed.
+        expected = "|".join(sorted(_HTML_ELEMENTS, key=lambda name: (-len(name), name)))
+        assert expected in _RE_HTML_TAG.pattern
+
+    def test_unclosed_element_without_text_is_a_tag(self) -> None:
+        # Without </math> nothing is removed with its content, but <math> is
+        # still a tag and must not leak into the text.
+        markup = "<p>Formel <math>x</p>"
+        assert normalize_volltext(markup) == "Formel x"
+
+    def test_escaped_markup_stays_text(self) -> None:
+        markup = "<p>Das Element &lt;b&gt; macht Text fett.</p>"
+        result = normalize_volltext(markup)
+        assert result == "Das Element ‹b› macht Text fett."
+
+    def test_entities_decoded_once(self) -> None:
+        markup = "<p>Ma&szlig;nahmen &amp;lt;b&amp;gt;</p>"
+        result = normalize_volltext(markup)
+        assert result == "Maßnahmen &lt;b&gt;"
+
+    def test_angle_brackets_that_are_not_tags_kept(self) -> None:
+        markup = "<p>Kontakt: <poststelle@lfdi.bwl.de>, Wert <5, a < b</p>"
+        result = normalize_volltext(markup)
+        assert result == "Kontakt: ‹poststelle@lfdi.bwl.de›, Wert ‹5, a ‹ b"
+
+
+# ---------------------------------------------------------------------------
+# normalize_volltext — line-end hyphens
+# ---------------------------------------------------------------------------
+
+
+class TestnormalizeVolltextDehyphenation:
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            # syllable breaks are joined
+            ("Landes-\nregierung", "Landesregierung"),
+            ("Über-\ngangsregelung", "Übergangsregelung"),
+            ("Ge-\nsetzentwurf", "Gesetzentwurf"),
+            ("BESCHLUSS-\nEMPFEHLUNG", "BESCHLUSSEMPFEHLUNG"),
+            # real hyphens before a capitalised word stay
+            ("Baden-\nWürttemberg", "Baden-Württemberg"),
+            ("CDU-\nFraktion", "CDU-Fraktion"),
+            ("E-\nMail", "E-Mail"),
+            ("Kfz-\nSteuer", "Kfz-Steuer"),
+            ("Bund-Länder-\nArbeitsgruppe", "Bund-Länder-Arbeitsgruppe"),
+            # real hyphens next to a digit stay
+            ("20-\njährige", "20-jährige"),
+            ("Covid-\n19-Pandemie", "Covid-19-Pandemie"),
+            # suspended hyphens stay, the line break becomes a space
+            ("Bundes-\nund Landesmittel", "Bundes- und Landesmittel"),
+            ("Hin-\noder Rückfahrt", "Hin- oder Rückfahrt"),
+            # hyphens after an acronym stay, even before a lowercase word
+            ("CDU-\ngeführte", "CDU-geführte"),
+            ("EU-\nweit", "EU-weit"),
+            ("US-\namerikanische", "US-amerikanische"),
+            ("SPD-\nnahe", "SPD-nahe"),
+            ("ÖPNV-\nAngebot", "ÖPNV-Angebot"),
+            # … and hyphens before a short all-caps part
+            ("Vitamin-\nD", "Vitamin-D"),
+            ("Typ-\nA-Fälle", "Typ-A-Fälle"),
+            # all-caps words split across the line are still joined
+            ("ABSCHLUSS-\nBERICHT", "ABSCHLUSSBERICHT"),
+            ("EU-\nROPA", "EUROPA"),
+            # an all-caps part longer than _MAX_ACRONYM_LENGTH is not an acronym
+            ("ZUSAMMEN-\nfassung", "ZUSAMMENfassung"),
+            ("Sonder-\nAUSSCHUSS", "SonderAUSSCHUSS"),
+        ],
+    )
+    def test_line_end_hyphen(self, text: str, expected: str) -> None:
+        result = normalize_volltext(text)
+        assert result == expected
+        # normalize_volltext is idempotent: callers hash its output, so a second
+        # pass must not change it
+        assert normalize_volltext(result) == result
+
+    def test_hash_text_matches_stored_text(self) -> None:
+        # hash_text hashes what it is given, so the stored volltext and the
+        # hashed text are the same string only if the caller normalizes first.
+        markup = "<p>Baden-<br>Württemberg, Bundes-<br>und Landes-<br>mittel</p>"
+        volltext = normalize_volltext(markup)
+        assert volltext == "Baden-Württemberg, Bundes- und Landesmittel"
+        expected = hashlib.sha256(volltext.encode("utf-8")).hexdigest()
+        assert hash_text(volltext)[0] == expected
+        # hashing the raw markup instead would store a digest of something else
+        assert hash_text(markup)[0] != expected
+
+    def test_word_broken_over_three_lines(self) -> None:
+        text = "Grundstücksverkehrs-\ngenehmigungs-\nverordnung"
+        result = normalize_volltext(text)
+        assert result == "Grundstücksverkehrsgenehmigungsverordnung"
+
+    def test_crlf_line_end(self) -> None:
+        text = "Landes-\r\nregierung in Baden-\r\nWürttemberg"
+        result = normalize_volltext(text)
+        assert result == "Landesregierung in Baden-Württemberg"
+
+    def test_lowercase_compound_still_joined(self) -> None:
+        # Known limitation: a lowercase continuation looks like a syllable break
+        text = "deutsch-\nfranzösische"
+        assert normalize_volltext(text) == ("deutschfranzösische")
+
+    def test_soft_hyphen_at_line_end_joined(self) -> None:
+        for text in ("Landes­\nregierung", "Landes&shy;\r\nregierung"):
+            result = normalize_volltext(text)
+            assert result == "Landesregierung"
+
+    def test_typographic_hyphens_at_line_end(self) -> None:
+        # U+2010 hyphen; U+2011 non-breaking hyphen becomes U+2010 under NFKC
+        for hyphen in ("‐", "‑"):
+            text = f"Landes{hyphen}\nregierung in Baden{hyphen}\nWürttemberg"
+            result = normalize_volltext(text)
+            assert result == "Landesregierung in Baden‐Württemberg"
+
+    def test_line_end_hyphen_from_br_tag(self) -> None:
+        markup = "<p>Das Land Baden-<br>Württemberg und die Landes-<br>regierung</p>"
+        result = normalize_volltext(markup)
+        assert result == "Das Land Baden-Württemberg und die Landesregierung"
 
 
 # ---------------------------------------------------------------------------
@@ -433,198 +738,6 @@ class TestParagraphQualityScore:
         # Normal capitalization (first word, proper nouns) should score well
         text = "Der Ministerpräsident Kretschmann hat die Sitzung eröffnet."
         assert _paragraph_quality_score(text) >= 0.8
-
-
-# ---------------------------------------------------------------------------
-# normalize_datum
-# ---------------------------------------------------------------------------
-
-
-class TestnormalizeDatum:
-    @pytest.mark.parametrize(
-        ("input_date", "expected"),
-        [
-            # German dot notation
-            ("02.04.2026", "2026-04-02"),
-            ("2.4.2026", "2026-04-02"),
-            ("1.1.2025", "2025-01-01"),
-            ("31.12.2024", "2024-12-31"),
-            # ISO 8601
-            ("2026-04-02", "2026-04-02"),
-            ("2024-01-01", "2024-01-01"),
-            ("2024-12-31", "2024-12-31"),
-            # German long format — full month names
-            ("2. April 2026", "2026-04-02"),
-            ("15. Dezember 2024", "2024-12-15"),
-            ("3. März 2023", "2023-03-03"),
-            ("15 Oktober 2025", "2025-10-15"),
-            ("1 Mai 2024", "2024-05-01"),
-            # German long format — abbreviated month names
-            ("2. Jan. 2026", "2026-01-02"),
-            ("2. Jan 2026", "2026-01-02"),
-            ("15. Feb. 2024", "2024-02-15"),
-            ("1. Mär. 2025", "2025-03-01"),
-            ("1. Mrz. 2025", "2025-03-01"),
-            ("5. Apr. 2023", "2023-04-05"),
-            ("10. Jun. 2022", "2022-06-10"),
-            ("7. Jul. 2021", "2021-07-07"),
-            ("3. Aug. 2020", "2020-08-03"),
-            ("9. Sep. 2026", "2026-09-09"),
-            ("9. Sept. 2026", "2026-09-09"),
-            ("4. Okt. 2025", "2025-10-04"),
-            ("11. Nov. 2024", "2024-11-11"),
-            ("24. Dez. 2023", "2023-12-24"),
-            # Leap year
-            ("29.02.2024", "2024-02-29"),
-        ],
-    )
-    def test_valid_dates(self, input_date: str, expected: str) -> None:
-        assert normalize_datum(input_date) == expected
-
-    @pytest.mark.parametrize(
-        "input_date",
-        [
-            "not a date",
-            "",
-            "32.13.2025",
-            "29.02.2025",  # 2025 is not a leap year
-            "00.01.2025",  # day 0 is invalid
-            "01.00.2025",  # month 0 is invalid
-            "01.13.2025",  # month 13 is invalid
-            "2025-13-01",  # month 13 in ISO
-            "2025-01-32",  # day 32 in ISO
-            "5. Foobar 2025",  # unknown month name
-            "abc-de-fg",  # letters in ISO format
-        ],
-    )
-    def test_invalid_dates(self, input_date: str) -> None:
-        with pytest.raises(ValueError):
-            normalize_datum(input_date)
-
-    def test_whitespace_stripped(self) -> None:
-        assert normalize_datum("  02.04.2026  ") == "2026-04-02"
-
-    def test_nbsp_in_long_format(self) -> None:
-        assert normalize_datum("2.\u00a0April\u00a02026") == "2026-04-02"
-
-    def test_narrow_no_break_space(self) -> None:
-        # U+202F narrow no-break space — collapsed by NFKC
-        assert normalize_datum("2.\u202fApril\u202f2026") == "2026-04-02"
-
-    def test_month_name_case_insensitive(self) -> None:
-        # The regex captures [A-Za-z…] and lowercases for lookup
-        assert normalize_datum("2. april 2026") == "2026-04-02"
-        assert normalize_datum("2. APRIL 2026") == "2026-04-02"
-
-    def test_iso_passthrough_unchanged(self) -> None:
-        # ISO dates should round-trip exactly
-        assert normalize_datum("2026-04-02") == "2026-04-02"
-
-    def test_boundary_dates(self) -> None:
-        # Year regex requires exactly 4 digits
-        assert normalize_datum("1.1.0001") == "0001-01-01"
-        assert normalize_datum("31.12.9999") == "9999-12-31"
-
-
-# ---------------------------------------------------------------------------
-# normalize_name_key
-# ---------------------------------------------------------------------------
-
-
-class TestNormalizeNameKey:
-    def test_nfkc_ligature(self) -> None:
-        assert normalize_name_key("ﬁscher") == "fischer"
-
-    def test_umlaut_fold_u(self) -> None:
-        assert normalize_name_key("Müller") == "mueller"
-
-    def test_umlaut_fold_o(self) -> None:
-        assert normalize_name_key("Möller") == "moeller"
-
-    def test_umlaut_fold_a(self) -> None:
-        assert normalize_name_key("Bäcker") == "baecker"
-
-    def test_umlaut_fold_sz(self) -> None:
-        assert normalize_name_key("Straße") == "strasse"
-
-    def test_lowercase(self) -> None:
-        assert normalize_name_key("MUELLER") == "mueller"
-
-    def test_punctuation_stripped(self) -> None:
-        assert normalize_name_key("Müller, Maria") == "mueller maria"
-
-    def test_hyphen_stripped(self) -> None:
-        assert normalize_name_key("Müller-Franken") == "muellerfranken"
-
-    def test_whitespace_collapsed(self) -> None:
-        assert normalize_name_key("  Maria   Müller  ") == "maria mueller"
-
-    def test_invisible_chars_stripped(self) -> None:
-        assert normalize_name_key("Mül​ler") == "mueller"
-
-    def test_empty_string(self) -> None:
-        assert normalize_name_key("") == ""
-
-    def test_mueller_variants_equal(self) -> None:
-        assert normalize_name_key("Müller") == normalize_name_key("Mueller")
-
-    def test_idempotent(self) -> None:
-        key = normalize_name_key("Dr. María Ångström")
-        assert normalize_name_key(key) == key
-
-
-# ---------------------------------------------------------------------------
-# normalize_name
-# ---------------------------------------------------------------------------
-
-
-class TestNormalizeName:
-    def test_token_sort_firstname_lastname(self) -> None:
-        assert normalize_name("Maria Müller") == normalize_name("Müller Maria")
-
-    def test_token_sort_comma_form(self) -> None:
-        assert normalize_name("Müller, Maria") == normalize_name("Maria Müller")
-
-    def test_honorific_dr_stripped(self) -> None:
-        assert normalize_name("Dr. Maria Müller") == normalize_name("Maria Müller")
-
-    def test_honorific_prof_stripped(self) -> None:
-        assert normalize_name("Prof. Schmidt") == normalize_name("Schmidt")
-
-    def test_honorific_prof_dr_stripped(self) -> None:
-        assert normalize_name("Prof. Dr. Schmidt") == normalize_name("Schmidt")
-
-    def test_honorific_mdb_stripped(self) -> None:
-        assert normalize_name("Maria Müller MdB") == normalize_name("Maria Müller")
-
-    def test_honorific_mdl_stripped(self) -> None:
-        assert normalize_name("Hans Maier MdL") == normalize_name("Hans Maier")
-
-    def test_honorific_dipl_stripped(self) -> None:
-        assert normalize_name("Dipl.-Ing. Bernd Weber") == normalize_name("Bernd Weber")
-
-    def test_umlaut_fold_applied(self) -> None:
-        assert normalize_name("Müller") == normalize_name("Mueller")
-
-    def test_combined_honorific_umlaut_sort(self) -> None:
-        assert normalize_name("Dr. Maria Müller MdB") == normalize_name("mueller maria")
-
-    def test_empty_string(self) -> None:
-        assert normalize_name("") == ""
-
-    def test_whitespace_only(self) -> None:
-        assert normalize_name("   ") == ""
-
-    def test_integration_same_key_from_different_forms(self) -> None:
-        variants = [
-            "Dr. Maria Müller",
-            "Müller, Maria",
-            "Mueller, Maria",
-            "Maria Mueller",
-            "Dr. Müller, Maria MdL",
-        ]
-        keys = [normalize_name(v) for v in variants]
-        assert len(set(keys)) == 1, f"Expected one unique key, got: {set(keys)}"
 
 
 # ---------------------------------------------------------------------------

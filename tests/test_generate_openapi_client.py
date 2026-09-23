@@ -7,6 +7,7 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -307,3 +308,44 @@ def test_real_spec_generates_every_endpoint_the_generator_needs() -> None:
 
     auth_delete = patched["paths"]["/api/v2/auth"]["delete"]["parameters"][0]
     assert "$ref" not in auth_delete["schema"]
+
+
+_UNSET_REPR = """    def __repr__(self) -> Literal["UNSET"]:
+        return "UNSET"
+"""
+
+
+def test_custom_types_template_defines_unset_repr() -> None:
+    """The `UNSET` repr survives regeneration because it lives in the template."""
+    template = (
+        REPO_ROOT / "tools" / "openapi_templates" / "types.py.jinja"
+    ).read_text()
+
+    assert _UNSET_REPR in template
+
+
+def test_generated_types_module_carries_the_unset_repr() -> None:
+    """The checked-in client matches the template it was generated from."""
+    generated = (REPO_ROOT / "pazufa_corelib" / "api_client" / "types.py").read_text()
+
+    assert _UNSET_REPR in generated
+
+
+def test_custom_types_template_matches_upstream_apart_from_the_repr() -> None:
+    """Fail when the generator ships a new `types.py.jinja`, so we can re-fork it.
+
+    A custom template is a frozen copy: upstream changes to it are invisible
+    until someone diffs the two. Removing our added `__repr__` block must leave
+    the file byte-identical to the installed one.
+    """
+    candidates = sorted(
+        (REPO_ROOT / ".venv" / "lib").glob(
+            "python*/site-packages/openapi_python_client/templates/types.py.jinja"
+        )
+    )
+    if not candidates:
+        pytest.skip("openapi-python-client is not installed in the project venv")
+
+    ours = (REPO_ROOT / "tools" / "openapi_templates" / "types.py.jinja").read_text()
+
+    assert ours.replace("\n" + _UNSET_REPR, "") == candidates[0].read_text()
