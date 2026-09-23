@@ -6,7 +6,6 @@ from inspect import stack
 from typing import Any
 
 from ..api_model import HashStrategy
-from .text import normalize_volltext
 
 # =====================================================================
 # Constants

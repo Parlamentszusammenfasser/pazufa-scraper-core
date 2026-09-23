@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [unreleased]
+## [0.3.0] - 23.09.2026
 ### Added
 - **`normalize_volltext` now removes HTML markup** — block elements become paragraph breaks, `<br>`/`<li>`/`<tr>` line breaks, table cells spaces; `script`, `style`, `head`, comments and Word markup (`<o:p>`, conditional comments) are dropped, and angle brackets that are not tags (`a < b`, e-mail addresses) are kept as before. HTML whitespace rules (source line breaks and indentation are not text) are applied only when the input looks like an HTML document, so text from a PDF keeps its paragraphs. A hyphenated name in angle brackets counts as a custom element only when the document backs it up — the tag has attributes, or the text closes it — so `<my-widget>…</my-widget>` is removed while text such as `<Baden-Württemberg>` or `<vor-nachname>` is kept.
 - **`normalize_volltext` keeps real hyphens when rejoining words split at a line end** — `Baden-\nWürttemberg` → `Baden-Württemberg` (previously `BadenWürttemberg`), likewise `CDU-Fraktion` and `20-jährige`; suspended hyphens are kept (`Bundes-\nund Landesmittel` → `Bundes- und Landesmittel`). A hyphen after an acronym also stays, even before a lowercase word (`CDU-\ngeführte` → `CDU-geführte`, `EU-weit`, `US-amerikanische`), as does one before a short all-caps part (`Vitamin-D`, `Typ-A`); all-caps words split across a line are still joined (`BESCHLUSS-\nEMPFEHLUNG`, `ZUSAMMEN-\nfassung`). Line ends with a soft hyphen or the typographic hyphens U+2010/U+2011, previously left split, are rejoined too. Compounds of two lowercase words (`deutsch-\nfranzösische`) are still joined.
