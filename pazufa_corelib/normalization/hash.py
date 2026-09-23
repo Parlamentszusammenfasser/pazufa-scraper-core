@@ -6,7 +6,6 @@ from inspect import stack
 from typing import Any
 
 from ..api_model import HashStrategy
-from .text import normalize_volltext
 
 # =====================================================================
 # Constants
@@ -80,10 +79,6 @@ def hash_bytes_sha_256(data: bytes) -> tuple[str, HashStrategy]:
 def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
     """SHA-256 hash of normalized text (please only use when rawbyte-hash not possible).
 
-    Hashes over the output of :func:`normalise_volltext` so that minor
-    formatting differences do not produce different hashes for semantically
-    identical documents.
-
     Returns a tuple of ``(hash, variant)`` where variant is ``"sha256+text"``.
 
     Raises :class:`TypeError` if *text* is not :class:`str`.
@@ -92,13 +87,9 @@ def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
     """
     _check_type(text, str)
 
-    normalized = normalize_volltext(text)
-    if not normalized:
-        raise ValueError(
-            "Cannot hash text: normalization produced an empty string "
-            "(input is garbled or blank)"
-        )
-    hash_content = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    if not text.strip():
+        raise ValueError("Cannot hash text: an empty string was provided.")
+    hash_content = hashlib.sha256(text.encode("utf-8")).hexdigest()
     hash_type = HashStrategy.sha256_text
 
     return hash_content, hash_type
@@ -111,6 +102,9 @@ def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
 
 def hash_text(text: str) -> tuple[str, HashStrategy]:
     """Hash text with SHA-256, returning ``(digest, variant)``.
+
+    If you have a PDF with text already assigned, it is intended to use the
+    'hash_bytes' function instead. This approach produces more stable Hashes.
 
     Args:
         text (str): The input text to be hashed.

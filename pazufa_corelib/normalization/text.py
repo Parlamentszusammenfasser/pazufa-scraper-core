@@ -1,9 +1,10 @@
-"""Text and date normalization for parliamentary document processing."""
+"""Text normalization for parliamentary document processing."""
 
 import html
 import re
 import unicodedata
-from datetime import date
+
+from .html_text import html_to_text
 
 # --- Garbled-text detection ---------------------------------------------------
 
@@ -17,28 +18,47 @@ _RE_C0_CONTROLS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 # C1 control characters (U+0080–U+009F): injected by ASCII+29 font shift
 _RE_C1_CONTROLS = re.compile(r"[\x80-\x9f]")
 
-# Zero-width and invisible characters: soft hyphen, BOM, ZWJ, ZWNJ, ZWSP
+# Invisible characters: C0 controls, the replacement character, and every Unicode
+# format character (category Cf) \u2014 soft hyphen, zero-width space and joiners, the
+# BOM, and the bidi controls (U+202A\u2013U+202E, U+2066\u2013U+2069) that let a text
+# display differently from what it contains. The ranges are Unicode 16.0 and are
+# pinned against unicodedata by a test.
 _RE_INVISIBLE = re.compile(
-    r"[\x00-\x08\x0b\x0c\x0e-\x1f\u00ad\u200b\u200c\u200d\ufeff\ufffd]"
+    r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffd"
+    r"\u00ad\u0600-\u0605\u061c\u06dd\u070f\u0890-\u0891\u08e2\u180e"
+    r"\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff"
+    r"\ufff9-\ufffb\U000110BD\U000110CD\U00013430-\U0001343F"
+    r"\U0001BCA0-\U0001BCA3\U0001D173-\U0001D17A\U000E0001"
+    r"\U000E0020-\U000E007F]"
 )
 
-# Hyphenated line breaks: word-char, hyphen, newline, word-char
-_RE_HYPHEN_BREAK = re.compile(r"(\w)-\n(\w)")
+# Unicode line and paragraph separators; NFKC leaves them untouched, so they are
+# mapped onto ordinary line breaks with the other line endings
+_LINE_SEPARATORS: tuple[tuple[str, str], ...] = (("\u2028", "\n"), ("\u2029", "\n\n"))
+
+# --- Dehyphenation ------------------------------------------------------------
+
+# Line-end hyphen after a word: hyphen-minus or U+2010 (NFKC also turns the
+# non-breaking hyphen U+2011 into U+2010). The next word is only looked at, not
+# consumed, so a word broken over three lines is rejoined twice.
+_RE_LINE_END_HYPHEN = re.compile(r"\b(\w+)([-‐])\n(?=(\w+))")
+
+# Soft hyphen at a line end: always a syllable break
+_RE_SOFT_HYPHEN_BREAK = re.compile(r"(\w)­(?:\r\n|\r|\n)(\w)")
+
+# Words after which a line-end hyphen is a suspended hyphen that has to stay
+# ("Bundes- und Landesmittel")
+_SUSPENDED_HYPHEN_FOLLOWERS: frozenset[str] = frozenset(
+    {"und", "oder", "bzw", "sowie", "bis"}
+)
+
+# Longest all-caps part that still counts as an acronym next to a line-end
+# hyphen ("CDU-geführte", "Vitamin-D"). Anything longer is read as an all-caps
+# word that was split across the line ("ZUSAMMEN-\nfassung").
+_MAX_ACRONYM_LENGTH = 5
 
 # Multiple spaces/tabs within a line (not newlines)
 _RE_MULTI_SPACE = re.compile(r"[ \t]{2,}")
-
-# Punctuation characters that are not word chars or whitespace
-_RE_NAME_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
-
-# German umlaut fold applied after NFKC + lowercase (so only lowercase umlauts needed)
-_UMLAUT_TABLE: dict[int, str] = {
-    ord("ü"): "ue",
-    ord("ö"): "oe",
-    ord("ä"): "ae",
-    ord("ß"): "ss",
-}
-
 
 # German vowels (including umlauts) for consonant-cluster detection
 _GERMAN_VOWELS: frozenset[str] = frozenset("aeiouäöüAEIOUÄÖÜ")
@@ -51,44 +71,6 @@ _MIN_WORDS_FOR_PENALTIES = 4
 # --- Paragraph splitting ------------------------------------------------------
 
 _RE_PARAGRAPH_SPLIT = re.compile(r"\n\s*\n")
-
-# --- Date parsing -------------------------------------------------------------
-
-_RE_ISO_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
-_RE_GERMAN_DOT = re.compile(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})$")
-_RE_GERMAN_NONSTANDARD = re.compile(r"^(\d{1,2})\.(\d{1,2})\.(\d{2})$")
-_RE_GERMAN_LONG = re.compile(r"^(\d{1,2})\.?\s*([A-Za-zäöüÄÖÜ]+)\.?\s+(\d{4})$")
-
-_GERMAN_MONTHS: dict[str, int] = {
-    # Full names
-    "januar": 1,
-    "februar": 2,
-    "märz": 3,
-    "april": 4,
-    "mai": 5,  # no standard German abbreviation
-    "juni": 6,
-    "juli": 7,
-    "august": 8,
-    "september": 9,
-    "oktober": 10,
-    "november": 11,
-    "dezember": 12,
-    # Abbreviations (trailing dot consumed by regex, not included here)
-    "jan": 1,
-    "feb": 2,
-    "mär": 3,
-    "mrz": 3,
-    "apr": 4,
-    "jun": 6,
-    "jul": 7,
-    "aug": 8,
-    "sep": 9,
-    "sept": 9,
-    "okt": 10,
-    "nov": 11,
-    "dez": 12,
-}
-
 
 # --- Private helpers ----------------------------------------------------------
 
@@ -105,6 +87,10 @@ def _paragraph_quality_score(paragraph: str) -> float:
 
     Short paragraphs (fewer than ``_MIN_WORDS_FOR_PENALTIES`` words) are exempt
     from the uppercase penalty to avoid dropping valid all-caps headings.
+
+    Note that the C1 signal never fires when :func:`normalize_volltext` calls
+    this function: its step 5 has already removed those characters. It is kept
+    for callers that score text which has not been through the pipeline.
 
     Args:
         paragraph: Raw paragraph text to evaluate.
@@ -150,82 +136,39 @@ def _paragraph_quality_score(paragraph: str) -> float:
     return max(0.0, min(1.0, score))
 
 
-# German academic titles and parliamentary post-nominals.
-# Stripped before key derivation so they don't influence matching.
-_RE_HONORIFICS = re.compile(
-    r"(?<!\w)(?:"
-    r"Dr\.(?:-Ing\.|-rer\.nat\.|-phil\.|-jur\.)?"
-    r"|Prof\.(?:\s+Dr\.)?"
-    r"|Dipl\.-\w+"
-    r"|M\.(?:A|Sc|Ed|B)\."
-    r"|B\.(?:A|Sc|Ed)\."
-    r"|Ph\.D\."
-    r"|MdB|MdL|MdEP"
-    r"|a\.D\."
-    r")(?!\w)",
-    re.IGNORECASE,
-)
+def _rejoin_line_end_hyphen(match: re.Match[str]) -> str:
+    r"""Rejoin a word split by a line-end hyphen unless the hyphen is real.
+
+    Replacement for ``_RE_LINE_END_HYPHEN``. A suspended hyphen before a
+    conjunction stays and the line break becomes a space (``Bundes-\nund`` →
+    ``Bundes- und``); keeping the line break would let a later default
+    normalization, as ``hash_text`` runs it, join the words after all.
+
+    Otherwise only the line break goes and the hyphen stays when it is next to a
+    digit (``20-jährige``), before a capitalised word (``Baden-Württemberg``,
+    ``CDU-Fraktion``), after an acronym (``CDU-geführte``, ``EU-weit``) or
+    before one (``Vitamin-D``, ``Typ-A``). When both sides are all-caps, an
+    all-caps word was split and is joined (``BESCHLUSS-\nEMPFEHLUNG``,
+    ``EU-\nROPA``); the same holds for every other syllable break, where hyphen
+    and line break both go.
+    """
+    left, hyphen, right = match.groups()
+    if right in _SUSPENDED_HYPHEN_FOLLOWERS:
+        return f"{left}{hyphen} "
+    left_is_acronym = left.isupper() and 2 <= len(left) <= _MAX_ACRONYM_LENGTH
+    right_is_acronym = right.isupper() and len(right) <= _MAX_ACRONYM_LENGTH
+    if (
+        left[-1].isdigit()
+        or right[0].isdigit()
+        or (right[0].isupper() and right[1:2].islower())
+        or (left_is_acronym and not right.isupper())
+        or (right_is_acronym and not left.isupper())
+    ):
+        return left + hyphen
+    return left
 
 
 # --- Public Functions ---------------------------------------------------------------
-
-
-def normalize_name(raw: str) -> str:
-    """Normalize a person or organization name to a stable comparison key.
-
-    Pipeline:
-
-    1. Strip honorifics and post-nominals (``Dr.``, ``Prof.``, ``MdB``, …)
-    2. Apply :func:`normalize_name_key` (NFKC, umlaut fold, lowercase,
-       strip punctuation, collapse whitespace)
-    3. Token-sort — ``"Maria Müller"`` and ``"Müller, Maria"`` produce the
-       same key
-
-    Args:
-        raw: Raw name string, e.g., from scraped parliamentary data.
-
-    Returns:
-        Lowercase, umlaut-folded, honorific-stripped, token-sorted key.
-    """
-    text = _RE_HONORIFICS.sub(" ", raw)
-    text = normalize_name_key(text)
-    tokens = text.split()
-    tokens.sort()
-    return " ".join(tokens)
-
-
-def normalize_name_key(text: str) -> str:
-    r"""Produce a normalised comparison key for a name string.
-
-    Applies character-level transformations only — no structural changes
-    (honorific stripping, token sorting). Intended as the shared base for
-    all name resolver preprocessing.
-
-    Pipeline:
-
-    1. NFKC unicode normalisation (ligatures, full-width, NBSP, …)
-    2. Strip invisible/zero-width and C1 control characters
-    3. Lowercase
-    4. German umlaut fold (``ü→ue``, ``ö→oe``, ``ä→ae``, ``ß→ss``)
-    5. Strip punctuation (everything that is not ``\\w`` or whitespace)
-    6. Collapse multiple spaces/tabs to a single space and strip ends
-
-    Args:
-        text: Raw name string.
-
-    Returns:
-        Normalised key suitable for exact lookup or as input to a fuzzy
-        or n-gram matcher.
-    """
-    text = unicodedata.normalize("NFKC", text)
-    text = _RE_INVISIBLE.sub("", text)
-    text = _RE_C1_CONTROLS.sub("", text)
-    text = text.lower()
-    text = text.translate(_UMLAUT_TABLE)
-    text = text.replace("/", " ")  # slash as separator: CDU/CSU, Bündnis 90/Die Grünen
-    text = _RE_NAME_PUNCT.sub("", text)
-    text = _RE_MULTI_SPACE.sub(" ", text)
-    return text.strip()
 
 
 def normalize_volltext(text: str) -> str:
@@ -233,21 +176,36 @@ def normalize_volltext(text: str) -> str:
 
     Applies a sequential cleaning pipeline:
 
+    0. Convert HTML markup to plain text (block elements become paragraph
+       breaks; ``script``, ``style``, ``head`` and comments are dropped)
     1. HTML entity decoding (``&amp;``, ``&uuml;``, ``&#160;``, …)
     2. NFKC unicode normalisation
-    3. Strip invisible/zero-width characters (soft hyphen, BOM, ZWJ, ZWSP)
+    3. Strip invisible characters: zero-width ones (soft hyphen, BOM, ZWJ,
+       ZWSP) and the rest of the Unicode format category, including the bidi
+       controls that would let the text display differently from its content
     4. Strip C0 control characters and DEL, except ``\\t \\n \\r`` (incl. NUL,
        which PostgreSQL ``text`` columns cannot store)
     5. Strip C1 control characters (U+0080–U+009F)
-    6. Normalize line endings to ``\\n``
+    6. Normalize line endings to ``\\n``, including the Unicode line and
+       paragraph separators U+2028 and U+2029
     7. Rejoin hyphenated line breaks (e.g. ``Landes-\\nregierung`` →
-       ``Landesregierung``)
+       ``Landesregierung``), keeping real hyphens (``Baden-Württemberg``,
+       ``20-jährige``, ``Bundes- und Landesmittel``)
     8. Collapse multiple spaces/tabs within a line to a single space
     9. Remove paragraphs with quality score < 0.5
     10. Replace ``<`` / ``>`` with guillemets ‹ › to neutralize XSS triggers
 
     Step 1 is a no-op on plain text containing no entity sequences, so
     applying this function to PDF-extracted text has no side effects.
+
+    Cost grows linearly with the input: roughly half a second and three to six
+    times the input size in peak memory per megabyte, the upper end for HTML.
+    A 1000-page Plenarprotokoll is about 3–5 MB of text, so ordinary documents
+    are cheap. There is deliberately no size limit here: how large a document
+    may be is a question for the scraper's downloader, which knows what it
+    fetched and can reject it before it reaches this function. Note that
+    ``hash_text`` normalizes again, so normalizing and then hashing pays the
+    cost twice.
 
     Args:
         text: Raw extracted text from a PDF parser or HTML source.
@@ -257,8 +215,13 @@ def normalize_volltext(text: str) -> str:
         Returns an empty string if the input is empty or all paragraphs are
         filtered out.
     """
+    # Before entity decoding, so escaped markup (&lt;b&gt;) stays text.
+    text = html_to_text(text)
     text = html.unescape(text)
     text = unicodedata.normalize("NFKC", text)
+    # Before invisible characters are stripped: without its soft hyphen the
+    # word would stay split across the line break.
+    text = _RE_SOFT_HYPHEN_BREAK.sub(r"\1\2", text)
     text = _RE_INVISIBLE.sub("", text)
     # Strip C0 controls (incl. NUL) and DEL but keep \t \n \r; a stray NUL
     # would otherwise break the backend's PostgreSQL text insert.
@@ -267,10 +230,12 @@ def normalize_volltext(text: str) -> str:
     text = _RE_C1_CONTROLS.sub("", text)
     # Normalize line endings before hyphen-break rejoining, so the pattern
     # always sees bare \n.  Note: this runs before paragraph splitting, so
-    # _RE_HYPHEN_BREAK will not fire across paragraph boundaries (those are
+    # _RE_LINE_END_HYPHEN will not fire across paragraph boundaries (those are
     # separated by \n\s*\n, never a bare word-hyphen-newline-word sequence).
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = _RE_HYPHEN_BREAK.sub(r"\1\2", text)
+    for separator, replacement in _LINE_SEPARATORS:
+        text = text.replace(separator, replacement)
+    text = _RE_LINE_END_HYPHEN.sub(_rejoin_line_end_hyphen, text)
     # Collapse intra-line whitespace after rejoining so PDF-extracted extra
     # spaces don't interfere with paragraph splitting (which relies on blank
     # lines, not spaces).
@@ -282,57 +247,3 @@ def normalize_volltext(text: str) -> str:
 
     text = text.replace("<", "\u2039").replace(">", "\u203a")
     return text.strip()
-
-
-def normalize_datum(text: str) -> str:
-    """Parse a German or ISO date string to ISO 8601 (YYYY-MM-DD).
-
-    Supported input formats:
-
-    - ``02.04.2026`` / ``2.4.2026`` — German dot notation
-    - ``2. April 2026``             — German long format (full and abbreviated month
-      names)
-    - ``02.04.26`` / ``2.4.26``     — Not standardized, but used in some documents
-    - ``2026-04-02``                — ISO 8601 passthrough
-
-    Unicode spaces (e.g. U+00A0 NBSP, U+202F narrow no-break space) are
-    collapsed via NFKC before matching, as they commonly appear in
-    PDF-extracted date strings.
-
-    Args:
-        text: Date string in one of the supported formats. Leading and trailing
-            whitespace is ignored.
-
-    Returns:
-        ISO 8601 date string in ``YYYY-MM-DD`` format.
-
-    Raises:
-        ValueError: If the input does not match any supported format or
-            represents a calendar-invalid date (e.g. 29 Feb on a non-leap year).
-    """
-    text = unicodedata.normalize("NFKC", text).strip()
-
-    m = _RE_ISO_DATE.match(text)
-    if m:
-        year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        return date(year, month, day).isoformat()
-
-    m = _RE_GERMAN_DOT.match(text)
-    if m:
-        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        return date(year, month, day).isoformat()
-
-    m = _RE_GERMAN_NONSTANDARD.match(text)
-    if m:
-        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        return date(year, month, day).isoformat()
-
-    m = _RE_GERMAN_LONG.match(text)
-    if m:
-        day, month_name, year = int(m.group(1)), m.group(2).lower(), int(m.group(3))
-        month_num = _GERMAN_MONTHS.get(month_name)
-        if month_num is None:
-            raise ValueError(f"Unknown German month name: {m.group(2)!r}")
-        return date(year, month_num, day).isoformat()
-
-    raise ValueError(f"Unparseable date: {text!r}")

@@ -11,20 +11,17 @@ from .authors import (
     AuthorResolver,
     default_author_files,
 )
+from .date import normalize_datum
 from .experimental import normalize_autor
 from .hash import hash_bytes, hash_text
+from .names import normalize_name, normalize_name_key
 from .organizations import (
     ORGANIZATIONS_FILES,
     OrganizationResolver,
     default_organization_files,
 )
 from .schlagworte import SchlagwortResolver
-from .text import (
-    normalize_datum,
-    normalize_name,
-    normalize_name_key,
-    normalize_volltext,
-)
+from .text import normalize_volltext
 from .urls import normalize_url
 
 __all__ = [
