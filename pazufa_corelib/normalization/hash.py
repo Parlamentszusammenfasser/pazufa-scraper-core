@@ -80,10 +80,6 @@ def hash_bytes_sha_256(data: bytes) -> tuple[str, HashStrategy]:
 def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
     """SHA-256 hash of normalized text (please only use when rawbyte-hash not possible).
 
-    Hashes over the output of :func:`normalise_volltext` so that minor
-    formatting differences do not produce different hashes for semantically
-    identical documents.
-
     Returns a tuple of ``(hash, variant)`` where variant is ``"sha256+text"``.
 
     Raises :class:`TypeError` if *text* is not :class:`str`.
@@ -92,13 +88,11 @@ def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
     """
     _check_type(text, str)
 
-    normalized = normalize_volltext(text)
-    if not normalized:
+    if not text.strip():
         raise ValueError(
-            "Cannot hash text: normalization produced an empty string "
-            "(input is garbled or blank)"
+            "Cannot hash text: an empty string was provided."
         )
-    hash_content = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    hash_content = hashlib.sha256(text.encode("utf-8")).hexdigest()
     hash_type = HashStrategy.sha256_text
 
     return hash_content, hash_type
