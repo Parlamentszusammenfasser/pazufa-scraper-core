@@ -89,9 +89,7 @@ def hash_text_sha_256(text: str) -> tuple[str, HashStrategy]:
     _check_type(text, str)
 
     if not text.strip():
-        raise ValueError(
-            "Cannot hash text: an empty string was provided."
-        )
+        raise ValueError("Cannot hash text: an empty string was provided.")
     hash_content = hashlib.sha256(text.encode("utf-8")).hexdigest()
     hash_type = HashStrategy.sha256_text
 

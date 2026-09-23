@@ -606,15 +606,20 @@ class TestnormalizeVolltextDehyphenation:
     def test_line_end_hyphen(self, text: str, expected: str) -> None:
         result = normalize_volltext(text)
         assert result == expected
-        # hash_text normalizes again with the defaults; that must not change it
+        # normalize_volltext is idempotent: callers hash its output, so a second
+        # pass must not change it
         assert normalize_volltext(result) == result
 
     def test_hash_text_matches_stored_text(self) -> None:
+        # hash_text hashes what it is given, so the stored volltext and the
+        # hashed text are the same string only if the caller normalizes first.
         markup = "<p>Baden-<br>Württemberg, Bundes-<br>und Landes-<br>mittel</p>"
         volltext = normalize_volltext(markup)
         assert volltext == "Baden-Württemberg, Bundes- und Landesmittel"
         expected = hashlib.sha256(volltext.encode("utf-8")).hexdigest()
         assert hash_text(volltext)[0] == expected
+        # hashing the raw markup instead would store a digest of something else
+        assert hash_text(markup)[0] != expected
 
     def test_word_broken_over_three_lines(self) -> None:
         text = "Grundstücksverkehrs-\ngenehmigungs-\nverordnung"
