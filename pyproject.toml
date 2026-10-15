@@ -41,7 +41,7 @@ packages = [{ include = "pazufa_corelib" }]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.15"
-litellm = "^1.94.0"
+litellm = "^1.96.2"
 instructor = { extras = ["litellm"], version = "^1.14.0" }
 w3lib = "^2.4.1"
 rapidfuzz = "^3.14.5"
@@ -57,7 +57,7 @@ ruff = "^0.15.9"
 pytest-cov = "^7.0.0"
 mypy = "^1.19.1"
 datamodel-code-generator = { extras = ["http"], version = "^0.71.0" }
-openapi-python-client = "^0.28.2"
+openapi-python-client = "^0.29.1"
 types-python-dateutil = "^2.9.0.20260124"
 pytest-asyncio = "^1.3.0"
 types-pyyaml = "^6.0.12.20260408"
