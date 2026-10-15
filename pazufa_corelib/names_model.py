@@ -116,13 +116,14 @@ class BaseNameFile(BaseModel):
 
         Raises:
             FileNotFoundError: If the file does not exist.
-            ValueError: If the YAML cannot be parsed or validation fails.
+            ValueError: If the file is not valid UTF-8, the YAML cannot be
+                parsed, or validation fails.
         """
         try:
-            raw = yaml.safe_load(path.read_text())
+            raw = yaml.safe_load(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             raise FileNotFoundError(f"Name mapping file not found: {path}")
-        except yaml.YAMLError as e:
+        except (yaml.YAMLError, UnicodeDecodeError) as e:
             raise ValueError(f"Failed to parse {path.name}: {e}") from e
         try:
             return cls.model_validate({"source": path, **raw})

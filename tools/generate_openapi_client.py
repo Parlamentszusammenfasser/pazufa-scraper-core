@@ -137,9 +137,11 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="openapi-client-") as tmp:
         build_dir = Path(tmp)
 
-        spec = yaml.safe_load(OPENAPI.read_text())
+        spec = yaml.safe_load(OPENAPI.read_text(encoding="utf-8"))
         patched_spec_path = build_dir / "openapi-patched.yaml"
-        patched_spec_path.write_text(yaml.dump(_patch_spec(spec), sort_keys=False))
+        patched_spec_path.write_text(
+            yaml.dump(_patch_spec(spec), sort_keys=False), encoding="utf-8"
+        )
 
         run(
             [
