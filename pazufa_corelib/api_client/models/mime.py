@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Mime(str, Enum):
+class Mime(StrEnum):
     APPLICATIONJSON = "application/json"
     APPLICATIONPDF = "application/pdf"
     TEXTHTML = "text/html"

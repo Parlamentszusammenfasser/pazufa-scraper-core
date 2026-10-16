@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class EnumerationNames(str, Enum):
+class EnumerationNames(StrEnum):
     DOKUMENTENTYPEN = "dokumententypen"
     PARLAMENTE = "parlamente"
     SCHLAGWORTE = "schlagworte"

@@ -7,7 +7,6 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..models.doktyp import Doktyp
 from ..types import UNSET, Unset
@@ -215,10 +214,12 @@ class Dokument:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.autor import Autor
-        from ..models.dokument_hash import DokumentHash
-        from ..models.touched_by_inner import TouchedByInner
-        from ..models.zusammenfassungstupel import Zusammenfassungstupel
+        from ..models.autor import Autor  # noqa: PLC0415
+        from ..models.dokument_hash import DokumentHash  # noqa: PLC0415
+        from ..models.touched_by_inner import TouchedByInner  # noqa: PLC0415
+        from ..models.zusammenfassungstupel import (
+            Zusammenfassungstupel,  # noqa: PLC0415
+        )
 
         d = dict(src_dict)
         autoren = []
@@ -256,9 +257,9 @@ class Dokument:
 
         volltext = d.pop("volltext")
 
-        zp_modifiziert = isoparse(d.pop("zp_modifiziert"))
+        zp_modifiziert = datetime.datetime.fromisoformat(d.pop("zp_modifiziert"))
 
-        zp_referenz = isoparse(d.pop("zp_referenz"))
+        zp_referenz = datetime.datetime.fromisoformat(d.pop("zp_referenz"))
 
         def _parse_api_id(data: object) -> None | Unset | UUID:
             if data is None:
@@ -341,7 +342,7 @@ class Dokument:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                zp_erstellt_type_0 = isoparse(data)
+                zp_erstellt_type_0 = datetime.datetime.fromisoformat(data)
 
                 return zp_erstellt_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

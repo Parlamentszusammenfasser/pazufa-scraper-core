@@ -6,7 +6,6 @@ from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 T = TypeVar("T", bound="AuthRotateResponse201")
 
@@ -44,7 +43,7 @@ class AuthRotateResponse201:
         d = dict(src_dict)
         new_api_key = d.pop("new_api_key")
 
-        rotation_complete_date = isoparse(d.pop("rotation_complete_date"))
+        rotation_complete_date = datetime.datetime.fromisoformat(d.pop("rotation_complete_date"))
 
         auth_rotate_response_201 = cls(
             new_api_key=new_api_key,

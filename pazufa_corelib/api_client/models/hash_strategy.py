@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class HashStrategy(str, Enum):
+class HashStrategy(StrEnum):
     SHA1BYTES = "sha1+bytes"
     SHA256BYTES = "sha256+bytes"
     SHA256TEXT = "sha256+text"
