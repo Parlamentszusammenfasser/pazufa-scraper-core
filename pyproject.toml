@@ -159,6 +159,7 @@ safe_licenses = [
     "Mozilla Public License 2.0 (MPL 2.0)",
     "MPL-2.0 AND MIT",
     "Public Domain",
+    "MIT-0",  # cffi, installed on Linux only; pylic reports it unused on macOS
 ]
 unsafe_packages = [
     "pazufa_corelib",
