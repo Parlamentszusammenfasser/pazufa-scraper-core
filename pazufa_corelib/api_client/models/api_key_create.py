@@ -10,11 +10,11 @@ from attrs import field as _attrs_field
 from ..models.api_scope import APIScope
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="CreateApiKey")
+T = TypeVar("T", bound="APIKeyCreate")
 
 
 @_attrs_define
-class CreateApiKey:
+class APIKeyCreate:
     """Requests a new API key. The key will be saved as hash in the database and only produced once in clear text.
 
     Attributes:
@@ -92,14 +92,14 @@ class CreateApiKey:
 
         keytag_prefix = _parse_keytag_prefix(d.pop("keytag_prefix", UNSET))
 
-        create_api_key = cls(
+        api_key_create = cls(
             scope=scope,
             expires_at=expires_at,
             keytag_prefix=keytag_prefix,
         )
 
-        create_api_key.additional_properties = d
-        return create_api_key
+        api_key_create.additional_properties = d
+        return api_key_create
 
     @property
     def additional_keys(self) -> list[str]:

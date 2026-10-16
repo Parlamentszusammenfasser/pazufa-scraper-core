@@ -7,12 +7,17 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.keytag_listing import KeytagListing
-from ...types import Response
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     keytag: str,
+    *,
+    if_none_match: str | Unset = UNSET,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+    if not isinstance(if_none_match, Unset):
+        headers["if-none-match"] = if_none_match
 
     _kwargs: dict[str, Any] = {
         "method": "get",
@@ -21,6 +26,7 @@ def _get_kwargs(
         ),
     }
 
+    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -31,6 +37,10 @@ def _parse_response(
         response_200 = KeytagListing.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 304:
+        response_304 = cast(Any, None)
+        return response_304
 
     if response.status_code == 401:
         response_401 = cast(Any, None)
@@ -61,10 +71,13 @@ def sync_detailed(
     keytag: str,
     *,
     client: AuthenticatedClient,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | KeytagListing | str]:
-    """
+    """Lists which objects were touched by the supplied keytag
+
     Args:
         keytag (str):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -76,6 +89,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         keytag=keytag,
+        if_none_match=if_none_match,
     )
 
     response = client.get_httpx_client().request(
@@ -89,10 +103,13 @@ def sync(
     keytag: str,
     *,
     client: AuthenticatedClient,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | KeytagListing | str | None:
-    """
+    """Lists which objects were touched by the supplied keytag
+
     Args:
         keytag (str):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -105,6 +122,7 @@ def sync(
     return sync_detailed(
         keytag=keytag,
         client=client,
+        if_none_match=if_none_match,
     ).parsed
 
 
@@ -112,10 +130,13 @@ async def asyncio_detailed(
     keytag: str,
     *,
     client: AuthenticatedClient,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | KeytagListing | str]:
-    """
+    """Lists which objects were touched by the supplied keytag
+
     Args:
         keytag (str):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -127,6 +148,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         keytag=keytag,
+        if_none_match=if_none_match,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -138,10 +160,13 @@ async def asyncio(
     keytag: str,
     *,
     client: AuthenticatedClient,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | KeytagListing | str | None:
-    """
+    """Lists which objects were touched by the supplied keytag
+
     Args:
         keytag (str):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -155,5 +180,6 @@ async def asyncio(
         await asyncio_detailed(
             keytag=keytag,
             client=client,
+            if_none_match=if_none_match,
         )
     ).parsed

@@ -16,7 +16,11 @@ def _get_kwargs(
     contains: str | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+    if not isinstance(if_none_match, Unset):
+        headers["if-none-match"] = if_none_match
 
     params: dict[str, Any] = {}
 
@@ -36,6 +40,7 @@ def _get_kwargs(
         "params": params,
     }
 
+    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -85,6 +90,7 @@ def sync_detailed(
     contains: str | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | list[str] | str]:
     """Retrieves values from a specified enumeration type. Returns a list of valid values that can be used
     in other API operations, optionally filtered by a substring.
@@ -94,6 +100,7 @@ def sync_detailed(
         contains (str | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -108,6 +115,7 @@ def sync_detailed(
         contains=contains,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     )
 
     response = client.get_httpx_client().request(
@@ -124,6 +132,7 @@ def sync(
     contains: str | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | list[str] | str | None:
     """Retrieves values from a specified enumeration type. Returns a list of valid values that can be used
     in other API operations, optionally filtered by a substring.
@@ -133,6 +142,7 @@ def sync(
         contains (str | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -148,6 +158,7 @@ def sync(
         contains=contains,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     ).parsed
 
 
@@ -158,6 +169,7 @@ async def asyncio_detailed(
     contains: str | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | list[str] | str]:
     """Retrieves values from a specified enumeration type. Returns a list of valid values that can be used
     in other API operations, optionally filtered by a substring.
@@ -167,6 +179,7 @@ async def asyncio_detailed(
         contains (str | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -181,6 +194,7 @@ async def asyncio_detailed(
         contains=contains,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -195,6 +209,7 @@ async def asyncio(
     contains: str | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | list[str] | str | None:
     """Retrieves values from a specified enumeration type. Returns a list of valid values that can be used
     in other API operations, optionally filtered by a substring.
@@ -204,6 +219,7 @@ async def asyncio(
         contains (str | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -220,5 +236,6 @@ async def asyncio(
             contains=contains,
             page=page,
             per_page=per_page,
+            if_none_match=if_none_match,
         )
     ).parsed

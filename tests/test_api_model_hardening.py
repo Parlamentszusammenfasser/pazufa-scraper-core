@@ -697,3 +697,29 @@ class TestModuleSurface:
     def test_base_model_config(self) -> None:
         assert PaZuFaBaseModel.model_config["str_strip_whitespace"] is True
         assert PaZuFaBaseModel.model_config["str_min_length"] == 1
+
+
+def test_spec_0_2_8_additions() -> None:
+    """New 0.2.8 enum members and fields are accepted; tiebreaker is >= 0."""
+    from pazufa_corelib.api_model import (
+        Doktyp,
+        Station,
+        Stationstyp,
+        Vorgang,
+        Vorgangstyp,
+    )
+
+    assert Doktyp("beschlussprotokoll") and Doktyp("inhaltsprotokoll")
+    assert Stationstyp("parl-anhoerung")
+    assert Vorgangstyp("gg-land-parl-haushalt")
+    assert "zusammenfassung" in Vorgang.model_fields
+    with pytest.raises(ValidationError):
+        Station.model_validate(
+            {
+                "typ": "parl-anhoerung",
+                "gremium": {},
+                "dokumente": [],
+                "zp_start": "2026-01-01T00:00:00+00:00",
+                "meta_tiebreaker": -1,
+            }
+        )

@@ -43,10 +43,14 @@ class Station:
             gremium_federf (bool | None | Unset): If the station if of type parl-ausschbsl, this field should be set if the
                 committee is the main committee ('federführend')
             link (None | str | Unset): Link to a web page describing this station in more detail, NOT to a pdf document
+            meta_tiebreaker (int | None | Unset): Tiebreaker for Station ordering other than `zp_start`.
+                If `zp_start(A)` > `zp_start(B)`, A > B;
+                If `zp_start(A)` = `zp_start(B)`, `meta_tiebreaker` determines the order
+                For more details, see <https://codeberg.org/PaZuFa/pazufa-backend/issues/57>
             schlagworte (list[str] | Unset): DEPRECATED: This has been moved to the Vorgang level.
                 Please do not submit any data here, it will be merged as Vorgangs-Schlagworte
-                For details, see https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54
-            stellungnahmen (list[Dokument | UUID] | Unset):
+                For details, see <https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54>
+            stellungnahmen (list[Dokument | UUID] | Unset): List statement of interested parties
             titel (None | str | Unset): optional title, if other data does not provide a proper description
             touched_by (list[TouchedByInner] | Unset): list of scraper uuids / key database ids that have touched this
                 object
@@ -62,6 +66,7 @@ class Station:
     api_id: None | Unset | UUID = UNSET
     gremium_federf: bool | None | Unset = UNSET
     link: None | str | Unset = UNSET
+    meta_tiebreaker: int | None | Unset = UNSET
     schlagworte: list[str] | Unset = UNSET
     stellungnahmen: list[Dokument | UUID] | Unset = UNSET
     titel: None | str | Unset = UNSET
@@ -111,6 +116,12 @@ class Station:
             link = UNSET
         else:
             link = self.link
+
+        meta_tiebreaker: int | None | Unset
+        if isinstance(self.meta_tiebreaker, Unset):
+            meta_tiebreaker = UNSET
+        else:
+            meta_tiebreaker = self.meta_tiebreaker
 
         schlagworte: list[str] | Unset = UNSET
         if not isinstance(self.schlagworte, Unset):
@@ -167,6 +178,8 @@ class Station:
             field_dict["gremium_federf"] = gremium_federf
         if link is not UNSET:
             field_dict["link"] = link
+        if meta_tiebreaker is not UNSET:
+            field_dict["meta_tiebreaker"] = meta_tiebreaker
         if schlagworte is not UNSET:
             field_dict["schlagworte"] = schlagworte
         if stellungnahmen is not UNSET:
@@ -253,6 +266,15 @@ class Station:
 
         link = _parse_link(d.pop("link", UNSET))
 
+        def _parse_meta_tiebreaker(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        meta_tiebreaker = _parse_meta_tiebreaker(d.pop("meta_tiebreaker", UNSET))
+
         schlagworte = cast(list[str], d.pop("schlagworte", UNSET))
 
         _stellungnahmen = d.pop("stellungnahmen", UNSET)
@@ -324,6 +346,7 @@ class Station:
             api_id=api_id,
             gremium_federf=gremium_federf,
             link=link,
+            meta_tiebreaker=meta_tiebreaker,
             schlagworte=schlagworte,
             stellungnahmen=stellungnahmen,
             titel=titel,

@@ -120,6 +120,8 @@ class Doktyp(StrEnum):
     stellungnahme = "stellungnahme"
     gutachten = "gutachten"
     redeprotokoll = "redeprotokoll"
+    beschlussprotokoll = "beschlussprotokoll"
+    inhaltsprotokoll = "inhaltsprotokoll"
     tops = "tops"
     tops_aend = "tops-aend"
     tops_ergz = "tops-ergz"
@@ -487,6 +489,7 @@ class Stationstyp(StrEnum):
     preparl_formvs = "preparl-formvs"
     parl_initiativ = "parl-initiativ"
     parl_antragsst = "parl-antragsst"
+    parl_anhoerung = "parl-anhoerung"
     parl_ausschber = "parl-ausschber"
     parl_vollvlsgn = "parl-vollvlsgn"
     parl_akzeptanz = "parl-akzeptanz"
@@ -541,6 +544,7 @@ class Vorgangstyp(StrEnum):
     bu_zustimmung_inisonst_intvertrag = "bu-zustimmung-inisonst-intvertrag"
     bu_antrag_bweinsatz = "bu-antrag-bweinsatz"
     gg_land_parl = "gg-land-parl"
+    gg_land_parl_haushalt = "gg-land-parl-haushalt"
     gg_land_volk = "gg-land-volk"
     bw_einsatz = "bw-einsatz"
     sonstig = "sonstig"
@@ -796,6 +800,13 @@ class Station(PaZuFaBaseModel):
             description="Link to a web page describing this station in more detail, NOT to a pdf document"
         ),
     ] = None
+    meta_tiebreaker: Annotated[
+        int | None,
+        Field(
+            description="Tiebreaker for Station ordering other than `zp_start`.\nIf `zp_start(A)` > `zp_start(B)`, A > B;\nIf `zp_start(A)` = `zp_start(B)`, `meta_tiebreaker` determines the order\nFor more details, see <https://codeberg.org/PaZuFa/pazufa-backend/issues/57>",
+            ge=0,
+        ),
+    ] = None
     schlagworte: Annotated[
         list[str] | None,
         Field(
@@ -906,6 +917,12 @@ class Vorgang(PaZuFaBaseModel):
     wahlperiode: Annotated[
         int, Field(description="number of the electoral period", ge=0)
     ]
+    zusammenfassung: Annotated[
+        list[Zusammenfassungstupel] | None,
+        Field(
+            description="Summary of the whole Vorgang's idea\nSee parlamentszusammenfasser#55"
+        ),
+    ] = None
 
 
 class Sitzung(PaZuFaBaseModel):

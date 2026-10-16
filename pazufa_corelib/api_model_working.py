@@ -451,6 +451,12 @@ class WorkingStation(PaZuFaBaseModel):
             description="Link to a web page describing this station in more detail, NOT to a pdf document"
         ),
     ] = None
+    meta_tiebreaker: Annotated[
+        int | None,
+        Field(
+            description="Tiebreaker for Station ordering other than `zp_start`.\nIf `zp_start(A)` > `zp_start(B)`, A > B;\nIf `zp_start(A)` = `zp_start(B)`, `meta_tiebreaker` determines the order\nFor more details, see <https://codeberg.org/PaZuFa/pazufa-backend/issues/57>"
+        ),
+    ] = None
     schlagworte: Annotated[
         list[str] | None,
         Field(
@@ -562,6 +568,12 @@ class WorkingVorgang(PaZuFaBaseModel):
     ] = None
     wahlperiode: Annotated[
         int | None, Field(description="number of the electoral period")
+    ] = None
+    zusammenfassung: Annotated[
+        list[WorkingZusammenfassungstupel] | None,
+        Field(
+            description="Summary of the whole Vorgang's idea\nSee parlamentszusammenfasser#55"
+        ),
     ] = None
 
 

@@ -17,10 +17,14 @@ def _get_kwargs(
     *,
     format_: DokumentFormat | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
         headers["if-modified-since"] = if_modified_since
+
+    if not isinstance(if_none_match, Unset):
+        headers["if-none-match"] = if_none_match
 
     params: dict[str, Any] = {}
 
@@ -93,6 +97,7 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     format_: DokumentFormat | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | Dokument | str]:
     """Retrieves a specific document by its unique identifier. Returns complete document data including
     title, full text, metadata, and author information. If called by admin or higher, this returns a
@@ -102,6 +107,7 @@ def sync_detailed(
         api_id (UUID):
         format_ (DokumentFormat | Unset): Format of return of the documents. Defaults to pazufa
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -115,6 +121,7 @@ def sync_detailed(
         api_id=api_id,
         format_=format_,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     )
 
     response = client.get_httpx_client().request(
@@ -130,6 +137,7 @@ def sync(
     client: AuthenticatedClient | Client,
     format_: DokumentFormat | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | Dokument | str | None:
     """Retrieves a specific document by its unique identifier. Returns complete document data including
     title, full text, metadata, and author information. If called by admin or higher, this returns a
@@ -139,6 +147,7 @@ def sync(
         api_id (UUID):
         format_ (DokumentFormat | Unset): Format of return of the documents. Defaults to pazufa
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -153,6 +162,7 @@ def sync(
         client=client,
         format_=format_,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     ).parsed
 
 
@@ -162,6 +172,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     format_: DokumentFormat | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | Dokument | str]:
     """Retrieves a specific document by its unique identifier. Returns complete document data including
     title, full text, metadata, and author information. If called by admin or higher, this returns a
@@ -171,6 +182,7 @@ async def asyncio_detailed(
         api_id (UUID):
         format_ (DokumentFormat | Unset): Format of return of the documents. Defaults to pazufa
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -184,6 +196,7 @@ async def asyncio_detailed(
         api_id=api_id,
         format_=format_,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -197,6 +210,7 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     format_: DokumentFormat | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | Dokument | str | None:
     """Retrieves a specific document by its unique identifier. Returns complete document data including
     title, full text, metadata, and author information. If called by admin or higher, this returns a
@@ -206,6 +220,7 @@ async def asyncio(
         api_id (UUID):
         format_ (DokumentFormat | Unset): Format of return of the documents. Defaults to pazufa
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -221,5 +236,6 @@ async def asyncio(
             client=client,
             format_=format_,
             if_modified_since=if_modified_since,
+            if_none_match=if_none_match,
         )
     ).parsed
