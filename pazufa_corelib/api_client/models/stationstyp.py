@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Stationstyp(str, Enum):
+class Stationstyp(StrEnum):
     PARL_ABLEHNUNG = "parl-ablehnung"
     PARL_AKZEPTANZ = "parl-akzeptanz"
     PARL_ANTRAGSST = "parl-antragsst"

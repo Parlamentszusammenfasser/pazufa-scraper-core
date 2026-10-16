@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Ressort(str, Enum):
+class Ressort(StrEnum):
     ARBEIT = "Arbeit"
     BILDUNG = "Bildung"
     DIGITALISIERUNG = "Digitalisierung"

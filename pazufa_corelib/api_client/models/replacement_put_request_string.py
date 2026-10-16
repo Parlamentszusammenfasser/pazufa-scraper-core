@@ -54,7 +54,7 @@ class ReplacementPutRequestString:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.replacement_put_request_inner_string import (
-            ReplacementPutRequestInnerString,
+            ReplacementPutRequestInnerString,  # noqa: PLC0415
         )
 
         d = dict(src_dict)

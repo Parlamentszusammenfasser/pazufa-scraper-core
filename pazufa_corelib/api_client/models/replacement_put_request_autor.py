@@ -60,10 +60,10 @@ class ReplacementPutRequestAutor:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.replacement_put_request_autor_objects_item import (
-            ReplacementPutRequestAutorObjectsItem,
+            ReplacementPutRequestAutorObjectsItem,  # noqa: PLC0415
         )
         from ..models.replacement_put_request_inner_autor import (
-            ReplacementPutRequestInnerAutor,
+            ReplacementPutRequestInnerAutor,  # noqa: PLC0415
         )
 
         d = dict(src_dict)

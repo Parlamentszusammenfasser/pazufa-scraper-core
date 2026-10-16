@@ -60,10 +60,10 @@ class ReplacementPutRequestGremium:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.replacement_put_request_gremium_objects_item import (
-            ReplacementPutRequestGremiumObjectsItem,
+            ReplacementPutRequestGremiumObjectsItem,  # noqa: PLC0415
         )
         from ..models.replacement_put_request_inner_gremium import (
-            ReplacementPutRequestInnerGremium,
+            ReplacementPutRequestInnerGremium,  # noqa: PLC0415
         )
 
         d = dict(src_dict)

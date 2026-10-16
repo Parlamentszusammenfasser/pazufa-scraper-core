@@ -173,11 +173,11 @@ class Vorgang:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.autor import Autor
-        from ..models.lobbyregistereintrag import Lobbyregistereintrag
-        from ..models.station import Station
-        from ..models.touched_by_inner import TouchedByInner
-        from ..models.vg_ident import VgIdent
+        from ..models.autor import Autor  # noqa: PLC0415
+        from ..models.lobbyregistereintrag import Lobbyregistereintrag  # noqa: PLC0415
+        from ..models.station import Station  # noqa: PLC0415
+        from ..models.touched_by_inner import TouchedByInner  # noqa: PLC0415
+        from ..models.vg_ident import VgIdent  # noqa: PLC0415
 
         d = dict(src_dict)
         api_id = UUID(d.pop("api_id"))
