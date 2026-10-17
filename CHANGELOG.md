@@ -4,7 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [unreleased]
+## [0.3.1] - 17.10.2026
+
+### Added
+- **caching** The corelib now supports caching.
 
 ### Changed
 - **litellm lazy import** litellm is now lazy imported so for example when only using the llm classes of the corelib it is no longer imported.
