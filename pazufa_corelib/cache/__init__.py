@@ -16,7 +16,6 @@ __all__ = [
     "CacheError",
     "CacheKeyError",
     "CacheValueError",
-    "DocumentKey",
     "FileSystemBackend",
     "Key",
     "KeyDoesNotExistError",

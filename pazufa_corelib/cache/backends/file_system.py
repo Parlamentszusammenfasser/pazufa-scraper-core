@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Self
 
 from ..backends.backend import Backend
+from ..errors import ValueTypeError
 from ..metadata import Metadata
 from ..types import Key, Value
 
@@ -158,9 +159,16 @@ class FileSystemBackend(Backend):
 
         Returns:
             The stored dictionary.
+
+        Raises:
+            ValueTypeError: If the stored JSON is not an object.
         """
         dict_str = self.get_file_path(key=key, value_type=Value.DICT).read_text()
-        return json.loads(dict_str)
+        value = json.loads(dict_str)
+        if not isinstance(value, dict):
+            msg = f"Stored value for '{key}' is not a JSON object."
+            raise ValueTypeError(msg)
+        return value
 
     def set_dict(self: Self, key: Key, value: dict[str, object]) -> None:
         """Write a dict value to cache.

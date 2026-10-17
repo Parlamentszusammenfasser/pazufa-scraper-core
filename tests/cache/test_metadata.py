@@ -115,7 +115,7 @@ class TestMetadataRequireTz:
             Metadata(
                 key=Key("test"),
                 value_type=Value.TEXT,
-                created_at=datetime.now(),
+                created_at=datetime.now(),  # noqa: DTZ005 # naive on purpose
             )
 
 

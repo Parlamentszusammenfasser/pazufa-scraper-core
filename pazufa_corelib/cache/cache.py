@@ -15,7 +15,9 @@ def _check_key(key: Key | str) -> Key:
     return key if isinstance(key, Key) else Key(key)
 
 
-def _check_value(value: SupportedValueTypes, expected: type[SupportedValueTypes]) -> None:
+def _check_value(
+    value: SupportedValueTypes, expected: type[SupportedValueTypes]
+) -> None:
     if not isinstance(value, expected):
         msg = f"Value was expected to be '{expected}' but got '{type(value)}'."
         raise TypeError(msg)
@@ -31,7 +33,10 @@ def _check_expiry(metadata: Metadata) -> None:
 def _check_value_type(metadata: Metadata, expected_value_type: Value) -> None:
     """Check if stored value type matches expected type and raise an error if not."""
     if metadata.value_type != expected_value_type:
-        msg = f"Stored value is '{metadata.value_type.value}'," + f" expected '{expected_value_type.value}'."
+        msg = (
+            f"Stored value is '{metadata.value_type.value}',"
+            + f" expected '{expected_value_type.value}'."
+        )
         raise ValueTypeError(msg)
 
 
@@ -148,17 +153,22 @@ class Cache[T: Backend]:
 
         Args:
             key: The entry to read.
-            ignore_expiry: Flag to ignore expiry check. Allows to read expired value. Optional.
+            ignore_expiry: Flag to ignore expiry check. Allows to read expired
+                value. Optional.
 
         Returns:
             The stored text value.
         """
         key = _check_key(key=key)
-        self._get_checks(key=key, expected_value_type=Value.TEXT, ignore_expiry=ignore_expiry)
+        self._get_checks(
+            key=key, expected_value_type=Value.TEXT, ignore_expiry=ignore_expiry
+        )
 
         return self._backend.get_text(key=key)
 
-    def set_text(self: Self, key: Key | str, value: str, ttl: timedelta | int | None = None) -> None:
+    def set_text(
+        self: Self, key: Key | str, value: str, ttl: timedelta | int | None = None
+    ) -> None:
         """Write a text value to the cache.
 
         Args:
@@ -182,17 +192,22 @@ class Cache[T: Backend]:
 
         Args:
             key: The entry to read.
-            ignore_expiry: Flag to ignore expiry check. Allows to read expired value. Optional.
+            ignore_expiry: Flag to ignore expiry check. Allows to read expired
+                value. Optional.
 
         Returns:
             The stored bytes value.
         """
         key = _check_key(key=key)
-        self._get_checks(key=key, expected_value_type=Value.BYTES, ignore_expiry=ignore_expiry)
+        self._get_checks(
+            key=key, expected_value_type=Value.BYTES, ignore_expiry=ignore_expiry
+        )
 
         return self._backend.get_bytes(key=key)
 
-    def set_bytes(self: Self, key: Key | str, value: bytes, ttl: timedelta | int | None = None) -> None:
+    def set_bytes(
+        self: Self, key: Key | str, value: bytes, ttl: timedelta | int | None = None
+    ) -> None:
         """Write a bytes value to the cache.
 
         Args:
@@ -216,17 +231,22 @@ class Cache[T: Backend]:
 
         Args:
             key: The entry to read.
-            ignore_expiry: Flag to ignore expiry check. Allows to read expired value. Optional.
+            ignore_expiry: Flag to ignore expiry check. Allows to read expired
+                value. Optional.
 
         Returns:
             The stored dictionary value.
         """
         key = _check_key(key=key)
-        self._get_checks(key=key, expected_value_type=Value.DICT, ignore_expiry=ignore_expiry)
+        self._get_checks(
+            key=key, expected_value_type=Value.DICT, ignore_expiry=ignore_expiry
+        )
 
         return self._backend.get_dict(key=key)
 
-    def set_dict(self: Self, key: Key | str, value: dict, ttl: timedelta | int | None = None) -> None:
+    def set_dict(
+        self: Self, key: Key | str, value: dict, ttl: timedelta | int | None = None
+    ) -> None:
         """Write a dictionary value to the cache.
 
         Args:
@@ -250,17 +270,22 @@ class Cache[T: Backend]:
 
         Args:
             key: The entry to read.
-            ignore_expiry: Flag to ignore expiry check. Allows to read expired value. Optional.
+            ignore_expiry: Flag to ignore expiry check. Allows to read expired
+                value. Optional.
 
         Returns:
             The stored timestamp value.
         """
         key = _check_key(key=key)
-        self._get_checks(key=key, expected_value_type=Value.TIMESTAMP, ignore_expiry=ignore_expiry)
+        self._get_checks(
+            key=key, expected_value_type=Value.TIMESTAMP, ignore_expiry=ignore_expiry
+        )
 
         return self._backend.get_timestamp(key=key)
 
-    def set_timestamp(self: Self, key: Key | str, value: datetime, ttl: timedelta | int | None = None) -> None:
+    def set_timestamp(
+        self: Self, key: Key | str, value: datetime, ttl: timedelta | int | None = None
+    ) -> None:
         """Write a timestamp value to the cache.
 
         Args:
@@ -323,7 +348,10 @@ class Cache[T: Backend]:
                 self.set_timestamp(key=key, value=value)
 
             case _:
-                msg = f"Unsupported value type: {type(value).__name__}. Supported types: {SupportedValueTypes.__value__}."
+                msg = (
+                    f"Unsupported value type: {type(value).__name__}. "
+                    f"Supported types: {SupportedValueTypes.__value__}."
+                )
                 raise TypeError(msg)
 
     def __contains__(self: Self, key: Key | str) -> bool:

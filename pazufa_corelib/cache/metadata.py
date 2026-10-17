@@ -6,7 +6,10 @@ from typing import Any, Self
 from pydantic import BaseModel, field_validator
 
 from .errors import MetadataError
-from .types import Key, Value  # noqa: TC001 # NOTE: we can't move them into a type check block
+from .types import (  # noqa: TC001 # NOTE: we can't move them into a type check block
+    Key,
+    Value,
+)
 
 
 def _compute_expires_at(ttl: timedelta | int | None) -> datetime | None:

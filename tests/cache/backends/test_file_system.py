@@ -5,6 +5,7 @@ from typing import Self
 import pytest
 
 from pazufa_corelib.cache.backends.file_system import FileSystemBackend
+from pazufa_corelib.cache.errors import ValueTypeError
 from pazufa_corelib.cache.types import Key, Value
 
 
@@ -123,6 +124,16 @@ class TestDictValues:
         file_path = backend.get_file_path(Key("json_key"), Value.DICT)
         content = file_path.read_text()
         assert '"formatted": true' in content
+
+    def test_get_dict_rejects_non_object(
+        self: Self, backend: FileSystemBackend
+    ) -> None:
+        """Verify a stored JSON non-object raises ValueTypeError."""
+        file_path = backend.get_file_path(Key("list_key"), Value.DICT)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text("[1, 2, 3]")
+        with pytest.raises(ValueTypeError, match="not a JSON object"):
+            backend.get_dict(key=Key("list_key"))
 
 
 class TestTimestampValues:

@@ -57,7 +57,9 @@ class Key(StrEnum, metaclass=_KeyMeta):
         return member
 
     @classmethod
-    def __get_pydantic_core_schema__(cls, source: Any, handler: GetCoreSchemaHandler) -> CoreSchema:  # noqa: ANN401
+    def __get_pydantic_core_schema__(
+        cls, source: Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:  # noqa: ANN401
         """Make sure we can (de)serialize from/to JSON."""
         return core_schema.no_info_after_validator_function(
             cls,

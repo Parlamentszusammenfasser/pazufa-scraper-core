@@ -212,3 +212,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# uv, this repo uses poerty ofically; uv may be used personally but the corresponding lock
+# should not be included in the repo.
+uv.lock
+
