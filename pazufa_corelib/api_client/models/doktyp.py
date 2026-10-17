@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Doktyp(str, Enum):
+class Doktyp(StrEnum):
     ANFRAGE = "anfrage"
     ANTRAG = "antrag"
     ANTWORT = "antwort"

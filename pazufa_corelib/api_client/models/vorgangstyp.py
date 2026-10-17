@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Vorgangstyp(str, Enum):
+class Vorgangstyp(StrEnum):
     BU_ANTRAG_BWEINSATZ = "bu-antrag-bweinsatz"
     BU_EINSPRUCH_INIBREG = "bu-einspruch-inibreg"
     BU_EINSPRUCH_INIBREG_HAUSHALT = "bu-einspruch-inibreg-haushalt"

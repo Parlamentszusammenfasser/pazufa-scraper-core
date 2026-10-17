@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class APIScope(str, Enum):
+class APIScope(StrEnum):
     ADMIN = "admin"
     COLLECTOR = "collector"
     KEYADDER = "keyadder"

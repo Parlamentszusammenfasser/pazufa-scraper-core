@@ -763,7 +763,8 @@ class TestAuthorResolver:
             "  - id: some-org\n"
             "    canonical_name: Some Org\n"
             "    acronym: SO\n"
-            "    aliases: []\n"
+            "    aliases: []\n",
+            encoding="utf-8",
         )
         with pytest.raises(ValueError):
             AuthorResolver(files=[org_yaml])
@@ -858,7 +859,7 @@ class TestAuthorResolver:
 
     def test_empty_resolver_returns_unresolved(self, tmp_path: Path) -> None:
         empty = tmp_path / "empty.yaml"
-        empty.write_text("names: []\n")
+        empty.write_text("names: []\n", encoding="utf-8")
         r = AuthorResolver(files=[empty]).resolve("Olaf Scholz")
         assert not r.matched
         assert r.score == 0.0
@@ -1041,7 +1042,7 @@ class TestAuthorResolver:
 
     def test_explain_empty_resolver(self, tmp_path: Path) -> None:
         empty = tmp_path / "empty.yaml"
-        empty.write_text("names: []\n")
+        empty.write_text("names: []\n", encoding="utf-8")
         trace = AuthorResolver(files=[empty]).explain("Olaf Scholz")
         assert trace["top_k"] == []
         assert trace["exact_hit"] is False
@@ -1069,7 +1070,8 @@ class TestOrganisationResolver:
             "names:\n"
             "  - id: some-person\n"
             "    canonical_name: Some Person\n"
-            "    aliases: []\n"
+            "    aliases: []\n",
+            encoding="utf-8",
         )
         with pytest.raises(ValueError):
             OrganizationResolver(files=[author_yaml])
@@ -1175,7 +1177,7 @@ class TestOrganisationResolver:
 
     def test_empty_resolver_returns_unresolved(self, tmp_path: Path) -> None:
         empty = tmp_path / "empty.yaml"
-        empty.write_text("names: []\n")
+        empty.write_text("names: []\n", encoding="utf-8")
         assert not OrganizationResolver(files=[empty]).resolve("SPD").matched
 
     # --- matched / changed flags ------------------------------------------
@@ -1208,7 +1210,8 @@ class TestOrganisationResolver:
             "  - id: no-acronym-org\n"
             "    canonical_name: Organisation Ohne Kuerzel\n"
             "    acronym:\n"
-            "    aliases: []\n"
+            "    aliases: []\n",
+            encoding="utf-8",
         )
         r = OrganizationResolver(files=[org_yaml]).resolve("Organisation Ohne Kuerzel")
         assert r.matched
@@ -1246,7 +1249,7 @@ class TestOrganisationResolver:
 
     def test_resolve_batch_empty_resolver(self, tmp_path: Path) -> None:
         empty = tmp_path / "empty.yaml"
-        empty.write_text("names: []\n")
+        empty.write_text("names: []\n", encoding="utf-8")
         results = OrganizationResolver(files=[empty]).resolve_batch(["SPD"])
         assert not results[0].matched
         assert results[0].score == 0.0
@@ -1264,7 +1267,8 @@ class TestOrganisationResolver:
             "  - id: org-beta\n"
             "    canonical_name: Deutsche Organisation Test Beta\n"
             "    acronym: null\n"
-            "    aliases: []\n"
+            "    aliases: []\n",
+            encoding="utf-8",
         )
         resolver = OrganizationResolver(files=[near_tie_yaml])
         with caplog.at_level(
@@ -1286,7 +1290,8 @@ class TestOrganisationResolver:
             "  - id: org-beta\n"
             "    canonical_name: Deutsche Organisation Test Beta\n"
             "    acronym: null\n"
-            "    aliases: []\n"
+            "    aliases: []\n",
+            encoding="utf-8",
         )
         resolver = OrganizationResolver(files=[near_tie_yaml], near_tie_epsilon=0.0)
         with caplog.at_level(
@@ -1492,7 +1497,7 @@ class TestOrganisationResolver:
 
     def test_explain_empty_resolver(self, tmp_path: Path) -> None:
         empty = tmp_path / "empty.yaml"
-        empty.write_text("names: []\n")
+        empty.write_text("names: []\n", encoding="utf-8")
         trace = OrganizationResolver(files=[empty]).explain("SPD")
         assert trace["top_k"] == []
         assert trace["exact_hit"] is False
@@ -1837,8 +1842,8 @@ class TestSchlagwortResolver:
     def test_explain_empty_resolver_returns_empty_top_k(self, tmp_path: Path) -> None:
         empty_tags = tmp_path / "empty_tags.yaml"
         empty_sachgebiete = tmp_path / "empty_sachgebiete.yaml"
-        empty_tags.write_text("tags: []\n")
-        empty_sachgebiete.write_text("tags: []\n")
+        empty_tags.write_text("tags: []\n", encoding="utf-8")
+        empty_sachgebiete.write_text("tags: []\n", encoding="utf-8")
         with (
             patch(
                 "pazufa_corelib.normalization.schlagworte._GLOBAL_TAGS_FILES",

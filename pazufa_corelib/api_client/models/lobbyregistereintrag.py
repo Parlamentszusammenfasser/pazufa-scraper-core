@@ -64,7 +64,7 @@ class Lobbyregistereintrag:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.autor import Autor
+        from ..models.autor import Autor  # noqa: PLC0415
 
         d = dict(src_dict)
         betroffene_drucksachen = cast(list[str], d.pop("betroffene_drucksachen"))

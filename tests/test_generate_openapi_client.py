@@ -160,7 +160,9 @@ def test_preserves_format_on_request_body() -> None:
 
 
 def _real_spec() -> dict[str, Any]:
-    spec: dict[str, Any] = yaml.safe_load((REPO_ROOT / "openapi.yaml").read_text())
+    spec: dict[str, Any] = yaml.safe_load(
+        (REPO_ROOT / "openapi.yaml").read_text(encoding="utf-8")
+    )
     return spec
 
 
@@ -317,16 +319,18 @@ _UNSET_REPR = """    def __repr__(self) -> Literal["UNSET"]:
 
 def test_custom_types_template_defines_unset_repr() -> None:
     """The `UNSET` repr survives regeneration because it lives in the template."""
-    template = (
-        REPO_ROOT / "tools" / "openapi_templates" / "types.py.jinja"
-    ).read_text()
+    template = (REPO_ROOT / "tools" / "openapi_templates" / "types.py.jinja").read_text(
+        encoding="utf-8"
+    )
 
     assert _UNSET_REPR in template
 
 
 def test_generated_types_module_carries_the_unset_repr() -> None:
     """The checked-in client matches the template it was generated from."""
-    generated = (REPO_ROOT / "pazufa_corelib" / "api_client" / "types.py").read_text()
+    generated = (REPO_ROOT / "pazufa_corelib" / "api_client" / "types.py").read_text(
+        encoding="utf-8"
+    )
 
     assert _UNSET_REPR in generated
 
@@ -346,6 +350,10 @@ def test_custom_types_template_matches_upstream_apart_from_the_repr() -> None:
     if not candidates:
         pytest.skip("openapi-python-client is not installed in the project venv")
 
-    ours = (REPO_ROOT / "tools" / "openapi_templates" / "types.py.jinja").read_text()
+    ours = (REPO_ROOT / "tools" / "openapi_templates" / "types.py.jinja").read_text(
+        encoding="utf-8"
+    )
 
-    assert ours.replace("\n" + _UNSET_REPR, "") == candidates[0].read_text()
+    assert ours.replace("\n" + _UNSET_REPR, "") == candidates[0].read_text(
+        encoding="utf-8"
+    )

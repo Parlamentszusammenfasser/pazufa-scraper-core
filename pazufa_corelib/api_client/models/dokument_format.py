@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class DokumentFormat(str, Enum):
+class DokumentFormat(StrEnum):
     FTM = "ftm"
     PAZUFA = "pazufa"
 

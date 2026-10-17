@@ -7,7 +7,6 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..models.stationstyp import Stationstyp
 from ..types import UNSET, Unset
@@ -71,7 +70,7 @@ class Station:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.dokument import Dokument
+        from ..models.dokument import Dokument  # noqa: PLC0415
 
         dokumente = []
         for dokumente_item_data in self.dokumente:
@@ -183,9 +182,9 @@ class Station:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.dokument import Dokument
-        from ..models.gremium import Gremium
-        from ..models.touched_by_inner import TouchedByInner
+        from ..models.dokument import Dokument  # noqa: PLC0415
+        from ..models.gremium import Gremium  # noqa: PLC0415
+        from ..models.touched_by_inner import TouchedByInner  # noqa: PLC0415
 
         d = dict(src_dict)
         dokumente = []
@@ -215,7 +214,7 @@ class Station:
 
         typ = Stationstyp(d.pop("typ"))
 
-        zp_start = isoparse(d.pop("zp_start"))
+        zp_start = datetime.datetime.fromisoformat(d.pop("zp_start"))
 
         additional_links = cast(list[str], d.pop("additional_links", UNSET))
 
@@ -307,7 +306,7 @@ class Station:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                zp_modifiziert_type_0 = isoparse(data)
+                zp_modifiziert_type_0 = datetime.datetime.fromisoformat(data)
 
                 return zp_modifiziert_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

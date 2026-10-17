@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.1] - 17.10.2026
+
+### Added
+- **caching** The corelib now supports caching.
+
+### Changed
+- **litellm lazy import** litellm is now lazy imported so for example when only using the llm classes of the corelib it is no longer imported.
+
+### Fixed
+- **yaml import under windows** now utf 8 is enforced in the read process with enabled the import of yaml files under windows without any workarounds.
+
+
 ## [0.3.0] - 23.09.2026
 ### Added
 - **`normalize_volltext` now removes HTML markup** — block elements become paragraph breaks, `<br>`/`<li>`/`<tr>` line breaks, table cells spaces; `script`, `style`, `head`, comments and Word markup (`<o:p>`, conditional comments) are dropped, and angle brackets that are not tags (`a < b`, e-mail addresses) are kept as before. HTML whitespace rules (source line breaks and indentation are not text) are applied only when the input looks like an HTML document, so text from a PDF keeps its paragraphs. A hyphenated name in angle brackets counts as a custom element only when the document backs it up — the tag has attributes, or the text closes it — so `<my-widget>…</my-widget>` is removed while text such as `<Baden-Württemberg>` or `<vor-nachname>` is kept.

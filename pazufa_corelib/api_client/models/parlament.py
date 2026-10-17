@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Parlament(str, Enum):
+class Parlament(StrEnum):
     BB = "BB"
     BE = "BE"
     BR = "BR"

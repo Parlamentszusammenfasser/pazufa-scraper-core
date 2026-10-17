@@ -66,7 +66,7 @@ class KalDateGetResponse200:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.sitzung import Sitzung
+        from ..models.sitzung import Sitzung  # noqa: PLC0415
 
         d = dict(src_dict)
         body = []

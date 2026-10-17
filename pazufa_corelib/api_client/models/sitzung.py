@@ -7,7 +7,6 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
@@ -57,7 +56,7 @@ class Sitzung:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.dokument import Dokument
+        from ..models.dokument import Dokument  # noqa: PLC0415
 
         gremium = self.gremium.to_dict()
 
@@ -146,11 +145,11 @@ class Sitzung:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.autor import Autor
-        from ..models.dokument import Dokument
-        from ..models.gremium import Gremium
-        from ..models.top import Top
-        from ..models.touched_by_inner import TouchedByInner
+        from ..models.autor import Autor  # noqa: PLC0415
+        from ..models.dokument import Dokument  # noqa: PLC0415
+        from ..models.gremium import Gremium  # noqa: PLC0415
+        from ..models.top import Top  # noqa: PLC0415
+        from ..models.touched_by_inner import TouchedByInner  # noqa: PLC0415
 
         d = dict(src_dict)
         gremium = Gremium.from_dict(d.pop("gremium"))
@@ -159,7 +158,7 @@ class Sitzung:
 
         public = d.pop("public")
 
-        termin = isoparse(d.pop("termin"))
+        termin = datetime.datetime.fromisoformat(d.pop("termin"))
 
         tops = []
         _tops = d.pop("tops")

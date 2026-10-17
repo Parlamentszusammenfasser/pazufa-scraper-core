@@ -1,15 +1,7 @@
 """Shared LLM enrichment models, prompt templates, and connector."""
 
-from .llm_connector import (
-    LLMAuthenticationError,
-    LLMConnector,
-    LLMConnectorError,
-    LLMProviderError,
-    LLMQuotaExceededError,
-    LLMRateLimitError,
-    LLMTemporaryProviderError,
-    LLMValidationError,
-)
+from typing import TYPE_CHECKING, Any
+
 from .models import (
     ExpertenResult,
     ExpertenResultNoLobbyregister,
@@ -34,6 +26,53 @@ from .prompts import (
     ZUSAMMENFASSUNG_PROMPT,
     format_sachgebiete_list,
 )
+
+if TYPE_CHECKING:
+    from .llm_connector import (
+        LLMAuthenticationError,
+        LLMConnector,
+        LLMConnectorError,
+        LLMProviderError,
+        LLMQuotaExceededError,
+        LLMRateLimitError,
+        LLMTemporaryProviderError,
+        LLMValidationError,
+    )
+
+_LAZY_CONNECTOR_NAMES: frozenset[str] = frozenset(
+    {
+        "LLMConnector",
+        "LLMConnectorError",
+        "LLMProviderError",
+        "LLMAuthenticationError",
+        "LLMQuotaExceededError",
+        "LLMRateLimitError",
+        "LLMTemporaryProviderError",
+        "LLMValidationError",
+    }
+)
+
+
+def __getattr__(name: str) -> Any:
+    """Import connector symbols (and litellm) on first access.
+
+    Args:
+        name: Attribute name looked up on this package.
+
+    Returns:
+        The requested connector symbol.
+
+    Raises:
+        AttributeError: If ``name`` is not a lazily exported symbol.
+    """
+    if name in _LAZY_CONNECTOR_NAMES:
+        from . import llm_connector
+
+        value = getattr(llm_connector, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     # LLM Connector
