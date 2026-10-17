@@ -13,7 +13,7 @@ class SubKeyForTests(Key):
     """To test usage of SubKeys."""
 
     UPPER = "UPPER"
-    lower = "lower"
+    lowercase = "lower"
 
 
 class TestKeyUsage:
@@ -46,7 +46,7 @@ class TestKeyUsage:
     def test_non_string_raises(self: Self, invalid_key: object) -> None:
         """Verify non-string input raises TypeError."""
         with pytest.raises(TypeError, match=r"Only str allowed."):
-            Key(invalid_key)
+            Key(invalid_key)  # type: ignore[arg-type]
 
 
 INVALID_KEYS = ["", ".", "..", "../x", "a/b", "/abs", ".hidden", "a b", "x" * 201]
@@ -114,7 +114,7 @@ class TestKeyPydanticSchema:
         class TestModel(BaseModel):
             key: Key
 
-        model = TestModel(key="test_key")
+        model = TestModel.model_validate({"key": "test_key"})
         json_file = tmp_path / "test.json"
         json_file.write_text(model.model_dump_json())
 

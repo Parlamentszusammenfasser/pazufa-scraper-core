@@ -133,4 +133,4 @@ class TestMetadataModel:
     def test_invalid_key_type_raises(self: Self) -> None:
         """Verify invalid key type raises ValidationError."""
         with pytest.raises(ValidationError):
-            Metadata(key=123, value_type=Value.TEXT)
+            Metadata.model_validate({"key": 123, "value_type": Value.TEXT})

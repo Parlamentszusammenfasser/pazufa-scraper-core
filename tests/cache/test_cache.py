@@ -63,7 +63,7 @@ class TestHelperCheckValue:
         self: Self, value: SupportedValueTypes, expected: type[SupportedValueTypes]
     ) -> None:
         """Verify correct type doesn't raise."""
-        assert _check_value(value=value, expected=expected) is None
+        _check_value(value=value, expected=expected)
 
     @pytest.mark.parametrize(
         ("value", "expected"),
@@ -79,7 +79,7 @@ class TestHelperCheckValue:
     ) -> None:
         """Verify incorrect type raises TypeError."""
         with pytest.raises(TypeError, match="Value was expected to be"):
-            assert _check_value(value=value, expected=expected) is None
+            _check_value(value=value, expected=expected)
 
 
 class TestHelperCheckExpiry:
@@ -204,12 +204,11 @@ class TestCacheDispatchesToBackend:
         value = "test_value"
         value_type = Value.TEXT
 
-        return_value = cache.set_text(key=key, value=value, ttl=ttl)
+        cache.set_text(key=key, value=value, ttl=ttl)
         cache.backend.set_text.assert_called_once_with(key=key, value=value)
         cache.backend.set_metadata.assert_called_once_with(
             key=key, value_type=value_type, ttl=ttl
         )
-        assert return_value is None
 
     @pytest.mark.parametrize(
         "ttl",
@@ -221,12 +220,11 @@ class TestCacheDispatchesToBackend:
         value = b"test_value"
         value_type = Value.BYTES
 
-        return_value = cache.set_bytes(key=key, value=value, ttl=ttl)
+        cache.set_bytes(key=key, value=value, ttl=ttl)
         cache.backend.set_bytes.assert_called_once_with(key=key, value=value)
         cache.backend.set_metadata.assert_called_once_with(
             key=key, value_type=value_type, ttl=ttl
         )
-        assert return_value is None
 
     @pytest.mark.parametrize(
         "ttl",
@@ -235,15 +233,14 @@ class TestCacheDispatchesToBackend:
     def test_set_dict(self: Self, cache: Cache, ttl: timedelta | int | None) -> None:
         """Verify set_dict dispatches to backend with correct arguments."""
         key = Key("test_key")
-        value = {}
+        value: dict[str, object] = {}
         value_type = Value.DICT
 
-        return_value = cache.set_dict(key=key, value=value, ttl=ttl)
+        cache.set_dict(key=key, value=value, ttl=ttl)
         cache.backend.set_dict.assert_called_once_with(key=key, value=value)
         cache.backend.set_metadata.assert_called_once_with(
             key=key, value_type=value_type, ttl=ttl
         )
-        assert return_value is None
 
     @pytest.mark.parametrize(
         "ttl",
@@ -257,18 +254,16 @@ class TestCacheDispatchesToBackend:
         value = datetime.now(UTC)
         value_type = Value.TIMESTAMP
 
-        return_value = cache.set_timestamp(key=key, value=value, ttl=ttl)
+        cache.set_timestamp(key=key, value=value, ttl=ttl)
         cache.backend.set_timestamp.assert_called_once_with(key=key, value=value)
         cache.backend.set_metadata.assert_called_once_with(
             key=key, value_type=value_type, ttl=ttl
         )
-        assert return_value is None
 
     def test_delete_entry(self: Self, cache: Cache) -> None:
         """Verify delete_entry dispatches to backend.delete_entry."""
-        return_value = cache.delete_entry("test_key")
+        cache.delete_entry("test_key")
         cache.backend.delete_entry.assert_called_once_with(key=Key("test_key"))
-        assert return_value is None
 
     def test_has_entry(self: Self, cache: Cache) -> None:
         """Verify has_entry dispatches to backend.has_entry."""
@@ -490,7 +485,7 @@ class TestCacheDunderMethods:
     ) -> None:
         """Verify __setitem__ raises TypeError for unsupported type."""
         with pytest.raises(TypeError, match="Unsupported value type"):
-            cache["test_key"] = unsupported_value  # ty: ignore[invalid-assignment]
+            cache["test_key"] = unsupported_value  # type: ignore[assignment]  # ty: ignore[invalid-assignment]
 
     def test_contains_returns_true(self: Self, cache: Cache) -> None:
         """Verify __contains__ returns True when entry exists."""
