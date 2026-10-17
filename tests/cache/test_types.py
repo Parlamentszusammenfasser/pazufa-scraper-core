@@ -3,8 +3,9 @@ from pathlib import Path
 from typing import Self
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
+from pazufa_corelib.cache.errors import CacheKeyError
 from pazufa_corelib.cache.types import Key
 
 
@@ -46,6 +47,41 @@ class TestKeyUsage:
         """Verify non-string input raises TypeError."""
         with pytest.raises(TypeError, match=r"Only str allowed."):
             Key(invalid_key)
+
+
+INVALID_KEYS = ["", ".", "..", "../x", "a/b", "/abs", ".hidden", "a b", "x" * 201]
+
+
+class TestKeyValidation:
+    """Tests for cache key format validation."""
+
+    @pytest.mark.parametrize(
+        "key_type",
+        [Key, SubKeyForTests],
+    )
+    @pytest.mark.parametrize("value", INVALID_KEYS)
+    def test_invalid_key_raises(self: Self, key_type: type[Key], value: str) -> None:
+        """Verify unsafe keys raise CacheKeyError."""
+        with pytest.raises(CacheKeyError, match="Invalid cache key"):
+            key_type(value)
+
+    @pytest.mark.parametrize(
+        "value",
+        ["simple", "drucksache.18.100", "a_b-c", "UPPER", "x" * 200],
+    )
+    def test_valid_key_accepted(self: Self, value: str) -> None:
+        """Verify file-name-safe keys are accepted."""
+        assert Key(value) == value
+
+    @pytest.mark.parametrize("value", INVALID_KEYS)
+    def test_pydantic_rejects_invalid_key(self: Self, value: str) -> None:
+        """Verify unsafe keys in JSON fail pydantic validation."""
+
+        class TestModel(BaseModel):
+            key: Key
+
+        with pytest.raises(ValidationError):
+            TestModel.model_validate_json(json.dumps({"key": value}))
 
 
 class TestSubKeyForTests:

@@ -1,13 +1,29 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import EnumMeta, StrEnum, auto
 from typing import TYPE_CHECKING, Any
 
 from pydantic_core import CoreSchema, core_schema
 
+from .errors import CacheKeyError
+
 if TYPE_CHECKING:
     from pydantic import GetCoreSchemaHandler
+
+# File-name-safe characters only. The first character must not be a dot, which
+# rules out hidden files, "." and "..". Slashes are never allowed.
+_KEY_PATTERN = r"^[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$"
+_KEY_RE = re.compile(_KEY_PATTERN)
+
+
+def _validate_key(value: str) -> None:
+    """Raise CacheKeyError if value is not safe to use as a cache key."""
+    if not _KEY_RE.fullmatch(value):
+        msg = f"Invalid cache key {value!r}."
+        raise CacheKeyError(msg)
+
 
 type SupportedValueTypes = str | dict | bytes | datetime
 
@@ -51,6 +67,7 @@ class Key(StrEnum, metaclass=_KeyMeta):
             msg = "Only str allowed."
             raise TypeError(msg)
 
+        _validate_key(value)
         member = str.__new__(cls, value)
         member._name_ = member._value_ = value
         cls._value2member_map_[value] = member
@@ -63,6 +80,6 @@ class Key(StrEnum, metaclass=_KeyMeta):
         """Make sure we can (de)serialize from/to JSON."""
         return core_schema.no_info_after_validator_function(
             cls,
-            core_schema.str_schema(),
+            core_schema.str_schema(pattern=_KEY_PATTERN),
             serialization=core_schema.to_string_ser_schema(when_used="json"),
         )
