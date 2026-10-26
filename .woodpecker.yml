@@ -44,11 +44,8 @@ steps:
     image: python:3.12-slim
     depends_on: [setup]
     commands:
-      # Ignored vulnerabilities are tracked as Codeberg issues:
-      #   CVE-2025-69872 (diskcache) — no upstream fix yet, see issue #97
-      #   CVE-2026-112940, CVE-2026-112913, CVE-2026-112907 (filelock) — fixed in
-      #     4.2.1, but litellm pins filelock<4.0, see issue #TBD
-      - .venv/bin/pip-audit --ignore-vuln CVE-2025-69872 --ignore-vuln CVE-2026-112940 --ignore-vuln CVE-2026-112913 --ignore-vuln CVE-2026-112907
+      # Ignored vulnerabilities are listed in pip-audit-ignore.yaml
+      - .venv/bin/python -m tools.run_pip_audit
 
   - name: licenses
     image: python:3.12-slim
