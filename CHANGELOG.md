@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - **litellm lazy import** litellm is now lazy imported so for example when only using the llm classes of the corelib it is no longer imported.
+- **ignored CVEs** With 'pip-audit-ignore.yaml' there exsits now one point of handeling the ignored CVEs both for the makefile and the CI.
 
 ### Fixed
 - **yaml import under windows** now utf 8 is enforced in the read process with enabled the import of yaml files under windows without any workarounds.
