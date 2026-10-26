@@ -10,7 +10,6 @@ from .doktyp import Doktyp
 from .dokument import Dokument
 from .dokument_format import DokumentFormat
 from .dokument_hash import DokumentHash
-from .dokumente_get_response_200_type_0_item import DokumenteGetResponse200Type0Item
 from .enumeration_names import EnumerationNames
 from .gremien_get_response_200_item import GremienGetResponse200Item
 from .gremium import Gremium
@@ -62,7 +61,6 @@ __all__ = (
     "AutorenGetResponse200Item",
     "Doktyp",
     "Dokument",
-    "DokumenteGetResponse200Type0Item",
     "DokumentFormat",
     "DokumentHash",
     "EnumerationNames",

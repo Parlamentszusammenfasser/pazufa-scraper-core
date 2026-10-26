@@ -813,7 +813,10 @@ class Station(PaZuFaBaseModel):
             description="DEPRECATED: This has been moved to the Vorgang level.\nPlease do not submit any data here, it will be merged as Vorgangs-Schlagworte\nFor details, see https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54"
         ),
     ] = None
-    stellungnahmen: list[DokumentOrApiId] | None = None
+    stellungnahmen: Annotated[
+        list[DokumentOrApiId] | None,
+        Field(description="List statement of interested parties"),
+    ] = None
     titel: Annotated[
         str | None,
         Field(
@@ -872,55 +875,77 @@ class Vorgang(PaZuFaBaseModel):
 
     api_id: Annotated[
         UUID,
-        Field(description="Use UUID version 5 with your collector id as namespace"),
+        Field(
+            description="The Api ID of this Vorgang\nUse UUID version 5 with your collector id as namespace\nontrack(-)"
+        ),
     ]
-    ids: list[VgIdent] | None = None
+    ids: Annotated[
+        list[VgIdent] | None, Field(description="Tuple of (typ, id)\nontrack(-)")
+    ] = None
     initiatoren: Annotated[
         list[Autor],
         Field(
-            description="List of persons or organisations, which initiated the Vorgang."
+            description="List of persons or organisations, which initiated the Vorgang\nontrack(refactor)"
         ),
     ]
-    kurztitel: str | None = None
-    links: list[AnyHttpUrl] | None = None
+    kurztitel: Annotated[
+        str | None,
+        Field(
+            description="A brief, layman-understandable title of this law\nontrack(-)"
+        ),
+    ] = None
+    links: Annotated[
+        list[AnyHttpUrl] | None,
+        Field(
+            description="Links that are associated with the Full Vorgang\nontrack(refactor)"
+        ),
+    ] = None
     lobbyregister: Annotated[
         list[Lobbyregistereintrag] | None,
-        Field(description="Lobby register annotations from Bundestag sources"),
+        Field(
+            description="Lobbyregister annotations from Bundestag sources\nontrack(refactor)"
+        ),
     ] = None
     ressort: Ressort | None = None
     sachgebiete: Annotated[
-        list[Sachgebiet] | None, Field(description="Sachgebiet information")
+        list[Sachgebiet] | None,
+        Field(description="Sachgebiet information\nontrack(at-least-one)"),
     ] = None
     schlagworte: Annotated[
-        list[str] | None, Field(description="General Vorgangs-Schlagworte")
+        list[str] | None,
+        Field(description="General Vorgangs-Schlagworte\nontrack(at-least-one)"),
     ] = None
     stationen: Annotated[
         list[Station],
         Field(
-            description="List of stations, the core of what happens in one Proceeding"
+            description="List of stations, the core of what happens in one Proceeding\nontrack(-)"
         ),
     ]
-    titel: str
+    titel: Annotated[
+        str, Field(description="Official Title of this Proceeding\nontrack(-)")
+    ]
     touched_by: Annotated[
         list[TouchedByEntry] | None,
         Field(
-            description="list of scraper uuids / key database ids that have touched this object"
+            description="list of scraper uuids / key database ids that have touched this object\nontrack(meta)"
         ),
     ] = None
-    typ: Vorgangstyp
+    typ: Annotated[
+        Vorgangstyp, Field(description="The type of this Vorgang\nontrack(-)")
+    ]
     verfassungsaendernd: Annotated[
         bool,
         Field(
-            description="Is this Vorgang directly intended to change the constitution of whatever state it happens\nin?"
+            description="Is this Vorgang directly intended to change the constitution\nof whatever state it happens in?;\nontrack(-)"
         ),
     ]
     wahlperiode: Annotated[
-        int, Field(description="number of the electoral period", ge=0)
+        int, Field(description="number of the electoral period\nontrack(-)", ge=0)
     ]
     zusammenfassung: Annotated[
         list[Zusammenfassungstupel] | None,
         Field(
-            description="Summary of the whole Vorgang's idea\nSee parlamentszusammenfasser#55"
+            description="Summary of the whole Vorgang's idea\nSee parlamentszusammenfasser#55\nontrack(at-least-one)"
         ),
     ] = None
 

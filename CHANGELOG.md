@@ -4,11 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [unreleased]
+## [0.3.2] - 26.10.2026
 
 ### Changed
 - **Models and client updated to spec 0.2.8** (backend v0.3.4). No spec tag exists yet, so `openapi.yaml` is the staging `/openapi.json` (still labelled `0.2.7` upstream) converted to YAML, and `tool.datamodel-codegen` reads it via `input = "openapi.yaml"` instead of a tag URL. Switch back to the tag once published.
-- `GET` endpoints accept `if_none_match` (ETag); `/api/v2/dokument` listing, `/api/v2/ping` and `/api/v2/status` are in the client. The spec renamed `CreateApiKey` to `APIKeyCreate` and inlined `ApiKeyStatus`; `api_model.py` keeps the old names.
+- `GET` endpoints accept `if_none_match` (ETag). The spec renamed `CreateApiKey` to `APIKeyCreate` and inlined `ApiKeyStatus`; `api_model.py` keeps the old names.
 
 ### Added
 - **`Station.meta_tiebreaker`** (`int | None`, >= 0) — orders Stationen with equal `zp_start`; replaces shifting `zp_start` by a second.
