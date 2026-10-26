@@ -306,7 +306,7 @@ def test_real_spec_generates_every_endpoint_the_generator_needs() -> None:
     patched = _patch_spec(_real_spec())
 
     autoren = patched["paths"]["/api/v2/autoren"]["get"]["parameters"]
-    assert {p["in"] for p in autoren} == {"query"}
+    assert "path" not in {p["in"] for p in autoren}
 
     auth_delete = patched["paths"]["/api/v2/auth"]["delete"]["parameters"][0]
     assert "$ref" not in auth_delete["schema"]

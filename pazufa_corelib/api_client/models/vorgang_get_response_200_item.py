@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from ..models.station import Station
     from ..models.touched_by_inner import TouchedByInner
     from ..models.vg_ident import VgIdent
+    from ..models.zusammenfassungstupel import Zusammenfassungstupel
 
 
 T = TypeVar("T", bound="VorgangGetResponse200Item")
@@ -30,25 +31,41 @@ class VorgangGetResponse200Item:
     proceedings
 
         Attributes:
-            api_id (UUID): Use UUID version 5 with your collector id as namespace
-            initiatoren (list[Autor]): List of persons or organisations, which initiated the Vorgang.
+            api_id (UUID): The Api ID of this Vorgang
+                Use UUID version 5 with your collector id as namespace
+                ontrack(-)
+            initiatoren (list[Autor]): List of persons or organisations, which initiated the Vorgang
+                ontrack(refactor)
             stationen (list[Station]): List of stations, the core of what happens in one Proceeding
-            titel (str):
+                ontrack(-)
+            titel (str): Official Title of this Proceeding
+                ontrack(-)
             typ (Vorgangstyp): The legislative Track we are on. Together with a parliament, this tells us about the possible
                 stations that can occurr within
-            verfassungsaendernd (bool): Is this Vorgang directly intended to change the constitution of whatever state it
-                happens
-                in?
+            verfassungsaendernd (bool): Is this Vorgang directly intended to change the constitution
+                of whatever state it happens in?;
+                ontrack(-)
             wahlperiode (int): number of the electoral period
-            ids (list[VgIdent] | Unset):
-            kurztitel (None | str | Unset):
-            links (list[str] | Unset):
-            lobbyregister (list[Lobbyregistereintrag] | Unset): Lobby register annotations from Bundestag sources
+                ontrack(-)
+            ids (list[VgIdent] | Unset): Tuple of (typ, id)
+                ontrack(-)
+            kurztitel (None | str | Unset): A brief, layman-understandable title of this law
+                ontrack(-)
+            links (list[str] | Unset): Links that are associated with the Full Vorgang
+                ontrack(refactor)
+            lobbyregister (list[Lobbyregistereintrag] | Unset): Lobbyregister annotations from Bundestag sources
+                ontrack(refactor)
             ressort (None | Ressort | Unset):
             sachgebiete (list[Sachgebiet] | Unset): Sachgebiet information
+                ontrack(at-least-one)
             schlagworte (list[str] | Unset): General Vorgangs-Schlagworte
+                ontrack(at-least-one)
             touched_by (list[TouchedByInner] | Unset): list of scraper uuids / key database ids that have touched this
                 object
+                ontrack(meta)
+            zusammenfassung (list[Zusammenfassungstupel] | Unset): Summary of the whole Vorgang's idea
+                See parlamentszusammenfasser#55
+                ontrack(at-least-one)
     """
 
     api_id: UUID
@@ -66,6 +83,7 @@ class VorgangGetResponse200Item:
     sachgebiete: list[Sachgebiet] | Unset = UNSET
     schlagworte: list[str] | Unset = UNSET
     touched_by: list[TouchedByInner] | Unset = UNSET
+    zusammenfassung: list[Zusammenfassungstupel] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -139,6 +157,13 @@ class VorgangGetResponse200Item:
                 touched_by_item = touched_by_item_data.to_dict()
                 touched_by.append(touched_by_item)
 
+        zusammenfassung: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.zusammenfassung, Unset):
+            zusammenfassung = []
+            for zusammenfassung_item_data in self.zusammenfassung:
+                zusammenfassung_item = zusammenfassung_item_data.to_dict()
+                zusammenfassung.append(zusammenfassung_item)
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -168,6 +193,8 @@ class VorgangGetResponse200Item:
             field_dict["schlagworte"] = schlagworte
         if touched_by is not UNSET:
             field_dict["touched_by"] = touched_by
+        if zusammenfassung is not UNSET:
+            field_dict["zusammenfassung"] = zusammenfassung
 
         return field_dict
 
@@ -178,6 +205,9 @@ class VorgangGetResponse200Item:
         from ..models.station import Station  # noqa: PLC0415
         from ..models.touched_by_inner import TouchedByInner  # noqa: PLC0415
         from ..models.vg_ident import VgIdent  # noqa: PLC0415
+        from ..models.zusammenfassungstupel import (
+            Zusammenfassungstupel,  # noqa: PLC0415
+        )
 
         d = dict(src_dict)
         api_id = UUID(d.pop("api_id"))
@@ -241,9 +271,9 @@ class VorgangGetResponse200Item:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                ressort_type_1 = Ressort(data)
+                ressort_type_0 = Ressort(data)
 
-                return ressort_type_1
+                return ressort_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | Ressort | Unset, data)
@@ -270,6 +300,15 @@ class VorgangGetResponse200Item:
 
                 touched_by.append(touched_by_item)
 
+        _zusammenfassung = d.pop("zusammenfassung", UNSET)
+        zusammenfassung: list[Zusammenfassungstupel] | Unset = UNSET
+        if _zusammenfassung is not UNSET:
+            zusammenfassung = []
+            for zusammenfassung_item_data in _zusammenfassung:
+                zusammenfassung_item = Zusammenfassungstupel.from_dict(zusammenfassung_item_data)
+
+                zusammenfassung.append(zusammenfassung_item)
+
         vorgang_get_response_200_item = cls(
             api_id=api_id,
             initiatoren=initiatoren,
@@ -286,6 +325,7 @@ class VorgangGetResponse200Item:
             sachgebiete=sachgebiete,
             schlagworte=schlagworte,
             touched_by=touched_by,
+            zusammenfassung=zusammenfassung,
         )
 
         vorgang_get_response_200_item.additional_properties = d

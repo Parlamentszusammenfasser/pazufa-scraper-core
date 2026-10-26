@@ -26,10 +26,14 @@ def _get_kwargs(
     vgtyp: Vorgangstyp | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
         headers["if-modified-since"] = if_modified_since
+
+    if not isinstance(if_none_match, Unset):
+        headers["if-none-match"] = if_none_match
 
     params: dict[str, Any] = {}
 
@@ -141,8 +145,11 @@ def sync_detailed(
     vgtyp: Vorgangstyp | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | SGetResponse200 | str]:
-    """Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
+    """Get Sitzung objects by filters
+
+     Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
     can be filtered by various criteria including time frame, parliament, and electoral period.
 
     Args:
@@ -158,6 +165,7 @@ def sync_detailed(
             this tells us about the possible stations that can occurr within
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -179,6 +187,7 @@ def sync_detailed(
         vgtyp=vgtyp,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     )
 
     response = client.get_httpx_client().request(
@@ -202,8 +211,11 @@ def sync(
     vgtyp: Vorgangstyp | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | SGetResponse200 | str | None:
-    """Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
+    """Get Sitzung objects by filters
+
+     Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
     can be filtered by various criteria including time frame, parliament, and electoral period.
 
     Args:
@@ -219,6 +231,7 @@ def sync(
             this tells us about the possible stations that can occurr within
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -241,6 +254,7 @@ def sync(
         vgtyp=vgtyp,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     ).parsed
 
 
@@ -258,8 +272,11 @@ async def asyncio_detailed(
     vgtyp: Vorgangstyp | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | SGetResponse200 | str]:
-    """Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
+    """Get Sitzung objects by filters
+
+     Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
     can be filtered by various criteria including time frame, parliament, and electoral period.
 
     Args:
@@ -275,6 +292,7 @@ async def asyncio_detailed(
             this tells us about the possible stations that can occurr within
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -296,6 +314,7 @@ async def asyncio_detailed(
         vgtyp=vgtyp,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -317,8 +336,11 @@ async def asyncio(
     vgtyp: Vorgangstyp | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | SGetResponse200 | str | None:
-    """Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
+    """Get Sitzung objects by filters
+
+     Retrieves a filterable list of parliamentary sessions. Returns up to 64 sessions per request, which
     can be filtered by various criteria including time frame, parliament, and electoral period.
 
     Args:
@@ -334,6 +356,7 @@ async def asyncio(
             this tells us about the possible stations that can occurr within
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -357,5 +380,6 @@ async def asyncio(
             vgtyp=vgtyp,
             expand=expand,
             if_modified_since=if_modified_since,
+            if_none_match=if_none_match,
         )
     ).parsed

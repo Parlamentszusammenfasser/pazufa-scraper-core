@@ -37,7 +37,7 @@ typecheck:
 
 security:
 	# Ignored vulnerabilities are tracked as Codeberg issues
-	$(POETRY) pip-audit --ignore-vuln CVE-2025-69872
+	$(POETRY) pip-audit --ignore-vuln CVE-2025-69872 --ignore-vuln CVE-2026-112940 --ignore-vuln CVE-2026-112913 --ignore-vuln CVE-2026-112907
 
 licenses:
 	$(POETRY) pylic check

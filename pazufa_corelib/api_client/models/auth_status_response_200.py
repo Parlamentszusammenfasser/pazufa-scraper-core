@@ -7,23 +7,24 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ApiKeyStatus")
+from ..models.api_scope import APIScope
+
+T = TypeVar("T", bound="AuthStatusResponse200")
 
 
 @_attrs_define
-class ApiKeyStatus:
-    """Status information about the API key used in the current request
-
+class AuthStatusResponse200:
+    """
     Attributes:
         expires_at (datetime.datetime): When this key will expire. If `is_being_rotated` is true, this is the date the
             rotation is complete.
         is_being_rotated (bool): Whether this key is currently in a transition process
-        scope (str): Note: inline enums are not fully supported by openapi-generator
+        scope (APIScope):
     """
 
     expires_at: datetime.datetime
     is_being_rotated: bool
-    scope: str
+    scope: APIScope
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -31,7 +32,7 @@ class ApiKeyStatus:
 
         is_being_rotated = self.is_being_rotated
 
-        scope = self.scope
+        scope = self.scope.value
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -52,16 +53,16 @@ class ApiKeyStatus:
 
         is_being_rotated = d.pop("is_being_rotated")
 
-        scope = d.pop("scope")
+        scope = APIScope(d.pop("scope"))
 
-        api_key_status = cls(
+        auth_status_response_200 = cls(
             expires_at=expires_at,
             is_being_rotated=is_being_rotated,
             scope=scope,
         )
 
-        api_key_status.additional_properties = d
-        return api_key_status
+        auth_status_response_200.additional_properties = d
+        return auth_status_response_200
 
     @property
     def additional_keys(self) -> list[str]:

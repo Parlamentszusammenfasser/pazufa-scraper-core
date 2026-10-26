@@ -15,6 +15,7 @@ class Vorgangstyp(StrEnum):
     BU_ZUSTIMMUNG_INISONST_INTVERTRAG = "bu-zustimmung-inisonst-intvertrag"
     BW_EINSATZ = "bw-einsatz"
     GG_LAND_PARL = "gg-land-parl"
+    GG_LAND_PARL_HAUSHALT = "gg-land-parl-haushalt"
     GG_LAND_VOLK = "gg-land-volk"
     SONSTIG = "sonstig"
 

@@ -15,7 +15,11 @@ def _get_kwargs(
     until: datetime.datetime | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+    if not isinstance(if_none_match, Unset):
+        headers["if-none-match"] = if_none_match
 
     params: dict[str, Any] = {}
 
@@ -41,6 +45,7 @@ def _get_kwargs(
         "params": params,
     }
 
+    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -91,13 +96,16 @@ def sync_detailed(
     until: datetime.datetime | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | str]:
-    """
+    """Lists keytags that exist within the database. A keyadder-only feature.
+
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -112,6 +120,7 @@ def sync_detailed(
         until=until,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     )
 
     response = client.get_httpx_client().request(
@@ -128,13 +137,16 @@ def sync(
     until: datetime.datetime | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | str | None:
-    """
+    """Lists keytags that exist within the database. A keyadder-only feature.
+
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -150,6 +162,7 @@ def sync(
         until=until,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     ).parsed
 
 
@@ -160,13 +173,16 @@ async def asyncio_detailed(
     until: datetime.datetime | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | str]:
-    """
+    """Lists keytags that exist within the database. A keyadder-only feature.
+
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -181,6 +197,7 @@ async def asyncio_detailed(
         until=until,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -195,13 +212,16 @@ async def asyncio(
     until: datetime.datetime | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | str | None:
-    """
+    """Lists keytags that exist within the database. A keyadder-only feature.
+
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -218,5 +238,6 @@ async def asyncio(
             until=until,
             page=page,
             per_page=per_page,
+            if_none_match=if_none_match,
         )
     ).parsed

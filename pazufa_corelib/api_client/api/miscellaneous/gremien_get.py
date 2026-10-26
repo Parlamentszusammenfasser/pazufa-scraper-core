@@ -17,7 +17,11 @@ def _get_kwargs(
     wp: int | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+    if not isinstance(if_none_match, Unset):
+        headers["if-none-match"] = if_none_match
 
     params: dict[str, Any] = {}
 
@@ -43,6 +47,7 @@ def _get_kwargs(
         "params": params,
     }
 
+    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -100,6 +105,7 @@ def sync_detailed(
     wp: int | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | list[GremienGetResponse200Item] | str]:
     """Retrieves a list of committees filtered by optional parameters. Returns committees matching the
     specified criteria from parliament bodies and electoral periods.
@@ -110,6 +116,7 @@ def sync_detailed(
         wp (int | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -125,6 +132,7 @@ def sync_detailed(
         wp=wp,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     )
 
     response = client.get_httpx_client().request(
@@ -142,6 +150,7 @@ def sync(
     wp: int | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | list[GremienGetResponse200Item] | str | None:
     """Retrieves a list of committees filtered by optional parameters. Returns committees matching the
     specified criteria from parliament bodies and electoral periods.
@@ -152,6 +161,7 @@ def sync(
         wp (int | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -168,6 +178,7 @@ def sync(
         wp=wp,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     ).parsed
 
 
@@ -179,6 +190,7 @@ async def asyncio_detailed(
     wp: int | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | list[GremienGetResponse200Item] | str]:
     """Retrieves a list of committees filtered by optional parameters. Returns committees matching the
     specified criteria from parliament bodies and electoral periods.
@@ -189,6 +201,7 @@ async def asyncio_detailed(
         wp (int | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -204,6 +217,7 @@ async def asyncio_detailed(
         wp=wp,
         page=page,
         per_page=per_page,
+        if_none_match=if_none_match,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -219,6 +233,7 @@ async def asyncio(
     wp: int | Unset = UNSET,
     page: int | Unset = UNSET,
     per_page: int | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | list[GremienGetResponse200Item] | str | None:
     """Retrieves a list of committees filtered by optional parameters. Returns committees matching the
     specified criteria from parliament bodies and electoral periods.
@@ -229,6 +244,7 @@ async def asyncio(
         wp (int | Unset):
         page (int | Unset):
         per_page (int | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -246,5 +262,6 @@ async def asyncio(
             wp=wp,
             page=page,
             per_page=per_page,
+            if_none_match=if_none_match,
         )
     ).parsed

@@ -1,30 +1,36 @@
 components:
   schemas:
+    APIKeyCreate:
+      description: Requests a new API key. The key will be saved as hash in the database
+        and only produced once in clear text.
+      properties:
+        expires_at:
+          description: The expiration date of the API Key
+          format: date-time
+          type:
+            - string
+            - 'null'
+        keytag_prefix:
+          description: 'Keytag name, maximal length is 10 Characters, the rest of
+            the keytag will be filled with
+
+            random data. It is recommended to use this to later identify the keys
+            more easily'
+          type:
+            - string
+            - 'null'
+        scope:
+          $ref: '#/components/schemas/APIScope'
+          description: 'Note: inline enums are not fully supported by openapi-generator'
+      required:
+        - scope
+      type: object
     APIScope:
       enum:
         - keyadder
         - admin
         - collector
       type: string
-    ApiKeyStatus:
-      description: Status information about the API key used in the current request
-      properties:
-        expires_at:
-          description: When this key will expire. If `is_being_rotated` is true, this
-            is the date the rotation is complete.
-          format: date-time
-          type: string
-        is_being_rotated:
-          description: Whether this key is currently in a transition process
-          type: boolean
-        scope:
-          description: 'Note: inline enums are not fully supported by openapi-generator'
-          type: string
-      required:
-        - scope
-        - expires_at
-        - is_being_rotated
-      type: object
     Autor:
       description: 'Person or organisation in some function. e.g.:
 
@@ -54,31 +60,6 @@ components:
       required:
         - organisation
       type: object
-    CreateApiKey:
-      description: Requests a new API key. The key will be saved as hash in the database
-        and only produced once in clear text.
-      properties:
-        expires_at:
-          description: The expiration date of the API Key
-          format: date-time
-          type:
-            - string
-            - 'null'
-        keytag_prefix:
-          description: 'Keytag name, maximal length is 10 Characters, the rest of
-            the keytag will be filled with
-
-            random data. It is recommended to use this to later identify the keys
-            more easily'
-          type:
-            - string
-            - 'null'
-        scope:
-          $ref: '#/components/schemas/APIScope'
-          description: 'Note: inline enums are not fully supported by openapi-generator'
-      required:
-        - scope
-      type: object
     Doktyp:
       description: Type of a Document
       enum:
@@ -93,6 +74,8 @@ components:
         - stellungnahme
         - gutachten
         - redeprotokoll
+        - beschlussprotokoll
+        - inhaltsprotokoll
         - tops
         - tops-aend
         - tops-ergz
@@ -205,9 +188,9 @@ components:
           type: string
         zusammenfassung:
           oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/ZusammenfassungWrapper'
               description: Summary of the document's contents
+            - type: 'null'
       required:
         - typ
         - titel
@@ -894,16 +877,30 @@ components:
           type:
             - string
             - 'null'
+        meta_tiebreaker:
+          description: 'Tiebreaker for Station ordering other than `zp_start`.
+
+            If `zp_start(A)` > `zp_start(B)`, A > B;
+
+            If `zp_start(A)` = `zp_start(B)`, `meta_tiebreaker` determines the order
+
+            For more details, see <https://codeberg.org/PaZuFa/pazufa-backend/issues/57>'
+          format: int32
+          minimum: 0
+          type:
+            - integer
+            - 'null'
         schlagworte:
           description: 'DEPRECATED: This has been moved to the Vorgang level.
 
             Please do not submit any data here, it will be merged as Vorgangs-Schlagworte
 
-            For details, see https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54'
+            For details, see <https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54>'
           items:
             type: string
           type: array
         stellungnahmen:
+          description: List statement of interested parties
           items:
             $ref: '#/components/schemas/DokumentOrApiId'
           type: array
@@ -951,6 +948,7 @@ components:
         - preparl-formvs
         - parl-initiativ
         - parl-antragsst
+        - parl-anhoerung
         - parl-ausschber
         - parl-vollvlsgn
         - parl-akzeptanz
@@ -1029,73 +1027,118 @@ components:
         proceedings'
       properties:
         api_id:
-          description: Use UUID version 5 with your collector id as namespace
+          description: 'The Api ID of this Vorgang
+
+            Use UUID version 5 with your collector id as namespace
+
+            ontrack(-)'
           format: uuid
           type: string
         ids:
+          description: 'Tuple of (typ, id)
+
+            ontrack(-)'
           items:
             $ref: '#/components/schemas/VgIdent'
           type: array
         initiatoren:
-          description: List of persons or organisations, which initiated the Vorgang.
+          description: 'List of persons or organisations, which initiated the Vorgang
+
+            ontrack(refactor)'
           items:
             $ref: '#/components/schemas/Autor'
           type: array
         kurztitel:
+          description: 'A brief, layman-understandable title of this law
+
+            ontrack(-)'
           type:
             - string
             - 'null'
         links:
+          description: 'Links that are associated with the Full Vorgang
+
+            ontrack(refactor)'
           items:
             format: uri
             type: string
           type: array
         lobbyregister:
-          description: Lobby register annotations from Bundestag sources
+          description: 'Lobbyregister annotations from Bundestag sources
+
+            ontrack(refactor)'
           items:
             $ref: '#/components/schemas/Lobbyregistereintrag'
           type: array
         ressort:
           oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/Ressort'
-              description: Ressort. Skipped if None
+              description: 'Ressort. Skipped if None
+
+                ontrack(mandatory)'
+            - type: 'null'
         sachgebiete:
-          description: Sachgebiet information
+          description: 'Sachgebiet information
+
+            ontrack(at-least-one)'
           items:
             $ref: '#/components/schemas/Sachgebiet'
           type: array
         schlagworte:
-          description: General Vorgangs-Schlagworte
+          description: 'General Vorgangs-Schlagworte
+
+            ontrack(at-least-one)'
           items:
             type: string
           type: array
         stationen:
-          description: List of stations, the core of what happens in one Proceeding
+          description: 'List of stations, the core of what happens in one Proceeding
+
+            ontrack(-)'
           items:
             $ref: '#/components/schemas/Station'
           type: array
         titel:
+          description: 'Official Title of this Proceeding
+
+            ontrack(-)'
           type: string
         touched_by:
-          description: list of scraper uuids / key database ids that have touched
+          description: 'list of scraper uuids / key database ids that have touched
             this object
+
+            ontrack(meta)'
           items:
             $ref: '#/components/schemas/TouchedByInner'
           type: array
         typ:
           $ref: '#/components/schemas/Vorgangstyp'
+          description: 'The type of this Vorgang
+
+            ontrack(-)'
         verfassungsaendernd:
           description: 'Is this Vorgang directly intended to change the constitution
-            of whatever state it happens
 
-            in?'
+            of whatever state it happens in?;
+
+            ontrack(-)'
           type: boolean
         wahlperiode:
-          description: number of the electoral period
+          description: 'number of the electoral period
+
+            ontrack(-)'
           format: int32
           minimum: 0
           type: integer
+        zusammenfassung:
+          description: 'Summary of the whole Vorgang''s idea
+
+            See parlamentszusammenfasser#55
+
+            ontrack(at-least-one)'
+          items:
+            $ref: '#/components/schemas/Zusammenfassungstupel'
+          type: array
       required:
         - api_id
         - titel
@@ -1121,6 +1164,7 @@ components:
         - bu-zustimmung-inisonst-intvertrag
         - bu-antrag-bweinsatz
         - gg-land-parl
+        - gg-land-parl-haushalt
         - gg-land-volk
         - bw-einsatz
         - sonstig
@@ -1197,7 +1241,7 @@ info:
     name: GPLv3
     url: https://www.gnu.org/licenses/gpl-3.0.en.html
   title: LTZF API
-  version: 0.2.7
+  version: 0.2.8
 openapi: 3.1.0
 paths:
   /api/v2/auth:
@@ -1214,7 +1258,7 @@ paths:
             type: string
       responses:
         '204':
-          description: ''
+          description: No Content
         '400':
           description: Malformed Request
         '401':
@@ -1238,7 +1282,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateApiKey'
+              $ref: '#/components/schemas/APIKeyCreate'
         required: true
       responses:
         '201':
@@ -1246,20 +1290,23 @@ paths:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: API Key Created
         '400':
-          description: ''
+          description: Malformed Request
         '401':
-          description: ''
+          description: Authentication or Authorization failed
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
       security:
         - apiKey:
             - keyadder
+      summary: 'Entry point to create a new key with a given scope
+
+        returns the key as plain string'
       tags:
         - Authentifizierung
   /api/v2/auth/keys:
@@ -1299,6 +1346,14 @@ paths:
             format: int32
             minimum: 0
             type: integer
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
@@ -1309,6 +1364,11 @@ paths:
                 type: string
           description: Ok
           headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
             link:
               schema:
                 description: "Used for pagination. \n        Contains links to the\
@@ -1347,6 +1407,12 @@ paths:
           description: No Content
         '304':
           description: Not Modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
           description: Bad Request
         '401':
@@ -1360,6 +1426,7 @@ paths:
       security:
         - apiKey:
             - keyadder
+      summary: Lists keytags that exist within the database. A keyadder-only feature.
       tags:
         - Authentifizierung
   /api/v2/auth/keys/{keytag}:
@@ -1371,24 +1438,47 @@ paths:
           required: true
           schema:
             type: string
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/KeytagListing'
-          description: ''
+          description: Lists which Objects were touched by a scraper of this key
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
+        '304':
+          description: Not Modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '401':
-          description: ''
+          description: Authentication or Authorization failed
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
       security:
         - apiKey:
             - keyadder
+      summary: Lists which objects were touched by the supplied keytag
       tags:
         - Authentifizierung
   /api/v2/auth/rotate:
@@ -1415,15 +1505,15 @@ paths:
                   - new_api_key
                   - rotation_complete_date
                 type: object
-          description: ''
+          description: API Key Created
         '401':
-          description: ''
+          description: Authentication or Authorization failed
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
       security:
         - apiKey:
             - collector
@@ -1454,21 +1544,61 @@ paths:
     get:
       description: Get some information about your own key
       operationId: auth_status
+      parameters:
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiKeyStatus'
-          description: ''
+                properties:
+                  expires_at:
+                    description: When this key will expire. If `is_being_rotated`
+                      is true, this is the date the rotation is complete.
+                    format: date-time
+                    type: string
+                  is_being_rotated:
+                    description: Whether this key is currently in a transition process
+                    type: boolean
+                  scope:
+                    $ref: '#/components/schemas/APIScope'
+                    description: 'Note: inline enums are not fully supported by openapi-generator'
+                required:
+                  - scope
+                  - expires_at
+                  - is_being_rotated
+                type: object
+          description: contains scope, current rotation status and expiry date if
+            applicable
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
+        '304':
+          description: Not Modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '401':
-          description: ''
+          description: Authentication or Authorization failed
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
       security:
         - apiKey:
             - collector
@@ -1503,7 +1633,7 @@ paths:
             type: string
       responses:
         '204':
-          description: ''
+          description: No Content
         '400':
           description: Malformed Request
         '401':
@@ -1567,6 +1697,14 @@ paths:
             format: int32
             minimum: 0
             type: integer
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
@@ -1604,6 +1742,11 @@ paths:
                 type: array
           description: Ok
           headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
             link:
               schema:
                 description: "Used for pagination. \n        Contains links to the\
@@ -1642,6 +1785,12 @@ paths:
           description: No Content
         '304':
           description: Not Modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
           description: Bad Request
         '500':
@@ -1708,7 +1857,7 @@ paths:
             type: string
       responses:
         '204':
-          description: ''
+          description: No Content
         '400':
           description: Malformed Request
         '401':
@@ -1755,27 +1904,47 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/DokumentFormat'
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dokument'
-          description: ''
+          description: Successful Response
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '304':
-          description: ''
+          description: Ressource was not modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
-          description: ''
+          description: Malformed Request
         '404':
-          description: ''
+          description: Ressource not found
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
         '501':
-          description: ''
+          description: Not Implemented
       tags:
         - Miscellaneous
         - Unauthorisiert
@@ -1863,6 +2032,14 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/EnumerationNames'
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
@@ -1873,6 +2050,11 @@ paths:
                 type: array
           description: Ok
           headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
             link:
               schema:
                 description: "Used for pagination. \n        Contains links to the\
@@ -1911,6 +2093,12 @@ paths:
           description: No Content
         '304':
           description: Not Modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
           description: Bad Request
         '500':
@@ -1985,7 +2173,7 @@ paths:
             $ref: '#/components/schemas/EnumerationNames'
       responses:
         '204':
-          description: ''
+          description: No Content
         '400':
           description: Malformed Request
         '401':
@@ -2035,7 +2223,7 @@ paths:
             type: integer
       responses:
         '204':
-          description: ''
+          description: No Content
         '400':
           description: Malformed Request
         '401':
@@ -2102,6 +2290,14 @@ paths:
             format: int32
             minimum: 0
             type: integer
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
@@ -2134,6 +2330,11 @@ paths:
                 type: array
           description: Ok
           headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
             link:
               schema:
                 description: "Used for pagination. \n        Contains links to the\
@@ -2172,6 +2373,12 @@ paths:
           description: No Content
         '304':
           description: Not Modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
           description: Bad Request
         '500':
@@ -2271,7 +2478,7 @@ paths:
             type: string
         - description: The year to filter results by (1945 or later)
           in: query
-          name: y
+          name: 'y'
           required: false
           schema:
             format: int32
@@ -2324,6 +2531,14 @@ paths:
           required: false
           schema:
             type: boolean
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
@@ -2360,21 +2575,33 @@ paths:
                   - x_total_pages
                   - link
                 type: object
-          description: ''
+          description: Successful Response
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '204':
-          description: ''
+          description: No Content
         '304':
-          description: ''
+          description: Ressource was not modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
-          description: ''
+          description: Malformed Request
         '416':
-          description: ''
+          description: Requested page is out of range
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
       tags:
         - Sitzung
         - Unauthorisiert
@@ -2414,6 +2641,14 @@ paths:
           required: false
           schema:
             type: boolean
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
@@ -2450,21 +2685,33 @@ paths:
                   - x_total_pages
                   - link
                 type: object
-          description: ''
+          description: Successful Response
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '204':
-          description: ''
+          description: No Content
         '304':
-          description: ''
+          description: Ressource was not modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
-          description: ''
+          description: Malformed Request
         '416':
-          description: ''
+          description: Requested page is out of range
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
       tags:
         - Sitzung
         - Unauthorisiert
@@ -2627,6 +2874,14 @@ paths:
           required: false
           schema:
             type: boolean
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
@@ -2663,21 +2918,34 @@ paths:
                   - x_total_pages
                   - link
                 type: object
-          description: ''
+          description: Successful Response
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '204':
-          description: ''
+          description: No Content
         '304':
-          description: ''
+          description: Ressource was not modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
-          description: ''
+          description: Malformed Request
         '416':
-          description: ''
+          description: Requested page is out of range
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
+      summary: Get Sitzung objects by filters
       tags:
         - Sitzung
         - Unauthorisiert
@@ -2696,7 +2964,7 @@ paths:
             type: string
       responses:
         '204':
-          description: ''
+          description: No Content
         '400':
           description: Malformed Request
         '401':
@@ -2745,27 +3013,47 @@ paths:
           required: false
           schema:
             type: boolean
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Sitzung'
-          description: ''
+          description: Successful Response
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '304':
-          description: ''
+          description: Ressource was not modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
-          description: ''
+          description: Malformed Request
         '404':
-          description: ''
+          description: Ressource not found
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
         '501':
-          description: ''
+          description: Not Implemented
       tags:
         - Sitzung
         - Unauthorisiert
@@ -2902,7 +3190,7 @@ paths:
             type: integer
       responses:
         '204':
-          description: ''
+          description: No Content
         '400':
           description: Malformed Request
         '401':
@@ -3020,6 +3308,14 @@ paths:
           required: false
           schema:
             type: boolean
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
@@ -3034,75 +3330,121 @@ paths:
                     proceedings'
                   properties:
                     api_id:
-                      description: Use UUID version 5 with your collector id as namespace
+                      description: 'The Api ID of this Vorgang
+
+                        Use UUID version 5 with your collector id as namespace
+
+                        ontrack(-)'
                       format: uuid
                       type: string
                     ids:
+                      description: 'Tuple of (typ, id)
+
+                        ontrack(-)'
                       items:
                         $ref: '#/components/schemas/VgIdent'
                       type: array
                     initiatoren:
-                      description: List of persons or organisations, which initiated
-                        the Vorgang.
+                      description: 'List of persons or organisations, which initiated
+                        the Vorgang
+
+                        ontrack(refactor)'
                       items:
                         $ref: '#/components/schemas/Autor'
                       type: array
                     kurztitel:
+                      description: 'A brief, layman-understandable title of this law
+
+                        ontrack(-)'
                       type:
                         - string
                         - 'null'
                     links:
+                      description: 'Links that are associated with the Full Vorgang
+
+                        ontrack(refactor)'
                       items:
                         format: uri
                         type: string
                       type: array
                     lobbyregister:
-                      description: Lobby register annotations from Bundestag sources
+                      description: 'Lobbyregister annotations from Bundestag sources
+
+                        ontrack(refactor)'
                       items:
                         $ref: '#/components/schemas/Lobbyregistereintrag'
                       type: array
                     ressort:
                       oneOf:
-                        - type: 'null'
                         - $ref: '#/components/schemas/Ressort'
-                          description: Ressort. Skipped if None
+                          description: 'Ressort. Skipped if None
+
+                            ontrack(mandatory)'
+                        - type: 'null'
                     sachgebiete:
-                      description: Sachgebiet information
+                      description: 'Sachgebiet information
+
+                        ontrack(at-least-one)'
                       items:
                         $ref: '#/components/schemas/Sachgebiet'
                       type: array
                     schlagworte:
-                      description: General Vorgangs-Schlagworte
+                      description: 'General Vorgangs-Schlagworte
+
+                        ontrack(at-least-one)'
                       items:
                         type: string
                       type: array
                     stationen:
-                      description: List of stations, the core of what happens in one
-                        Proceeding
+                      description: 'List of stations, the core of what happens in
+                        one Proceeding
+
+                        ontrack(-)'
                       items:
                         $ref: '#/components/schemas/Station'
                       type: array
                     titel:
+                      description: 'Official Title of this Proceeding
+
+                        ontrack(-)'
                       type: string
                     touched_by:
-                      description: list of scraper uuids / key database ids that have
-                        touched this object
+                      description: 'list of scraper uuids / key database ids that
+                        have touched this object
+
+                        ontrack(meta)'
                       items:
                         $ref: '#/components/schemas/TouchedByInner'
                       type: array
                     typ:
                       $ref: '#/components/schemas/Vorgangstyp'
+                      description: 'The type of this Vorgang
+
+                        ontrack(-)'
                     verfassungsaendernd:
                       description: 'Is this Vorgang directly intended to change the
-                        constitution of whatever state it happens
+                        constitution
 
-                        in?'
+                        of whatever state it happens in?;
+
+                        ontrack(-)'
                       type: boolean
                     wahlperiode:
-                      description: number of the electoral period
+                      description: 'number of the electoral period
+
+                        ontrack(-)'
                       format: int32
                       minimum: 0
                       type: integer
+                    zusammenfassung:
+                      description: 'Summary of the whole Vorgang''s idea
+
+                        See parlamentszusammenfasser#55
+
+                        ontrack(at-least-one)'
+                      items:
+                        $ref: '#/components/schemas/Zusammenfassungstupel'
+                      type: array
                   required:
                     - api_id
                     - titel
@@ -3115,6 +3457,11 @@ paths:
                 type: array
           description: Ok
           headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
             link:
               schema:
                 description: "Used for pagination. \n        Contains links to the\
@@ -3153,6 +3500,12 @@ paths:
           description: No Content
         '304':
           description: Not Modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
           description: Bad Request
         '500':
@@ -3226,7 +3579,7 @@ paths:
             type: string
       responses:
         '204':
-          description: ''
+          description: No Content
         '400':
           description: Malformed Request
         '401':
@@ -3275,27 +3628,47 @@ paths:
           required: false
           schema:
             type: boolean
+        - description: One or more entity tags from the `etag` header of earlier responses.
+            If one of them matches the current representation, the server responds
+            with `304 Not Modified` and an empty body.
+          in: header
+          name: if-none-match
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Vorgang'
-          description: ''
+          description: Successful Response
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '304':
-          description: ''
+          description: Ressource was not modified
+          headers:
+            etag:
+              description: Strong entity tag of the returned representation. It is
+                specific to the content coding of the response.
+              schema:
+                type: string
         '400':
-          description: ''
+          description: Malformed Request
         '404':
-          description: ''
+          description: Ressource not found
         '500':
           content:
             text/plain:
               schema:
                 type: string
-          description: ''
+          description: Internal Server Error
         '501':
-          description: ''
+          description: Not Implemented
       tags:
         - Vorgang
         - Unauthorisiert
