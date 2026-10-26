@@ -18,10 +18,14 @@ def _get_kwargs(
     *,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
         headers["if-modified-since"] = if_modified_since
+
+    if not isinstance(if_none_match, Unset):
+        headers["if-none-match"] = if_none_match
 
     params: dict[str, Any] = {}
 
@@ -94,6 +98,7 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | KalDateGetResponse200 | str]:
     """Retrieves a list of parliamentary sessions for a specific date and parliament. Provides all sessions
     scheduled for the given day in the specified parliamentary body.
@@ -103,6 +108,7 @@ def sync_detailed(
         datum (datetime.date):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -117,6 +123,7 @@ def sync_detailed(
         datum=datum,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     )
 
     response = client.get_httpx_client().request(
@@ -133,6 +140,7 @@ def sync(
     client: AuthenticatedClient | Client,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | KalDateGetResponse200 | str | None:
     """Retrieves a list of parliamentary sessions for a specific date and parliament. Provides all sessions
     scheduled for the given day in the specified parliamentary body.
@@ -142,6 +150,7 @@ def sync(
         datum (datetime.date):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -157,6 +166,7 @@ def sync(
         client=client,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     ).parsed
 
 
@@ -167,6 +177,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | KalDateGetResponse200 | str]:
     """Retrieves a list of parliamentary sessions for a specific date and parliament. Provides all sessions
     scheduled for the given day in the specified parliamentary body.
@@ -176,6 +187,7 @@ async def asyncio_detailed(
         datum (datetime.date):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -190,6 +202,7 @@ async def asyncio_detailed(
         datum=datum,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -204,6 +217,7 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | KalDateGetResponse200 | str | None:
     """Retrieves a list of parliamentary sessions for a specific date and parliament. Provides all sessions
     scheduled for the given day in the specified parliamentary body.
@@ -213,6 +227,7 @@ async def asyncio(
         datum (datetime.date):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -229,5 +244,6 @@ async def asyncio(
             client=client,
             expand=expand,
             if_modified_since=if_modified_since,
+            if_none_match=if_none_match,
         )
     ).parsed

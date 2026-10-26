@@ -4,6 +4,7 @@ from enum import StrEnum
 class Stationstyp(StrEnum):
     PARL_ABLEHNUNG = "parl-ablehnung"
     PARL_AKZEPTANZ = "parl-akzeptanz"
+    PARL_ANHOERUNG = "parl-anhoerung"
     PARL_ANTRAGSST = "parl-antragsst"
     PARL_AUSSCHBER = "parl-ausschber"
     PARL_GGENTWURF = "parl-ggentwurf"

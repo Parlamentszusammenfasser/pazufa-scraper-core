@@ -1,0 +1,25 @@
+# Vulnerabilities ignored by `make security` and the CI `audit` step.
+# Read by tools/run_pip_audit.py; every entry should be tracked as a Codeberg issue.
+#
+# Fields:
+#   cve:   vulnerability ID (required): CVE-, GHSA- or PYSEC-. pip-audit also
+#          matches advisory aliases, so prefer the CVE ID when there is one.
+#   notes: why the vulnerability is ignored and when it can be removed (optional)
+#   issue: URL of the tracking issue (optional)
+
+ignore:
+  - cve: CVE-2025-69872
+    notes: diskcache — no upstream fix yet.
+    issue: https://codeberg.org/PaZuFa/pazufa-scraper-core/issues/97
+
+  - cve: CVE-2026-112940
+    notes: filelock — fixed in 4.2.1, but litellm pins filelock<4.0.
+    issue: https://codeberg.org/PaZuFa/pazufa-scraper-core/issues/151
+
+  - cve: CVE-2026-112913
+    notes: filelock — fixed in 4.2.1, but litellm pins filelock<4.0.
+    issue: https://codeberg.org/PaZuFa/pazufa-scraper-core/issues/151
+
+  - cve: CVE-2026-112907
+    notes: filelock — fixed in 4.2.1, but litellm pins filelock<4.0.
+    issue: https://codeberg.org/PaZuFa/pazufa-scraper-core/issues/151

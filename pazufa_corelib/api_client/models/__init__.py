@@ -1,11 +1,11 @@
 """Contains all the data models used in inputs/outputs"""
 
-from .api_key_status import ApiKeyStatus
+from .api_key_create import APIKeyCreate
 from .api_scope import APIScope
 from .auth_rotate_response_201 import AuthRotateResponse201
+from .auth_status_response_200 import AuthStatusResponse200
 from .autor import Autor
 from .autoren_get_response_200_item import AutorenGetResponse200Item
-from .create_api_key import CreateApiKey
 from .doktyp import Doktyp
 from .dokument import Dokument
 from .dokument_format import DokumentFormat
@@ -53,12 +53,12 @@ from .vorgangstyp import Vorgangstyp
 from .zusammenfassungstupel import Zusammenfassungstupel
 
 __all__ = (
-    "ApiKeyStatus",
+    "APIKeyCreate",
     "APIScope",
     "AuthRotateResponse201",
+    "AuthStatusResponse200",
     "Autor",
     "AutorenGetResponse200Item",
-    "CreateApiKey",
     "Doktyp",
     "Dokument",
     "DokumentFormat",

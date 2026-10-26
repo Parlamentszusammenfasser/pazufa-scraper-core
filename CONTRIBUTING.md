@@ -120,7 +120,7 @@ The OpenAPI spec is maintained in the main project at
 and released under tags of the form `v<spec>+v<tracks>` (e.g. `v0.2.5+v0.0.7`).
 
 A copy is vendored into this repo as [openapi.yaml](openapi.yaml) — currently
-**spec 0.2.5**. Keep it byte-identical to the tag it came from so that
+**spec 0.2.8** (taken from the staging `/openapi.json` as no tag exists yet). Keep it byte-identical to the tag it came from so that
 regeneration is reproducible and the diff of a spec bump is readable:
 
 ```bash
@@ -165,7 +165,7 @@ The generators read from **different sources**, which is easy to trip over:
 
 | Target                    | Generator               | Source                                                                              |
 |---------------------------|-------------------------|-------------------------------------------------------------------------------------|
-| `_api_model_generated.py` | `datamodel-codegen`     | the live endpoint, `tool.datamodel-codegen.url` in [pyproject.toml](pyproject.toml) |
+| `_api_model_generated.py` | `datamodel-codegen`     | the vendored [openapi.yaml](openapi.yaml), `tool.datamodel-codegen.input`           |
 | `api_model_working.py`    | `datamodel-codegen`     | the handcrafted [api_model.py](pazufa_corelib/api_model.py)                         |
 | `api_client/`             | `openapi-python-client` | the vendored [openapi.yaml](openapi.yaml)                                           |
 

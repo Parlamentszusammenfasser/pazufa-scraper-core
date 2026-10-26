@@ -25,10 +25,14 @@ def _get_kwargs(
     per_page: int | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(if_modified_since, Unset):
         headers["if-modified-since"] = if_modified_since
+
+    if not isinstance(if_none_match, Unset):
+        headers["if-none-match"] = if_none_match
 
     params: dict[str, Any] = {}
 
@@ -136,6 +140,7 @@ def sync_detailed(
     per_page: int | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | KalGetResponse200 | str]:
     """Retrieves a filterable list of parliamentary sessions for calendar display. Returns up to 64
     sessions per request, which can be filtered by various criteria including year, month, day,
@@ -154,6 +159,7 @@ def sync_detailed(
         per_page (int | Unset):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -176,6 +182,7 @@ def sync_detailed(
         per_page=per_page,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     )
 
     response = client.get_httpx_client().request(
@@ -200,6 +207,7 @@ def sync(
     per_page: int | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | KalGetResponse200 | str | None:
     """Retrieves a filterable list of parliamentary sessions for calendar display. Returns up to 64
     sessions per request, which can be filtered by various criteria including year, month, day,
@@ -218,6 +226,7 @@ def sync(
         per_page (int | Unset):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -241,6 +250,7 @@ def sync(
         per_page=per_page,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     ).parsed
 
 
@@ -259,6 +269,7 @@ async def asyncio_detailed(
     per_page: int | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Response[Any | KalGetResponse200 | str]:
     """Retrieves a filterable list of parliamentary sessions for calendar display. Returns up to 64
     sessions per request, which can be filtered by various criteria including year, month, day,
@@ -277,6 +288,7 @@ async def asyncio_detailed(
         per_page (int | Unset):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -299,6 +311,7 @@ async def asyncio_detailed(
         per_page=per_page,
         expand=expand,
         if_modified_since=if_modified_since,
+        if_none_match=if_none_match,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -321,6 +334,7 @@ async def asyncio(
     per_page: int | Unset = UNSET,
     expand: bool | Unset = UNSET,
     if_modified_since: None | str | Unset = UNSET,
+    if_none_match: str | Unset = UNSET,
 ) -> Any | KalGetResponse200 | str | None:
     """Retrieves a filterable list of parliamentary sessions for calendar display. Returns up to 64
     sessions per request, which can be filtered by various criteria including year, month, day,
@@ -339,6 +353,7 @@ async def asyncio(
         per_page (int | Unset):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
+        if_none_match (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -363,5 +378,6 @@ async def asyncio(
             per_page=per_page,
             expand=expand,
             if_modified_since=if_modified_since,
+            if_none_match=if_none_match,
         )
     ).parsed

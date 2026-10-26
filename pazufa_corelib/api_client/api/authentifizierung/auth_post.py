@@ -5,13 +5,13 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.create_api_key import CreateApiKey
+from ...models.api_key_create import APIKeyCreate
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: CreateApiKey,
+    body: APIKeyCreate,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -63,11 +63,13 @@ def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Res
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: CreateApiKey,
+    body: APIKeyCreate,
 ) -> Response[Any | str]:
-    """
+    """Entry point to create a new key with a given scope
+    returns the key as plain string
+
     Args:
-        body (CreateApiKey): Requests a new API key. The key will be saved as hash in the database
+        body (APIKeyCreate): Requests a new API key. The key will be saved as hash in the database
             and only produced once in clear text.
 
     Raises:
@@ -92,11 +94,13 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: CreateApiKey,
+    body: APIKeyCreate,
 ) -> Any | str | None:
-    """
+    """Entry point to create a new key with a given scope
+    returns the key as plain string
+
     Args:
-        body (CreateApiKey): Requests a new API key. The key will be saved as hash in the database
+        body (APIKeyCreate): Requests a new API key. The key will be saved as hash in the database
             and only produced once in clear text.
 
     Raises:
@@ -116,11 +120,13 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: CreateApiKey,
+    body: APIKeyCreate,
 ) -> Response[Any | str]:
-    """
+    """Entry point to create a new key with a given scope
+    returns the key as plain string
+
     Args:
-        body (CreateApiKey): Requests a new API key. The key will be saved as hash in the database
+        body (APIKeyCreate): Requests a new API key. The key will be saved as hash in the database
             and only produced once in clear text.
 
     Raises:
@@ -143,11 +149,13 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: CreateApiKey,
+    body: APIKeyCreate,
 ) -> Any | str | None:
-    """
+    """Entry point to create a new key with a given scope
+    returns the key as plain string
+
     Args:
-        body (CreateApiKey): Requests a new API key. The key will be saved as hash in the database
+        body (APIKeyCreate): Requests a new API key. The key will be saved as hash in the database
             and only produced once in clear text.
 
     Raises:
