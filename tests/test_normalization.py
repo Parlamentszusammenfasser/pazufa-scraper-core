@@ -1119,6 +1119,15 @@ class TestOrganisationResolver:
         assert r.resolved_id == "gruene"
         assert r.score == 100.0
 
+    def test_bsw_new_party_name(self, resolver: OrganizationResolver) -> None:
+        # The party kept its acronym when it renamed itself; the new name
+        # alone scores below the fuzzy threshold.
+        r = resolver.resolve(
+            "Bündnis Soziale Gerechtigkeit und Wirtschaftliche Vernunft"
+        )
+        assert r.resolved_id == "bsw"
+        assert r.score == 100.0
+
     # --- CDU/CSU three-way split ------------------------------------------
 
     def test_cdu_csu_canonical(self, resolver: OrganizationResolver) -> None:
