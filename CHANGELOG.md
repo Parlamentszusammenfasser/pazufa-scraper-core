@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Security
+- **filelock CVEs** litellm 1.108.3 allows filelock 4, so filelock is updated to 4.2.9 and its ignored CVEs are removed from `pip-audit-ignore.yaml` (#151).
+
 ## [0.3.2] - 26.10.2026
 
 ### Changed
