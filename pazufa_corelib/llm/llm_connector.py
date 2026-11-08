@@ -336,6 +336,9 @@ class LLMConnector:
         self._instructor_client = instructor.from_litellm(
             litellm.acompletion, mode=instructor.Mode.TOOLS
         )
+        # Token usage summed over successful extract() calls, for run metrics.
+        self.prompt_tokens: int = 0
+        self.completion_tokens: int = 0
         LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
 
         LOGGER.info(
@@ -660,6 +663,11 @@ class LLMConnector:
                     ),
                     self.timeout_seconds + 0.5,
                 )
+                # Same object create_with_completion() returns; may be absent.
+                raw_response = getattr(result, "_raw_response", None)
+                usage = getattr(raw_response, "usage", None)
+                self.prompt_tokens += getattr(usage, "prompt_tokens", 0) or 0
+                self.completion_tokens += getattr(usage, "completion_tokens", 0) or 0
                 LOGGER.debug(
                     "Structured extraction successful (attempt=%s/%s)",
                     attempt + 1,

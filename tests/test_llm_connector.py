@@ -210,6 +210,67 @@ class TestExtractHappyPath:
 
 
 # ---------------------------------------------------------------------------
+# extract() — token usage
+# ---------------------------------------------------------------------------
+
+
+def _with_usage(result: BaseModel, prompt: int, completion: int) -> BaseModel:
+    # Instructor attaches the raw litellm response as `_raw_response`.
+    result._raw_response = MagicMock(  # type: ignore[attr-defined]
+        usage=litellm.Usage(prompt_tokens=prompt, completion_tokens=completion)
+    )
+    return result
+
+
+class TestExtractTokenUsage:
+    """Verify extract() accumulates provider-reported token usage."""
+
+    @pytest.mark.asyncio
+    async def test_starts_at_zero(self) -> None:
+        connector = _make_connector()
+
+        assert connector.prompt_tokens == 0
+        assert connector.completion_tokens == 0
+
+    @pytest.mark.asyncio
+    async def test_accumulates_across_calls(self) -> None:
+        connector = _make_connector()
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=[
+                _with_usage(Keywords(sachgebiete=[], schlagworte=[]), 100, 20),
+                _with_usage(Keywords(sachgebiete=[], schlagworte=[]), 50, 5),
+            ]
+        )
+        connector._instructor_client = mock_client
+
+        await connector.extract(prompt="a", response_model=Keywords)
+        await connector.extract(prompt="b", response_model=Keywords)
+
+        assert connector.prompt_tokens == 150
+        assert connector.completion_tokens == 25
+
+    @pytest.mark.asyncio
+    async def test_missing_usage_does_not_break_call(self) -> None:
+        connector = _make_connector()
+        expected = Keywords(sachgebiete=["Bildung"], schlagworte=[])
+        no_usage = Keywords(sachgebiete=[], schlagworte=[])
+        no_usage._raw_response = MagicMock(usage=None)  # type: ignore[attr-defined]
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=[expected, no_usage]
+        )
+        connector._instructor_client = mock_client
+
+        result = await connector.extract(prompt="a", response_model=Keywords)
+        await connector.extract(prompt="b", response_model=Keywords)
+
+        assert result is expected
+        assert connector.prompt_tokens == 0
+        assert connector.completion_tokens == 0
+
+
+# ---------------------------------------------------------------------------
 # extract() — validation failure → LLMValidationError
 # ---------------------------------------------------------------------------
 

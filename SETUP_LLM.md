@@ -23,6 +23,17 @@ from pazufa_corelib import LLMConnector
 connector = LLMConnector(model="openai/gpt-4o-mini", api_key="sk-...")
 ```
 
+## Token usage
+
+Each connector sums the tokens its successful calls used, as reported by the
+provider (`0` if the provider reports none):
+
+```python
+connector.model              # e.g. "openai/gpt-4o-mini"
+connector.prompt_tokens      # input tokens so far
+connector.completion_tokens  # output tokens so far
+```
+
 ## Further documentation
 
 Detailed information on models, prompts, taxonomy, and section extraction is
