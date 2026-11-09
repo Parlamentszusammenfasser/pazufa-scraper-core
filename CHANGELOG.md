@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **The BSW resolves under its new name.** The party renamed itself to `Bündnis Soziale Gerechtigkeit und Wirtschaftliche Vernunft`, which is now an alias of `bsw`.
+
 ### Security
 - **filelock CVEs** litellm 1.108.3 allows filelock 4, so filelock is updated to 4.2.9 and its ignored CVEs are removed from `pip-audit-ignore.yaml` (#151).
 
