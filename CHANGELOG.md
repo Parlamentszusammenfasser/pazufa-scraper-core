@@ -9,6 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - **LLM token usage** `LLMConnector.prompt_tokens` and `completion_tokens` sum the provider-reported tokens of successful calls, e.g. for run metrics. Additive, no changes needed in scrapers.
 
+### Fixed
+- **The BSW resolves under its new name.** The party renamed itself to `Bündnis Soziale Gerechtigkeit und Wirtschaftliche Vernunft`, which is now an alias of `bsw`.
+
+### Security
+- **filelock CVEs** litellm 1.108.3 allows filelock 4, so filelock is updated to 4.2.9 and its ignored CVEs are removed from `pip-audit-ignore.yaml` (#151).
+
 ## [0.3.2] - 26.10.2026
 
 ### Changed
