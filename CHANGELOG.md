@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- **LLM token usage** `LLMConnector.prompt_tokens` and `completion_tokens` sum the provider-reported tokens of successful calls, e.g. for run metrics. Additive, no changes needed in scrapers.
+- **LLM token usage** `LLMConnector.prompt_tokens`, `completion_tokens` and `reasoning_tokens` (part of completion) sum the provider-reported tokens of all calls, including those that fail validation, e.g. for run metrics. Additive, no changes needed in scrapers.
 
 ### Fixed
 - **The BSW resolves under its new name.** The party renamed itself to `Bündnis Soziale Gerechtigkeit und Wirtschaftliche Vernunft`, which is now an alias of `bsw`.

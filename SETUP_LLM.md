@@ -25,13 +25,15 @@ connector = LLMConnector(model="openai/gpt-4o-mini", api_key="sk-...")
 
 ## Token usage
 
-Each connector sums the tokens its successful calls used, as reported by the
-provider (`0` if the provider reports none):
+Each connector sums the tokens its calls used, as reported by the provider
+(`0` if the provider reports none). Calls that fail validation count too,
+since they are billed; timeouts and provider errors report no usage.
 
 ```python
 connector.model              # e.g. "openai/gpt-4o-mini"
 connector.prompt_tokens      # input tokens so far
-connector.completion_tokens  # output tokens so far
+connector.completion_tokens  # output tokens so far, incl. reasoning
+connector.reasoning_tokens   # part of completion_tokens, not extra
 ```
 
 ## Further documentation
