@@ -274,8 +274,9 @@ class TestExtractTokenUsage:
                 n_attempts=3,
                 messages=[],
                 last_completion=None,
-                # Instructor sums usage over all attempts.
-                total_usage=_usage(300, 60, 10),
+                # Instructor sums usage over all attempts; its `int` hint is
+                # wrong, at runtime this is a usage object.
+                total_usage=_usage(300, 60, 10),  # type: ignore[arg-type]
             )
         )
         connector._instructor_client = mock_client
