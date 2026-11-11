@@ -336,6 +336,11 @@ class LLMConnector:
         self._instructor_client = instructor.from_litellm(
             litellm.acompletion, mode=instructor.Mode.TOOLS
         )
+        # Billed token usage summed over all extract() calls, for run metrics.
+        # reasoning_tokens is part of completion_tokens, not extra.
+        self.prompt_tokens: int = 0
+        self.completion_tokens: int = 0
+        self.reasoning_tokens: int = 0
         LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
 
         LOGGER.info(
@@ -660,6 +665,9 @@ class LLMConnector:
                     ),
                     self.timeout_seconds + 0.5,
                 )
+                # Same object create_with_completion() returns; may be absent.
+                raw_response = getattr(result, "_raw_response", None)
+                self._count_usage(getattr(raw_response, "usage", None))
                 LOGGER.debug(
                     "Structured extraction successful (attempt=%s/%s)",
                     attempt + 1,
@@ -667,6 +675,8 @@ class LLMConnector:
                 )
                 return result  # type: ignore[no-any-return]
             except InstructorRetryException as exc:
+                # Failed attempts were billed too; Instructor sums their usage.
+                self._count_usage(getattr(exc, "total_usage", None))
                 classified = self._classify_instructor_retry(
                     exc, response_model.__name__, validation_retries
                 )
@@ -957,6 +967,18 @@ class LLMConnector:
             Numbered text block.
         """
         return "\n".join(f"[{i + 1}] {lines[i]}" for i in range(start, end))
+
+    def _count_usage(self, usage: object) -> None:
+        """Add provider-reported token usage; missing values count as 0."""
+        details = getattr(usage, "completion_tokens_details", None)
+        self.prompt_tokens += self._token_count(usage, "prompt_tokens")
+        self.completion_tokens += self._token_count(usage, "completion_tokens")
+        self.reasoning_tokens += self._token_count(details, "reasoning_tokens")
+
+    @staticmethod
+    def _token_count(source: object, name: str) -> int:
+        value = getattr(source, name, None)
+        return value if isinstance(value, int) else 0
 
     def _estimate_request_tokens(self, messages: list[dict[str, str]]) -> int:
         """Estimate the total token cost of an LLM request.
