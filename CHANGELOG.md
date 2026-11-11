@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.3.3] - 11.11.2026
 
 ### Added
 - **LLM token usage** `LLMConnector.prompt_tokens`, `completion_tokens` and `reasoning_tokens` (part of completion) sum the provider-reported tokens of all calls, including those that fail validation, e.g. for run metrics. Additive, no changes needed in scrapers.
