@@ -845,11 +845,11 @@ class Station(PaZuFaBaseModel):
         ),
     ] = None
     zp_start: Annotated[
-        TzDatetime,
+        TzDatetime | None,
         Field(
             description="Date of the first action within this station. i.e.: First session of a committee"
         ),
-    ]
+    ] = None
 
 
 class Top(PaZuFaBaseModel):
@@ -986,7 +986,7 @@ class Sitzung(PaZuFaBaseModel):
     link: AnyHttpUrl | None = None
     nummer: Annotated[int, Field(ge=0)]
     public: bool
-    termin: TzDatetime
+    termin: TzDatetime | None = None
     titel: Annotated[str | None, Field(description="Title if applicable")] = None
     tops: list[Top]
     touched_by: Annotated[

@@ -49,7 +49,7 @@ NOW = datetime(2026, 11, 12, 12, 0, 0, tzinfo=timezone.utc)
 HELPERS_LOGGER = "pazufa_corelib.api_helpers"
 
 
-def _station(zp_start: datetime) -> Station:
+def _station(zp_start: datetime | None) -> Station:
     return Station(
         typ=Stationstyp.preparl_formvs,
         dokumente=[],
@@ -58,7 +58,7 @@ def _station(zp_start: datetime) -> Station:
     )
 
 
-def _vorgang(*starts: datetime) -> Vorgang:
+def _vorgang(*starts: datetime | None) -> Vorgang:
     return Vorgang(
         api_id=uuid4(),
         initiatoren=[],
@@ -148,4 +148,17 @@ def test_downloaded_past_station_still_parses() -> None:
             "gremium": {"name": "Plenum", "parlament": "BW", "wahlperiode": 17},
         }
     )
+    assert station.zp_start is not None
     assert station.zp_start.year == 2020
+
+
+def test_upload_ignores_station_without_zp_start() -> None:
+    """``zp_start`` is optional since spec 0.2.9; no start cannot be in the past."""
+    validate_for_upload(_vorgang(None, NOW + timedelta(days=1)), now=NOW)
+
+
+def test_upload_reports_past_station_next_to_one_without_zp_start() -> None:
+    past = NOW - timedelta(days=1)
+    with pytest.raises(PastStationError) as exc_info:
+        validate_for_upload(_vorgang(None, past), now=NOW)
+    assert [s.zp_start for s in exc_info.value.stationen] == [past]

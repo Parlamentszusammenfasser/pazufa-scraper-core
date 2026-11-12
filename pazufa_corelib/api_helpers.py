@@ -37,7 +37,9 @@ class PastStationError(UploadValidationError):
     def __init__(self, stationen: list[Station], now: datetime) -> None:
         self.stationen = stationen
         self.now = now
-        starts = ", ".join(s.zp_start.isoformat() for s in stationen)
+        starts = ", ".join(
+            s.zp_start.isoformat() for s in stationen if s.zp_start is not None
+        )
         super().__init__(
             f"{len(stationen)} Station(en) start before {now.isoformat()} "
             f"(No-Past-Stations-Rule): zp_start {starts}"
@@ -78,7 +80,8 @@ def validate_for_upload(vorgang: Vorgang, *, now: datetime | None = None) -> Non
     Currently enforced:
 
     * **No-Past-Stations-Rule** — no Station may have a ``zp_start`` before
-      now. A ``zp_start`` exactly equal to ``now`` is accepted.
+      now. A ``zp_start`` exactly equal to ``now`` is accepted, and a Station
+      without ``zp_start`` (optional since spec 0.2.9) cannot violate it.
 
     Args:
         vorgang: The Vorgang about to be uploaded.
@@ -95,7 +98,11 @@ def validate_for_upload(vorgang: Vorgang, *, now: datetime | None = None) -> Non
     elif not _is_aware(now):
         raise ValueError("validate_for_upload requires a timezone-aware 'now'")
 
-    past = [station for station in vorgang.stationen if station.zp_start < now]
+    past = [
+        station
+        for station in vorgang.stationen
+        if station.zp_start is not None and station.zp_start < now
+    ]
     if past:
         LOGGER.warning(
             "Vorgang %s violates the No-Past-Stations-Rule: %d of %d Stationen "
