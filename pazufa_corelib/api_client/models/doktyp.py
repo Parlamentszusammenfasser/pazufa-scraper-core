@@ -5,6 +5,7 @@ class Doktyp(StrEnum):
     ANFRAGE = "anfrage"
     ANTRAG = "antrag"
     ANTWORT = "antwort"
+    BERICHTIGUNG = "berichtigung"
     BESCHLUSSEMPF = "beschlussempf"
     BESCHLUSSPROTOKOLL = "beschlussprotokoll"
     ECKPUNKTEPAPIER = "eckpunktepapier"

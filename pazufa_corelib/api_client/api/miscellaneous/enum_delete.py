@@ -70,7 +70,8 @@ def sync_detailed(
 ) -> Response[Any | str]:
     """
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         item (str):
 
     Raises:
@@ -101,7 +102,8 @@ def sync(
 ) -> Any | str | None:
     """
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         item (str):
 
     Raises:
@@ -127,7 +129,8 @@ async def asyncio_detailed(
 ) -> Response[Any | str]:
     """
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         item (str):
 
     Raises:
@@ -156,7 +159,8 @@ async def asyncio(
 ) -> Any | str | None:
     """
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         item (str):
 
     Raises:

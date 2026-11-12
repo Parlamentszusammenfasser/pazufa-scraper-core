@@ -157,7 +157,8 @@ def sync_detailed(
         until (datetime.datetime | Unset):
         page (int | Unset):
         per_page (int | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         gr (str | Unset):
         vgid (UUID | Unset):
@@ -223,7 +224,8 @@ def sync(
         until (datetime.datetime | Unset):
         page (int | Unset):
         per_page (int | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         gr (str | Unset):
         vgid (UUID | Unset):
@@ -284,7 +286,8 @@ async def asyncio_detailed(
         until (datetime.datetime | Unset):
         page (int | Unset):
         per_page (int | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         gr (str | Unset):
         vgid (UUID | Unset):
@@ -348,7 +351,8 @@ async def asyncio(
         until (datetime.datetime | Unset):
         page (int | Unset):
         per_page (int | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         gr (str | Unset):
         vgid (UUID | Unset):
