@@ -733,13 +733,13 @@ class Dokument(PaZuFaBaseModel):
         ),
     ] = None
     zp_modifiziert: Annotated[
-        TzDatetime,
+        TzDatetime | None,
         Field(
             description="Protocol of the session on 7.3., created on 8.3. *modified on 9.3*."
         ),
     ] = None
     zp_referenz: Annotated[
-        TzDatetime,
+        TzDatetime | None,
         Field(
             description="Protocol of the *session on 7.3.*, created on 8.3. modified on 9.3."
         ),

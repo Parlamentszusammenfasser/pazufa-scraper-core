@@ -252,7 +252,10 @@ class WorkingDokumentHash(PaZuFaBaseModel):
         ),
     ] = None
     value: Annotated[
-        str | None, Field(description="Hash value as string of hexadecimal octets")
+        str | None,
+        Field(
+            description="Hash value as string of hexadecimal octets\n(generation: see the hand-written `Arbitrary` impl, which keeps value/strategy/mime consistent)"
+        ),
     ] = None
 
 
@@ -336,7 +339,9 @@ class WorkingDokument(PaZuFaBaseModel):
     drucksnr: str | None = None
     hash: Annotated[
         WorkingHashWrapper | None,
-        Field(description="Wrapper that allows for legacy Hashes"),
+        Field(
+            description="corresponds to sha256+bytes, here for backwards compatibility"
+        ),
     ] = None
     kurztitel: Annotated[
         str | None,
