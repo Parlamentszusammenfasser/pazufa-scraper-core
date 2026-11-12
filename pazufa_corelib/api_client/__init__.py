@@ -1,4 +1,4 @@
-"""A client library for accessing LTZF API"""
+"""A client library for accessing Pazufa API"""
 
 from .client import AuthenticatedClient, Client
 

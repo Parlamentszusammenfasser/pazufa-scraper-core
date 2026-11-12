@@ -115,6 +115,7 @@ class Doktyp(StrEnum):
     antrag = "antrag"
     anfrage = "anfrage"
     antwort = "antwort"
+    berichtigung = "berichtigung"
     mitteilung = "mitteilung"
     beschlussempf = "beschlussempf"
     stellungnahme = "stellungnahme"
@@ -546,6 +547,8 @@ class Vorgangstyp(StrEnum):
     gg_land_parl = "gg-land-parl"
     gg_land_parl_haushalt = "gg-land-parl-haushalt"
     gg_land_volk = "gg-land-volk"
+    gg_land_parl_staatsvertrag = "gg-land-parl-staatsvertrag"
+    gg_land_parl_nachtragshaushalt = "gg-land-parl-nachtragshaushalt"
     bw_einsatz = "bw-einsatz"
     sonstig = "sonstig"
 
@@ -596,7 +599,10 @@ class DokumentHash(PaZuFaBaseModel):
         ),
     ]
     value: Annotated[
-        str, Field(description="Hash value as string of hexadecimal octets")
+        str,
+        Field(
+            description="Hash value as string of hexadecimal octets\n(generation: see the hand-written `Arbitrary` impl, which keeps value/strategy/mime consistent)"
+        ),
     ]
 
     @model_validator(mode="after")
@@ -679,7 +685,9 @@ class Dokument(PaZuFaBaseModel):
     drucksnr: str | None = None
     hash: Annotated[
         HashWrapper,
-        Field(description="Wrapper that allows for legacy Hashes"),
+        Field(
+            description="corresponds to sha256+bytes, here for backwards compatibility"
+        ),
     ]
     kurztitel: Annotated[
         str | None,
@@ -725,17 +733,17 @@ class Dokument(PaZuFaBaseModel):
         ),
     ] = None
     zp_modifiziert: Annotated[
-        TzDatetime,
+        TzDatetime | None,
         Field(
             description="Protocol of the session on 7.3., created on 8.3. *modified on 9.3*."
         ),
-    ]
+    ] = None
     zp_referenz: Annotated[
-        TzDatetime,
+        TzDatetime | None,
         Field(
             description="Protocol of the *session on 7.3.*, created on 8.3. modified on 9.3."
         ),
-    ]
+    ] = None
     zusammenfassung: ZusammenfassungWrapper | None = None
 
     @model_validator(mode="after")
@@ -837,11 +845,11 @@ class Station(PaZuFaBaseModel):
         ),
     ] = None
     zp_start: Annotated[
-        TzDatetime,
+        TzDatetime | None,
         Field(
             description="Date of the first action within this station. i.e.: First session of a committee"
         ),
-    ]
+    ] = None
 
 
 class Top(PaZuFaBaseModel):
@@ -978,7 +986,7 @@ class Sitzung(PaZuFaBaseModel):
     link: AnyHttpUrl | None = None
     nummer: Annotated[int, Field(ge=0)]
     public: bool
-    termin: TzDatetime
+    termin: TzDatetime | None = None
     titel: Annotated[str | None, Field(description="Title if applicable")] = None
     tops: list[Top]
     touched_by: Annotated[

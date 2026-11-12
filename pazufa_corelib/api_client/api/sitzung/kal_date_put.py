@@ -94,7 +94,8 @@ def sync_detailed(
     is. Admin API keys can override the time restriction.
 
     Args:
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         datum (datetime.date):
         x_scraper_id (str):
         body (list[Sitzung]):
@@ -134,7 +135,8 @@ def sync(
     is. Admin API keys can override the time restriction.
 
     Args:
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         datum (datetime.date):
         x_scraper_id (str):
         body (list[Sitzung]):
@@ -169,7 +171,8 @@ async def asyncio_detailed(
     is. Admin API keys can override the time restriction.
 
     Args:
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         datum (datetime.date):
         x_scraper_id (str):
         body (list[Sitzung]):
@@ -207,7 +210,8 @@ async def asyncio(
     is. Admin API keys can override the time restriction.
 
     Args:
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         datum (datetime.date):
         x_scraper_id (str):
         body (list[Sitzung]):

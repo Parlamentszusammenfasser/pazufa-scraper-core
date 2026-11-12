@@ -210,6 +210,106 @@ class TestExtractHappyPath:
 
 
 # ---------------------------------------------------------------------------
+# extract() — token usage
+# ---------------------------------------------------------------------------
+
+
+def _usage(prompt: int, completion: int, reasoning: int = 0) -> litellm.Usage:
+    return litellm.Usage(
+        prompt_tokens=prompt,
+        completion_tokens=completion,
+        completion_tokens_details={"reasoning_tokens": reasoning},
+    )
+
+
+def _with_usage(
+    result: BaseModel, prompt: int, completion: int, reasoning: int = 0
+) -> BaseModel:
+    # Instructor attaches the raw litellm response as `_raw_response`.
+    result._raw_response = MagicMock(  # type: ignore[attr-defined]
+        usage=_usage(prompt, completion, reasoning)
+    )
+    return result
+
+
+class TestExtractTokenUsage:
+    """Verify extract() accumulates provider-reported token usage."""
+
+    @pytest.mark.asyncio
+    async def test_starts_at_zero(self) -> None:
+        connector = _make_connector()
+
+        assert connector.prompt_tokens == 0
+        assert connector.completion_tokens == 0
+        assert connector.reasoning_tokens == 0
+
+    @pytest.mark.asyncio
+    async def test_accumulates_across_calls(self) -> None:
+        connector = _make_connector()
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=[
+                _with_usage(Keywords(sachgebiete=[], schlagworte=[]), 100, 20, 8),
+                _with_usage(Keywords(sachgebiete=[], schlagworte=[]), 50, 5),
+            ]
+        )
+        connector._instructor_client = mock_client
+
+        await connector.extract(prompt="a", response_model=Keywords)
+        await connector.extract(prompt="b", response_model=Keywords)
+
+        assert connector.prompt_tokens == 150
+        assert connector.completion_tokens == 25
+        # Reasoning is part of completion, not extra.
+        assert connector.reasoning_tokens == 8
+
+    @pytest.mark.asyncio
+    async def test_counts_usage_of_failed_validation(self) -> None:
+        from instructor.core import InstructorRetryException
+
+        connector = _make_connector()
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=InstructorRetryException(
+                n_attempts=3,
+                messages=[],
+                last_completion=None,
+                # Instructor sums usage over all attempts; its `int` hint is
+                # wrong, at runtime this is a usage object.
+                total_usage=_usage(300, 60, 10),  # type: ignore[arg-type]
+            )
+        )
+        connector._instructor_client = mock_client
+
+        with pytest.raises(LLMValidationError):
+            await connector.extract(prompt="a", response_model=Keywords)
+
+        assert connector.prompt_tokens == 300
+        assert connector.completion_tokens == 60
+        assert connector.reasoning_tokens == 10
+
+    @pytest.mark.asyncio
+    async def test_missing_usage_does_not_break_call(self) -> None:
+        connector = _make_connector()
+        expected = Keywords(sachgebiete=["Bildung"], schlagworte=[])
+        no_usage = Keywords(sachgebiete=[], schlagworte=[])
+        no_usage._raw_response = MagicMock(usage=None)  # type: ignore[attr-defined]
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=[expected, no_usage]
+        )
+        connector._instructor_client = mock_client
+
+        result = await connector.extract(prompt="a", response_model=Keywords)
+        await connector.extract(prompt="b", response_model=Keywords)
+
+        assert result is expected
+        assert connector.prompt_tokens == 0
+        assert connector.completion_tokens == 0
+        assert connector.reasoning_tokens == 0
+
+
+# ---------------------------------------------------------------------------
 # extract() — validation failure → LLMValidationError
 # ---------------------------------------------------------------------------
 

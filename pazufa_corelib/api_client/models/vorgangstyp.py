@@ -16,6 +16,8 @@ class Vorgangstyp(StrEnum):
     BW_EINSATZ = "bw-einsatz"
     GG_LAND_PARL = "gg-land-parl"
     GG_LAND_PARL_HAUSHALT = "gg-land-parl-haushalt"
+    GG_LAND_PARL_NACHTRAGSHAUSHALT = "gg-land-parl-nachtragshaushalt"
+    GG_LAND_PARL_STAATSVERTRAG = "gg-land-parl-staatsvertrag"
     GG_LAND_VOLK = "gg-land-volk"
     SONSTIG = "sonstig"
 

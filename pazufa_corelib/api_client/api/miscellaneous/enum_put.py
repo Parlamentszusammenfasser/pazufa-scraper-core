@@ -83,7 +83,8 @@ def sync_detailed(
     set of values for the enumeration.
 
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         body (ReplacementPutRequestString):
 
     Raises:
@@ -116,7 +117,8 @@ def sync(
     set of values for the enumeration.
 
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         body (ReplacementPutRequestString):
 
     Raises:
@@ -144,7 +146,8 @@ async def asyncio_detailed(
     set of values for the enumeration.
 
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         body (ReplacementPutRequestString):
 
     Raises:
@@ -175,7 +178,8 @@ async def asyncio(
     set of values for the enumeration.
 
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         body (ReplacementPutRequestString):
 
     Raises:

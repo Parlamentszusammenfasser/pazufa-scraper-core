@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+
+## [0.3.3] - 12.11.2026
+### Changed
+- **Models updated to spec 0.2.9.** `Station.zp_start` and `Sitzung.termin` (both in PUT bodies) and `Dokument.zp_modifiziert` / `zp_referenz` are now optional (`None` by default). Code that reads these fields has to handle `None`; collectors without a date no longer need to invent one.
+
+
+### Added
+- **LLM token usage** `LLMConnector.prompt_tokens`, `completion_tokens` and `reasoning_tokens` (part of completion) sum the provider-reported tokens of all calls, including those that fail validation, e.g. for run metrics. Additive, no changes needed in scrapers.
+ **`Doktyp.berichtigung`**, **`Vorgangstyp.gg_land_parl_staatsvertrag`** and **`Vorgangstyp.gg_land_parl_nachtragshaushalt`** (spec 0.2.9).
+- **`validate_for_upload(vorgang, now=None)`** checks upload-only backend rules right before a `PUT`. It currently enforces the No-Past-Stations-Rule: a Station whose `zp_start` is before now raises `PastStationError` (a `ValueError`), and `.stationen` lists the offending Stationen so they can be dropped. The check is deliberately not a model validator, so downloaded data with past Stationen still parses. Opt-in: scrapers have to call it before uploading.
+
+### Fixed
+- **The BSW resolves under its new name.** The party renamed itself to `Bündnis Soziale Gerechtigkeit und Wirtschaftliche Vernunft`, which is now an alias of `bsw`.
+
+### Security
+- **filelock CVEs** litellm 1.108.3 allows filelock 4, so filelock is updated to 4.2.9 and its ignored CVEs are removed from `pip-audit-ignore.yaml` (#151).
+
 ## [0.3.2] - 26.10.2026
 
 ### Changed

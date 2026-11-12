@@ -19,6 +19,7 @@ class DokumentHash:
         mime (Mime):
         strategy (HashStrategy):
         value (str): Hash value as string of hexadecimal octets
+            (generation: see the hand-written `Arbitrary` impl, which keeps value/strategy/mime consistent)
     """
 
     mime: Mime

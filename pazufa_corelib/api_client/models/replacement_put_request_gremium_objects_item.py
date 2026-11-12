@@ -18,7 +18,8 @@ class ReplacementPutRequestGremiumObjectsItem:
 
     Attributes:
         name (str): Name of the body. 'plenum', 'regierung', 'volk' are reserved
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming adheres to ISO
+            3166-2:DE
         wahlperiode (int):
         link (None | str | Unset):
     """
