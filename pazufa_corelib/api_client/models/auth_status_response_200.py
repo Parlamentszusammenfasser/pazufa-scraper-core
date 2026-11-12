@@ -19,7 +19,12 @@ class AuthStatusResponse200:
         expires_at (datetime.datetime): When this key will expire. If `is_being_rotated` is true, this is the date the
             rotation is complete.
         is_being_rotated (bool): Whether this key is currently in a transition process
-        scope (APIScope):
+        scope (APIScope): The three levels of authentication. They determine which of the access-controlled API
+            endpoints
+            are callable:
+            - Collector can call PUT /api/v2/vorgang and PUT /api/v2/kalender/y/m/d
+            - Admin can call everything admin-tagged, meaning no /api/v2/auth endpoints
+            - Keyadder can Call everything
     """
 
     expires_at: datetime.datetime

@@ -96,7 +96,8 @@ def sync_detailed(
     in other API operations, optionally filtered by a substring.
 
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         contains (str | Unset):
         page (int | Unset):
         per_page (int | Unset):
@@ -138,7 +139,8 @@ def sync(
     in other API operations, optionally filtered by a substring.
 
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         contains (str | Unset):
         page (int | Unset):
         per_page (int | Unset):
@@ -175,7 +177,8 @@ async def asyncio_detailed(
     in other API operations, optionally filtered by a substring.
 
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         contains (str | Unset):
         page (int | Unset):
         per_page (int | Unset):
@@ -215,7 +218,8 @@ async def asyncio(
     in other API operations, optionally filtered by a substring.
 
     Args:
-        name (EnumerationNames): Enumeration of values
+        name (EnumerationNames): Helper Enumeration to record which enumerations can be modified
+            at runtime through API calls
         contains (str | Unset):
         page (int | Unset):
         per_page (int | Unset):

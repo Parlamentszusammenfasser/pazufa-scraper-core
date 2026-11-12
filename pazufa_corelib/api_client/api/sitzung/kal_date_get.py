@@ -104,7 +104,8 @@ def sync_detailed(
     scheduled for the given day in the specified parliamentary body.
 
     Args:
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         datum (datetime.date):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
@@ -146,7 +147,8 @@ def sync(
     scheduled for the given day in the specified parliamentary body.
 
     Args:
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         datum (datetime.date):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
@@ -183,7 +185,8 @@ async def asyncio_detailed(
     scheduled for the given day in the specified parliamentary body.
 
     Args:
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         datum (datetime.date):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):
@@ -223,7 +226,8 @@ async def asyncio(
     scheduled for the given day in the specified parliamentary body.
 
     Args:
-        parlament (Parlament): Enumeration of parliaments or similar bodies in germany
+        parlament (Parlament): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         datum (datetime.date):
         expand (bool | Unset):
         if_modified_since (None | str | Unset):

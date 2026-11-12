@@ -7,6 +7,8 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.parlament import Parlament
+from ...models.ressort import Ressort
+from ...models.sachgebiet import Sachgebiet
 from ...models.vorgang_get_response_200_item import VorgangGetResponse200Item
 from ...models.vorgangstyp import Vorgangstyp
 from ...types import UNSET, Response, Unset
@@ -16,6 +18,8 @@ def _get_kwargs(
     *,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
+    sg: Sachgebiet | Unset = UNSET,
+    rt: Ressort | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     person: str | Unset = UNSET,
@@ -46,6 +50,18 @@ def _get_kwargs(
     if not isinstance(until, Unset):
         json_until = until.isoformat()
     params["until"] = json_until
+
+    json_sg: int | Unset = UNSET
+    if not isinstance(sg, Unset):
+        json_sg = sg.value
+
+    params["sg"] = json_sg
+
+    json_rt: str | Unset = UNSET
+    if not isinstance(rt, Unset):
+        json_rt = rt.value
+
+    params["rt"] = json_rt
 
     json_p: str | Unset = UNSET
     if not isinstance(p, Unset):
@@ -136,6 +152,8 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
+    sg: Sachgebiet | Unset = UNSET,
+    rt: Ressort | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     person: str | Unset = UNSET,
@@ -154,7 +172,12 @@ def sync_detailed(
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        sg (Sachgebiet | Unset): Sachgebiet / Themenbereich inspired by the  Parlamentsspiegel.
+            Within the Parlamentsspiegel search this corresponds to the parameter `fqVSys`
+        rt (Ressort | Unset): Ressort, which the Vorgang is associated with. Usually the name of a
+            ministry
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         person (str | Unset):
         fach (str | Unset):
@@ -178,6 +201,8 @@ def sync_detailed(
     kwargs = _get_kwargs(
         since=since,
         until=until,
+        sg=sg,
+        rt=rt,
         p=p,
         wp=wp,
         person=person,
@@ -203,6 +228,8 @@ def sync(
     client: AuthenticatedClient | Client,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
+    sg: Sachgebiet | Unset = UNSET,
+    rt: Ressort | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     person: str | Unset = UNSET,
@@ -221,7 +248,12 @@ def sync(
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        sg (Sachgebiet | Unset): Sachgebiet / Themenbereich inspired by the  Parlamentsspiegel.
+            Within the Parlamentsspiegel search this corresponds to the parameter `fqVSys`
+        rt (Ressort | Unset): Ressort, which the Vorgang is associated with. Usually the name of a
+            ministry
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         person (str | Unset):
         fach (str | Unset):
@@ -246,6 +278,8 @@ def sync(
         client=client,
         since=since,
         until=until,
+        sg=sg,
+        rt=rt,
         p=p,
         wp=wp,
         person=person,
@@ -265,6 +299,8 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
+    sg: Sachgebiet | Unset = UNSET,
+    rt: Ressort | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     person: str | Unset = UNSET,
@@ -283,7 +319,12 @@ async def asyncio_detailed(
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        sg (Sachgebiet | Unset): Sachgebiet / Themenbereich inspired by the  Parlamentsspiegel.
+            Within the Parlamentsspiegel search this corresponds to the parameter `fqVSys`
+        rt (Ressort | Unset): Ressort, which the Vorgang is associated with. Usually the name of a
+            ministry
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         person (str | Unset):
         fach (str | Unset):
@@ -307,6 +348,8 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         since=since,
         until=until,
+        sg=sg,
+        rt=rt,
         p=p,
         wp=wp,
         person=person,
@@ -330,6 +373,8 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     since: datetime.datetime | Unset = UNSET,
     until: datetime.datetime | Unset = UNSET,
+    sg: Sachgebiet | Unset = UNSET,
+    rt: Ressort | Unset = UNSET,
     p: Parlament | Unset = UNSET,
     wp: int | Unset = UNSET,
     person: str | Unset = UNSET,
@@ -348,7 +393,12 @@ async def asyncio(
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        sg (Sachgebiet | Unset): Sachgebiet / Themenbereich inspired by the  Parlamentsspiegel.
+            Within the Parlamentsspiegel search this corresponds to the parameter `fqVSys`
+        rt (Ressort | Unset): Ressort, which the Vorgang is associated with. Usually the name of a
+            ministry
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         person (str | Unset):
         fach (str | Unset):
@@ -374,6 +424,8 @@ async def asyncio(
             client=client,
             since=since,
             until=until,
+            sg=sg,
+            rt=rt,
             p=p,
             wp=wp,
             person=person,

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [UNRELEASED]
 
+### Changed
+- **Models updated to spec 0.2.9.** `Station.zp_start` and `Sitzung.termin` (both in PUT bodies) and `Dokument.zp_modifiziert` / `zp_referenz` are now optional (`None` by default). Code that reads these fields has to handle `None`; collectors without a date no longer need to invent one.
+
+### Added
+- **`Doktyp.berichtigung`**, **`Vorgangstyp.gg_land_parl_staatsvertrag`** and **`Vorgangstyp.gg_land_parl_nachtragshaushalt`** (spec 0.2.9).
+- **`validate_for_upload(vorgang, now=None)`** checks upload-only backend rules right before a `PUT`. It currently enforces the No-Past-Stations-Rule: a Station whose `zp_start` is before now raises `PastStationError` (a `ValueError`), and `.stationen` lists the offending Stationen so they can be dropped. The check is deliberately not a model validator, so downloaded data with past Stationen still parses. Opt-in: scrapers have to call it before uploading.
+
 ## [0.3.3] - 11.11.2026
 
 ### Added

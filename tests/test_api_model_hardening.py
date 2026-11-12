@@ -723,3 +723,34 @@ def test_spec_0_2_8_additions() -> None:
                 "meta_tiebreaker": -1,
             }
         )
+
+
+def test_spec_0_2_9_optional_put_fields() -> None:
+    """0.2.9 made ``Station.zp_start`` and ``Sitzung.termin`` optional.
+
+    Both sit in PUT bodies (``/vorgang`` and ``/kalender``), so collectors that
+    have no date for a Station or Sitzung can now upload it without inventing
+    one. The new enum members are pinned alongside.
+    """
+    from pazufa_corelib.api_model import (
+        Doktyp,
+        Sitzung,
+        Station,
+        Vorgangstyp,
+    )
+
+    gremium = {"name": "Plenum", "parlament": "BW", "wahlperiode": 17}
+    station = Station.model_validate(
+        {"typ": "parl-anhoerung", "gremium": gremium, "dokumente": []}
+    )
+    assert station.zp_start is None
+    assert "zp_start" not in station.model_dump(exclude_none=True)
+
+    sitzung = Sitzung.model_validate(
+        {"gremium": gremium, "nummer": 1, "public": True, "tops": []}
+    )
+    assert sitzung.termin is None
+
+    assert Doktyp("berichtigung")
+    assert Vorgangstyp("gg-land-parl-staatsvertrag")
+    assert Vorgangstyp("gg-land-parl-nachtragshaushalt")

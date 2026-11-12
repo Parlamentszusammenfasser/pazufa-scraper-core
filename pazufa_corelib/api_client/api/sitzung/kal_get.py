@@ -149,7 +149,8 @@ def sync_detailed(
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         gr (str | Unset):
         y (int | Unset):
@@ -216,7 +217,8 @@ def sync(
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         gr (str | Unset):
         y (int | Unset):
@@ -278,7 +280,8 @@ async def asyncio_detailed(
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         gr (str | Unset):
         y (int | Unset):
@@ -343,7 +346,8 @@ async def asyncio(
     Args:
         since (datetime.datetime | Unset):
         until (datetime.datetime | Unset):
-        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany
+        p (Parlament | Unset): Enumeration of parliaments or similar bodies in germany. The naming
+            adheres to ISO 3166-2:DE
         wp (int | Unset):
         gr (str | Unset):
         y (int | Unset):

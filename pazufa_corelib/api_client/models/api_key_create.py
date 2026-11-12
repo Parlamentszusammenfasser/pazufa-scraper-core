@@ -18,7 +18,12 @@ class APIKeyCreate:
     """Requests a new API key. The key will be saved as hash in the database and only produced once in clear text.
 
     Attributes:
-        scope (APIScope):
+        scope (APIScope): The three levels of authentication. They determine which of the access-controlled API
+            endpoints
+            are callable:
+            - Collector can call PUT /api/v2/vorgang and PUT /api/v2/kalender/y/m/d
+            - Admin can call everything admin-tagged, meaning no /api/v2/auth endpoints
+            - Keyadder can Call everything
         expires_at (datetime.datetime | None | Unset): The expiration date of the API Key
         keytag_prefix (None | str | Unset): Keytag name, maximal length is 10 Characters, the rest of the keytag will be
             filled with

@@ -252,7 +252,10 @@ class WorkingDokumentHash(PaZuFaBaseModel):
         ),
     ] = None
     value: Annotated[
-        str | None, Field(description="Hash value as string of hexadecimal octets")
+        str | None,
+        Field(
+            description="Hash value as string of hexadecimal octets\n(generation: see the hand-written `Arbitrary` impl, which keeps value/strategy/mime consistent)"
+        ),
     ] = None
 
 
@@ -336,7 +339,9 @@ class WorkingDokument(PaZuFaBaseModel):
     drucksnr: str | None = None
     hash: Annotated[
         WorkingHashWrapper | None,
-        Field(description="Wrapper that allows for legacy Hashes"),
+        Field(
+            description="corresponds to sha256+bytes, here for backwards compatibility"
+        ),
     ] = None
     kurztitel: Annotated[
         str | None,
@@ -463,7 +468,10 @@ class WorkingStation(PaZuFaBaseModel):
             description="DEPRECATED: This has been moved to the Vorgang level.\nPlease do not submit any data here, it will be merged as Vorgangs-Schlagworte\nFor details, see https://codeberg.org/PaZuFa/parlamentszusammenfasser/issues/54"
         ),
     ] = None
-    stellungnahmen: list[WorkingDokumentOrApiId] | None = None
+    stellungnahmen: Annotated[
+        list[WorkingDokumentOrApiId] | None,
+        Field(description="List statement of interested parties"),
+    ] = None
     titel: Annotated[
         str | None,
         Field(
@@ -524,55 +532,77 @@ class WorkingVorgang(PaZuFaBaseModel):
 
     api_id: Annotated[
         UUID | None,
-        Field(description="Use UUID version 5 with your collector id as namespace"),
+        Field(
+            description="The Api ID of this Vorgang\nUse UUID version 5 with your collector id as namespace\nontrack(-)"
+        ),
     ] = None
-    ids: list[WorkingVgIdent] | None = None
+    ids: Annotated[
+        list[WorkingVgIdent] | None, Field(description="Tuple of (typ, id)\nontrack(-)")
+    ] = None
     initiatoren: Annotated[
         list[WorkingAutor] | None,
         Field(
-            description="List of persons or organisations, which initiated the Vorgang."
+            description="List of persons or organisations, which initiated the Vorgang\nontrack(refactor)"
         ),
     ] = None
-    kurztitel: str | None = None
-    links: list[AnyUrl] | None = None
+    kurztitel: Annotated[
+        str | None,
+        Field(
+            description="A brief, layman-understandable title of this law\nontrack(-)"
+        ),
+    ] = None
+    links: Annotated[
+        list[AnyUrl] | None,
+        Field(
+            description="Links that are associated with the Full Vorgang\nontrack(refactor)"
+        ),
+    ] = None
     lobbyregister: Annotated[
         list[WorkingLobbyregistereintrag] | None,
-        Field(description="Lobby register annotations from Bundestag sources"),
+        Field(
+            description="Lobbyregister annotations from Bundestag sources\nontrack(refactor)"
+        ),
     ] = None
     ressort: Ressort | None = None
     sachgebiete: Annotated[
-        list[Sachgebiet] | None, Field(description="Sachgebiet information")
+        list[Sachgebiet] | None,
+        Field(description="Sachgebiet information\nontrack(at-least-one)"),
     ] = None
     schlagworte: Annotated[
-        list[str] | None, Field(description="General Vorgangs-Schlagworte")
+        list[str] | None,
+        Field(description="General Vorgangs-Schlagworte\nontrack(at-least-one)"),
     ] = None
     stationen: Annotated[
         list[WorkingStation] | None,
         Field(
-            description="List of stations, the core of what happens in one Proceeding"
+            description="List of stations, the core of what happens in one Proceeding\nontrack(-)"
         ),
     ] = None
-    titel: str | None = None
+    titel: Annotated[
+        str | None, Field(description="Official Title of this Proceeding\nontrack(-)")
+    ] = None
     touched_by: Annotated[
         list[WorkingTouchedByEntry] | None,
         Field(
-            description="list of scraper uuids / key database ids that have touched this object"
+            description="list of scraper uuids / key database ids that have touched this object\nontrack(meta)"
         ),
     ] = None
-    typ: Vorgangstyp | None = None
+    typ: Annotated[
+        Vorgangstyp | None, Field(description="The type of this Vorgang\nontrack(-)")
+    ] = None
     verfassungsaendernd: Annotated[
         bool | None,
         Field(
-            description="Is this Vorgang directly intended to change the constitution of whatever state it happens\nin?"
+            description="Is this Vorgang directly intended to change the constitution\nof whatever state it happens in?;\nontrack(-)"
         ),
     ] = None
     wahlperiode: Annotated[
-        int | None, Field(description="number of the electoral period")
+        int | None, Field(description="number of the electoral period\nontrack(-)")
     ] = None
     zusammenfassung: Annotated[
         list[WorkingZusammenfassungstupel] | None,
         Field(
-            description="Summary of the whole Vorgang's idea\nSee parlamentszusammenfasser#55"
+            description="Summary of the whole Vorgang's idea\nSee parlamentszusammenfasser#55\nontrack(at-least-one)"
         ),
     ] = None
 
