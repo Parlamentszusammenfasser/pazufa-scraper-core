@@ -21,7 +21,7 @@ steps:
     commands:
       - python -m pip install --upgrade pip
       - python -m pip install poetry~=2.3.0
-      - poetry install --with dev --no-interaction --sync
+      - poetry install --with dev --all-extras --no-interaction --sync
 
   - name: check-lock
     image: python:3.12-slim
@@ -59,11 +59,27 @@ steps:
     commands:
       - .venv/bin/pytest
 
+  # OpenTelemetry is optional (extras "otel" / "otel-otlp"). Install the plain
+  # package into a separate venv and make sure it imports without it.
+  - name: test-without-extras
+    image: python:3.12-slim
+    commands:
+      - python -m venv /tmp/noextras
+      - /tmp/noextras/bin/pip install --quiet .
+      - |
+        /tmp/noextras/bin/python -c "
+        import sys
+        import pazufa_corelib, pazufa_corelib.llm
+        loaded = sorted(m for m in sys.modules if m.startswith('opentelemetry'))
+        assert not loaded, f'opentelemetry imported without extras: {loaded}'
+        print('OK: pazufa_corelib imports without OpenTelemetry')
+        "
+
   # --- Release steps — only run on tag push ---
 
   - name: check-version
     image: python:3.12-slim
-    depends_on: [check-lock, format-and-type-check, audit, test, licenses]
+    depends_on: [check-lock, format-and-type-check, audit, test, test-without-extras, licenses]
     when:
       - event: tag
     commands:
