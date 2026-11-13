@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, cast
 
@@ -14,6 +15,18 @@ from pazufa_corelib.names_model import (
 )
 from pazufa_corelib.normalization._fuzzy import _EXACT_MATCH_THRESHOLD
 from pazufa_corelib.normalization.names import normalize_name
+from pazufa_corelib.observability import (
+    add_dropped,
+    add_near_ties,
+    add_resolutions,
+    record_match_scores,
+)
+from pazufa_corelib.observability._attributes import (
+    NORMALIZATION_OUTCOME_EXACT,
+    NORMALIZATION_OUTCOME_FUZZY,
+    NORMALIZATION_OUTCOME_UNRESOLVED,
+    NORMALIZATION_RESOLVER_ORGANIZATION,
+)
 
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
@@ -398,6 +411,7 @@ class OrganizationResolver:
                         "dropped": dropped,
                     },
                 )
+                add_dropped(dropped, resolver=NORMALIZATION_RESOLVER_ORGANIZATION)
             return [r.canonical_name for r in matched]
         return [r.canonical_name for r in resolved]
 
@@ -440,6 +454,7 @@ class OrganizationResolver:
                 query,
                 extra={"original_name": query, "strict": True},
             )
+            add_dropped(1, resolver=NORMALIZATION_RESOLVER_ORGANIZATION)
             return None
 
         if LOGGER.isEnabledFor(logging.DEBUG):
@@ -487,6 +502,9 @@ class OrganizationResolver:
         results: list[OrganizationIDResolution | None] = [None] * len(queries)
         fuzzy_idxs: list[int] = []
         fuzzy_keys: list[str] = []
+        outcomes: Counter[str] = Counter()
+        fuzzy_scores: list[float] = []
+        near_ties = 0
 
         # --- first pass: resolve empty queries and exact matches -----------
         for i, query in enumerate(queries):
@@ -499,9 +517,11 @@ class OrganizationResolver:
                     canonical_name=query,
                     score=0.0,
                 )
+                outcomes[NORMALIZATION_OUTCOME_UNRESOLVED] += 1
                 continue
 
             if query_key in self._key_to_org:
+                outcomes[NORMALIZATION_OUTCOME_EXACT] += 1
                 org_id, canonical_name, acronym = self._key_to_org[query_key]
                 results[i] = OrganizationIDResolution(
                     original_name=query,
@@ -519,6 +539,7 @@ class OrganizationResolver:
                     canonical_name=query,
                     score=0.0,
                 )
+                outcomes[NORMALIZATION_OUTCOME_UNRESOLVED] += 1
                 continue
 
             fuzzy_idxs.append(i)
@@ -545,6 +566,7 @@ class OrganizationResolver:
                         canonical_name=query,
                         score=0.0,
                     )
+                    outcomes[NORMALIZATION_OUTCOME_UNRESOLVED] += 1
                     continue
 
                 # near-tie warning
@@ -556,6 +578,7 @@ class OrganizationResolver:
                         and best_score - second_score <= self._near_tie_epsilon
                     ):
                         second_idx = int(np.where(scores == second_score)[0][0])
+                        near_ties += 1
                         LOGGER.warning(
                             "Near-tie for organization %r",
                             query,
@@ -580,7 +603,12 @@ class OrganizationResolver:
                     acronym=acronym,
                     score=best_score,
                 )
+                outcomes[NORMALIZATION_OUTCOME_FUZZY] += 1
+                fuzzy_scores.append(best_score)
 
+        add_resolutions(outcomes, resolver=NORMALIZATION_RESOLVER_ORGANIZATION)
+        record_match_scores(fuzzy_scores, resolver=NORMALIZATION_RESOLVER_ORGANIZATION)
+        add_near_ties(near_ties, resolver=NORMALIZATION_RESOLVER_ORGANIZATION)
         return results  # type: ignore[return-value]  # all slots filled by construction
 
     def explain(self, query: str, k: int = 5) -> dict[str, Any]:
