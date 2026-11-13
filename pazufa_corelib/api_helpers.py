@@ -25,8 +25,8 @@ class UploadValidationError(ValueError):
     """A model is valid on its own but would be rejected by the backend on upload."""
 
 
-class PastStationError(UploadValidationError):
-    """One or more Stationen start before now (backend No-Past-Stations-Rule).
+class FutureStationError(UploadValidationError):
+    """One or more Stationen start after now (backend No-Past-Stations-Rule).
 
     Attributes:
         stationen: The offending Stationen, in their order within the Vorgang,
@@ -41,7 +41,7 @@ class PastStationError(UploadValidationError):
             s.zp_start.isoformat() for s in stationen if s.zp_start is not None
         )
         super().__init__(
-            f"{len(stationen)} Station(en) start before {now.isoformat()} "
+            f"{len(stationen)} Station(en) start after {now.isoformat()} "
             f"(No-Past-Stations-Rule): zp_start {starts}"
         )
 
@@ -74,12 +74,12 @@ def validate_for_upload(vorgang: Vorgang, *, now: datetime | None = None) -> Non
     """Check upload-only backend rules on a `Vorgang` right before sending it.
 
     These rules are deliberately not model validators: a Station that was
-    valid when uploaded becomes "past" later, and downloads must still parse.
+    depends on the clock, and downloads must still parse.
     Call this as late as possible, since the result depends on the clock.
 
     Currently enforced:
 
-    * **No-Past-Stations-Rule** — no Station may have a ``zp_start`` before
+    * **No-Past-Stations-Rule** — no Station may have a ``zp_start`` after
       now. A ``zp_start`` exactly equal to ``now`` is accepted, and a Station
       without ``zp_start`` (optional since spec 0.2.9) cannot violate it.
 
@@ -90,7 +90,7 @@ def validate_for_upload(vorgang: Vorgang, *, now: datetime | None = None) -> Non
 
     Raises:
         ValueError: If ``now`` is naive (has no timezone information).
-        PastStationError: If one or more Stationen start before ``now``. The
+        FutureStationError: If one or more Stationen start after ``now``. The
             exception carries the offending Stationen in ``stationen``.
     """
     if now is None:
@@ -98,21 +98,21 @@ def validate_for_upload(vorgang: Vorgang, *, now: datetime | None = None) -> Non
     elif not _is_aware(now):
         raise ValueError("validate_for_upload requires a timezone-aware 'now'")
 
-    past = [
+    future = [
         station
         for station in vorgang.stationen
-        if station.zp_start is not None and station.zp_start < now
+        if station.zp_start is not None and station.zp_start > now
     ]
-    if past:
+    if future:
         LOGGER.warning(
             "Vorgang %s violates the No-Past-Stations-Rule: %d of %d Stationen "
-            "start before %s",
+            "start after %s",
             vorgang.api_id,
-            len(past),
+            len(future),
             len(vorgang.stationen),
             now.isoformat(),
         )
-        raise PastStationError(past, now)
+        raise FutureStationError(future, now)
 
 
 def _is_aware(value: datetime) -> bool:

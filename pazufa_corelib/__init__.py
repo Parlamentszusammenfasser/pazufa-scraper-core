@@ -7,7 +7,7 @@ subpackage (models, prompts, taxonomy, and connector).
 from importlib.metadata import PackageNotFoundError, version
 
 from pazufa_corelib.api_helpers import (
-    PastStationError,
+    FutureStationError,
     UploadValidationError,
     format_if_modified_since,
     validate_for_upload,
@@ -19,7 +19,7 @@ except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
 __all__ = [
-    "PastStationError",
+    "FutureStationError",
     "UploadValidationError",
     "__version__",
     "format_if_modified_since",
