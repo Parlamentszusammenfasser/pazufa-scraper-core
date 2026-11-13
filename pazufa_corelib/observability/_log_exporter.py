@@ -16,13 +16,13 @@ from opentelemetry.util.types import AttributeValue
 
 from ._attributes import (
     ERROR_TYPE,
-    EVENT_RATE_LIMIT_WAIT,
-    EVENT_RETRY,
+    EVENT_LLM_RATE_LIMITED,
+    EVENT_LLM_RETRY,
     GEN_AI_REQUEST_MODEL,
     GEN_AI_USAGE_INPUT_TOKENS,
     GEN_AI_USAGE_OUTPUT_TOKENS,
-    PAZUFA_ATTEMPT,
-    PAZUFA_WAIT_SECONDS,
+    LLM_ATTEMPT,
+    LLM_RATE_LIMITER_DELAY,
     TELEMETRY_LOGGER_NAME,
     TRACER_NAME,
 )
@@ -35,7 +35,7 @@ _SHOWN_ATTRIBUTES: Final[tuple[tuple[str, str], ...]] = (
     (GEN_AI_REQUEST_MODEL, "model"),
     (GEN_AI_USAGE_INPUT_TOKENS, "input_tokens"),
     (GEN_AI_USAGE_OUTPUT_TOKENS, "output_tokens"),
-    (PAZUFA_ATTEMPT, "attempt"),
+    (LLM_ATTEMPT, "attempt"),
 )
 _EXCEPTION_EVENT: Final = "exception"
 _EXCEPTION_TYPE: Final = "exception.type"
@@ -46,9 +46,9 @@ class LoggingSpanExporter(SpanExporter):
 
     Example lines::
 
-        pazufa.scraper.llm.extract ok 1.82s model=gpt-x input_tokens=1200
+        pazufa.llm.extract ok 1.82s model=gpt-x input_tokens=1200
             output_tokens=34 attempt=2 retries=1 waited=0.40s trace=4bf92f3a…
-        pazufa.scraper.llm.extract error 3.10s model=gpt-x error=RateLimitError
+        pazufa.llm.extract error 3.10s model=gpt-x error=RateLimitError
             retries=2 trace=…
 
     Successful spans are logged at INFO, failed ones at WARNING, on the
@@ -125,16 +125,17 @@ class LoggingSpanExporter(SpanExporter):
             if error_type:
                 parts.append(f"error={_format_value(error_type)}")
 
-        retries = sum(1 for event in span.events if event.name == EVENT_RETRY)
+        retries = sum(1 for event in span.events if event.name == EVENT_LLM_RETRY)
         if retries:
             parts.append(f"retries={retries}")
 
         waited = sum(
             float(wait)
             for event in span.events
-            if event.name == EVENT_RATE_LIMIT_WAIT
+            if event.name == EVENT_LLM_RATE_LIMITED
             and isinstance(
-                wait := (event.attributes or {}).get(PAZUFA_WAIT_SECONDS), int | float
+                wait := (event.attributes or {}).get(LLM_RATE_LIMITER_DELAY),
+                int | float,
             )
         )
         if waited:

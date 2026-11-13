@@ -109,6 +109,9 @@ ignore = [
 # Subclasses the SDK's SpanExporter, so it needs the SDK at module level. It is
 # only ever imported lazily via observability.__getattr__.
 "pazufa_corelib/observability/_log_exporter.py" = ["TID251", "TID253"]
+# Only telemetry names; S105 misreads "TOKEN" constants (gen_ai token usage) as
+# hardcoded passwords.
+"pazufa_corelib/observability/_attributes.py" = ["TID251", "S105"]
 "tools/**" = ["D"]
 "pazufa_corelib/api_client/**" = ["D", "E501"]
 "pazufa_corelib/_api_model_generated.py" = ["D", "E501"]

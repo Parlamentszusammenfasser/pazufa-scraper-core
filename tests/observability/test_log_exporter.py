@@ -9,13 +9,13 @@ from opentelemetry.trace import format_trace_id
 
 from pazufa_corelib.observability._attributes import (
     ERROR_TYPE,
-    EVENT_RATE_LIMIT_WAIT,
-    EVENT_RETRY,
+    EVENT_LLM_RATE_LIMITED,
+    EVENT_LLM_RETRY,
     GEN_AI_REQUEST_MODEL,
     GEN_AI_USAGE_INPUT_TOKENS,
     GEN_AI_USAGE_OUTPUT_TOKENS,
-    PAZUFA_ATTEMPT,
-    PAZUFA_WAIT_SECONDS,
+    LLM_ATTEMPT,
+    LLM_RATE_LIMITER_DELAY,
     SPAN_LLM_EXTRACT,
     TELEMETRY_LOGGER_NAME,
     TRACER_NAME,
@@ -46,13 +46,13 @@ def test_successful_span_is_one_info_line(
                     GEN_AI_REQUEST_MODEL: "gpt-x",
                     GEN_AI_USAGE_INPUT_TOKENS: 1200,
                     GEN_AI_USAGE_OUTPUT_TOKENS: 34,
-                    PAZUFA_ATTEMPT: 2,
-                    "pazufa.scraper.not_shown": "hidden",
+                    LLM_ATTEMPT: 2,
+                    "pazufa.not_shown": "hidden",
                 }
             )
-            span.add_event(EVENT_RETRY, {ERROR_TYPE: "LLMRateLimitError"})
-            span.add_event(EVENT_RATE_LIMIT_WAIT, {PAZUFA_WAIT_SECONDS: 0.25})
-            span.add_event(EVENT_RATE_LIMIT_WAIT, {PAZUFA_WAIT_SECONDS: 0.15})
+            span.add_event(EVENT_LLM_RETRY, {ERROR_TYPE: "LLMRateLimitError"})
+            span.add_event(EVENT_LLM_RATE_LIMITED, {LLM_RATE_LIMITER_DELAY: 0.25})
+            span.add_event(EVENT_LLM_RATE_LIMITED, {LLM_RATE_LIMITER_DELAY: 0.15})
             trace_id = format_trace_id(span.get_span_context().trace_id)
 
     [record] = caplog.records
