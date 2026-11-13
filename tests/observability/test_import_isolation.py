@@ -52,6 +52,27 @@ def test_core_import_does_not_load_opentelemetry_at_all() -> None:
     assert out == "[]"
 
 
+def test_package_and_attributes_do_not_load_opentelemetry() -> None:
+    # Library modules import the telemetry names from _attributes; that must
+    # not pull in OpenTelemetry (the package loads its helpers lazily).
+    out = _run_isolated(
+        "import pazufa_corelib.observability\n"
+        "import pazufa_corelib.observability._attributes\n"
+        "import sys\n"
+        "print(sorted(m for m in sys.modules if m.startswith('opentelemetry')))"
+    )
+    assert out == "[]"
+
+
+def test_helper_access_loads_only_the_api() -> None:
+    out = _run_isolated(
+        "from pazufa_corelib.observability import span, add_dropped\n"
+        "import sys\n"
+        "print(any(m.startswith('opentelemetry.sdk') for m in sys.modules))"
+    )
+    assert out == "False"
+
+
 @pytest.mark.parametrize(
     ("name", "module"),
     [("configure", "_configure"), ("LoggingSpanExporter", "_log_exporter")],

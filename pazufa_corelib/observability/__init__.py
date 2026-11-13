@@ -2,47 +2,73 @@
 
 Library code only uses the API-level helpers (``span``, ``record_event``, the
 metric helpers), which work without OpenTelemetry installed. Application-side setup
-(``configure``, ``LoggingSpanExporter``) needs the ``otel-otlp`` extra and is
-imported lazily on first access, so a plain install never loads the SDK.
+(``configure``, ``LoggingSpanExporter``) needs the ``otel-otlp`` extra.
+
+Every public name is imported lazily on first access. Importing this package,
+or a submodule without OpenTelemetry imports such as ``_attributes``, loads no
+``opentelemetry`` module: ``span`` and the metric helpers load the API, and
+``configure`` / ``LoggingSpanExporter`` load the SDK.
 """
 
 import importlib
 from typing import TYPE_CHECKING, Any
 
-from ._metrics import (
-    add_dropped,
-    add_failed_entities,
-    add_found_entities,
-    add_llm_enrichments,
-    add_llm_retry,
-    add_near_ties,
-    add_resolutions,
-    add_skipped_entities,
-    add_submitted_entities,
-    record_gen_ai_operation_duration,
-    record_llm_operation_duration,
-    record_match_scores,
-    record_rate_limiter_wait,
-    record_run_duration,
-    record_token_usage,
-    set_run_last_success,
-)
-from ._tracing import is_available, record_event, span
-
 if TYPE_CHECKING:
     from ._configure import configure
     from ._log_exporter import LoggingSpanExporter
+    from ._metrics import (
+        add_dropped,
+        add_failed_entities,
+        add_found_entities,
+        add_llm_enrichments,
+        add_llm_retry,
+        add_near_ties,
+        add_resolutions,
+        add_skipped_entities,
+        add_submitted_entities,
+        record_gen_ai_operation_duration,
+        record_llm_operation_duration,
+        record_match_scores,
+        record_rate_limiter_wait,
+        record_run_duration,
+        record_token_usage,
+        set_run_last_success,
+    )
+    from ._tracing import is_available, record_event, span
+
+_METRIC_HELPERS: tuple[str, ...] = (
+    "add_dropped",
+    "add_failed_entities",
+    "add_found_entities",
+    "add_llm_enrichments",
+    "add_llm_retry",
+    "add_near_ties",
+    "add_resolutions",
+    "add_skipped_entities",
+    "add_submitted_entities",
+    "record_gen_ai_operation_duration",
+    "record_llm_operation_duration",
+    "record_match_scores",
+    "record_rate_limiter_wait",
+    "record_run_duration",
+    "record_token_usage",
+    "set_run_last_success",
+)
 
 _LAZY_MODULES: dict[str, str] = {
     "configure": "._configure",
     "LoggingSpanExporter": "._log_exporter",
+    "is_available": "._tracing",
+    "record_event": "._tracing",
+    "span": "._tracing",
+    **dict.fromkeys(_METRIC_HELPERS, "._metrics"),
 }
 
 _INSTALL_HINT = 'pip install "pazufa_corelib[otel-otlp]"'
 
 
 def __getattr__(name: str) -> Any:
-    """Import SDK-backed symbols on first access.
+    """Import public symbols on first access.
 
     Args:
         name: Attribute name looked up on this package.
@@ -51,8 +77,9 @@ def __getattr__(name: str) -> Any:
         The requested symbol.
 
     Raises:
-        ImportError: If the OpenTelemetry SDK extra is not installed.
-        AttributeError: If ``name`` is not a lazily exported symbol.
+        ImportError: If an SDK-backed symbol is requested without the
+            ``otel-otlp`` extra installed.
+        AttributeError: If ``name`` is not a public symbol of this package.
     """
     if name in _LAZY_MODULES:
         try:

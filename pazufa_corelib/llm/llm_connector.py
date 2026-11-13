@@ -44,6 +44,7 @@ import math
 import random
 import time
 from collections import deque
+from collections.abc import Mapping
 from typing import Final, Optional, TypeVar
 
 import instructor
@@ -59,6 +60,52 @@ from instructor.core.exceptions import ValidationError as InstructorValidationEr
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
+from pazufa_corelib.observability._attributes import (
+    ERROR_TYPE,
+    EXCEPTION_MESSAGE,
+    GEN_AI_REQUEST_MODEL,
+    LLM_API_KEY_SET,
+    LLM_ATTEMPT,
+    LLM_CHUNK_CONSECUTIVE_IRRELEVANT,
+    LLM_CHUNK_COUNT,
+    LLM_CHUNK_INDEX,
+    LLM_CHUNK_LINE_END,
+    LLM_CHUNK_LINE_START,
+    LLM_CHUNK_OVERLAP,
+    LLM_CHUNK_SIZE,
+    LLM_CONFIG_DEFAULT,
+    LLM_CONFIG_PARAMETER,
+    LLM_CONFIG_VALUE,
+    LLM_INPUT_CHARS,
+    LLM_LINES_EXTRACTED,
+    LLM_LINES_TOTAL,
+    LLM_MAPPED_ERROR_TYPE,
+    LLM_MAX_RETRIES,
+    LLM_OUTPUT_CHARS,
+    LLM_PROMPT_CHARS,
+    LLM_RATE_LIMITER_CALLS,
+    LLM_RATE_LIMITER_DELAY,
+    LLM_RATE_LIMITER_ENABLED,
+    LLM_RATE_LIMITER_EXPIRED_SLOTS,
+    LLM_RATE_LIMITER_MAX_CALLS,
+    LLM_RATE_LIMITER_MAX_TOKENS,
+    LLM_RATE_LIMITER_TOKENS,
+    LLM_RATE_LIMITER_WINDOW,
+    LLM_RESPONSE_MODEL,
+    LLM_RETRY_CAPPED_DELAY,
+    LLM_RETRY_DELAY,
+    LLM_RETRY_JITTER,
+    LLM_SUMMARY_LANGUAGE,
+    LLM_SUMMARY_MAX_CHARACTERS,
+    LLM_SUMMARY_MAX_SENTENCES,
+    LLM_SUMMARY_MAX_WORDS,
+    LLM_TIMEOUT,
+    LLM_TOKEN_ESTIMATE_INPUT,
+    LLM_TOKEN_ESTIMATE_OUTPUT_BUFFER,
+    LLM_TOKEN_ESTIMATE_TOTAL,
+    LLM_VALIDATION_RETRIES,
+)
+
 from .models import SectionExtractionResult, ZusammenfassungResult
 from .prompts import (
     SECTION_EXTRACTION_PROMPT,
@@ -69,6 +116,37 @@ from .prompts import (
 T = TypeVar("T", bound=BaseModel)
 
 LOGGER = logging.getLogger(__name__)
+
+LogValue = str | int | float | bool
+
+
+def _fields(values: Mapping[str, LogValue | None]) -> dict[str, LogValue]:
+    """Build log ``extra`` fields, dropping ``None`` (attributes cannot hold it)."""
+    return {key: value for key, value in values.items() if value is not None}
+
+
+def _number_or_none(value: object) -> int | float | None:
+    """Return ``value`` if it is a real number, else ``None``.
+
+    For logging arguments that failed validation and may have any type.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return value
+
+
+def _config_fields(
+    parameter: str, value: object, default: LogValue | None = None
+) -> dict[str, LogValue]:
+    """Log fields for an invalid argument that falls back to ``default``."""
+    return _fields(
+        {
+            LLM_CONFIG_PARAMETER: parameter,
+            LLM_CONFIG_VALUE: repr(value),
+            LLM_CONFIG_DEFAULT: default,
+        }
+    )
+
 
 RATE_LIMIT_MAX_CALLS: int | None = 20
 RATE_LIMIT_WINDOW_SECONDS: int = 60
@@ -181,6 +259,13 @@ class RateLimiter:
             self.max_calls,
             self.per_seconds,
             self.max_tokens,
+            extra=_fields(
+                {
+                    LLM_RATE_LIMITER_MAX_CALLS: self.max_calls,
+                    LLM_RATE_LIMITER_WINDOW: self.per_seconds,
+                    LLM_RATE_LIMITER_MAX_TOKENS: self.max_tokens,
+                }
+            ),
         )
 
     async def acquire_slot(self, estimated_tokens: int = 0) -> None:
@@ -215,7 +300,11 @@ class RateLimiter:
                     self._timestamps.popleft()
                     removed_count += 1
                 if removed_count:
-                    LOGGER.debug("Rate limiter removed %s expired slots", removed_count)
+                    LOGGER.debug(
+                        "Rate limiter removed %s expired slots",
+                        removed_count,
+                        extra={LLM_RATE_LIMITER_EXPIRED_SLOTS: removed_count},
+                    )
 
                 # Expire old token usage entries.
                 if self.max_tokens is not None:
@@ -247,6 +336,18 @@ class RateLimiter:
                             else "n/a"
                         ),
                         self.max_tokens if self.max_tokens is not None else "n/a",
+                        extra=_fields(
+                            {
+                                LLM_RATE_LIMITER_CALLS: len(self._timestamps),
+                                LLM_RATE_LIMITER_MAX_CALLS: self.max_calls,
+                                LLM_RATE_LIMITER_TOKENS: (
+                                    current_tokens + estimated_tokens
+                                    if self.max_tokens is not None
+                                    else None
+                                ),
+                                LLM_RATE_LIMITER_MAX_TOKENS: self.max_tokens,
+                            }
+                        ),
                     )
                     return
 
@@ -266,6 +367,17 @@ class RateLimiter:
                     current_tokens if self.max_tokens is not None else "n/a",
                     self.max_tokens if self.max_tokens is not None else "n/a",
                     max(wait_seconds, 0.0),
+                    extra=_fields(
+                        {
+                            LLM_RATE_LIMITER_CALLS: len(self._timestamps),
+                            LLM_RATE_LIMITER_MAX_CALLS: self.max_calls,
+                            LLM_RATE_LIMITER_TOKENS: (
+                                current_tokens if self.max_tokens is not None else None
+                            ),
+                            LLM_RATE_LIMITER_MAX_TOKENS: self.max_tokens,
+                            LLM_RATE_LIMITER_DELAY: max(wait_seconds, 0.0),
+                        }
+                    ),
                 )
 
             await asyncio.sleep(max(wait_seconds, 0.0))
@@ -341,7 +453,10 @@ class LLMConnector:
         self.prompt_tokens: int = 0
         self.completion_tokens: int = 0
         self.reasoning_tokens: int = 0
-        LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
+        LOGGER.debug(
+            "Initialized Instructor client (mode=TOOLS)",
+            extra={GEN_AI_REQUEST_MODEL: self.model},
+        )
 
         LOGGER.info(
             "Initialized LLMConnector (model=%s, api_key_set=%s, "
@@ -351,6 +466,13 @@ class LLMConnector:
             self._rate_limiter is not None,
             self.timeout_seconds,
             self.max_retries,
+            extra={
+                GEN_AI_REQUEST_MODEL: self.model,
+                LLM_API_KEY_SET: self.api_key is not None,
+                LLM_RATE_LIMITER_ENABLED: self._rate_limiter is not None,
+                LLM_TIMEOUT: self.timeout_seconds,
+                LLM_MAX_RETRIES: self.max_retries,
+            },
         )
 
     def _initialize_rate_limiter(
@@ -373,7 +495,10 @@ class LLMConnector:
             or cannot be initialized from the provided values.
         """
         if rate_limit_max_calls is None:
-            LOGGER.info("Local rate limiting is disabled (max_calls=None)")
+            LOGGER.info(
+                "Local rate limiting is disabled (max_calls=None)",
+                extra={LLM_RATE_LIMITER_ENABLED: False},
+            )
             return None
 
         try:
@@ -390,6 +515,22 @@ class LLMConnector:
                 rate_limit_window_seconds,
                 rate_limit_max_tokens,
                 exc,
+                extra=_fields(
+                    {
+                        LLM_RATE_LIMITER_ENABLED: False,
+                        LLM_RATE_LIMITER_MAX_CALLS: _number_or_none(
+                            rate_limit_max_calls
+                        ),
+                        LLM_RATE_LIMITER_WINDOW: _number_or_none(
+                            rate_limit_window_seconds
+                        ),
+                        LLM_RATE_LIMITER_MAX_TOKENS: _number_or_none(
+                            rate_limit_max_tokens
+                        ),
+                        ERROR_TYPE: type(exc).__name__,
+                        EXCEPTION_MESSAGE: str(exc),
+                    }
+                ),
             )
             return None
 
@@ -438,7 +579,8 @@ class LLMConnector:
         except ValueError:
             LOGGER.warning(
                 "Empty input language for summarization; using default language "
-                "(Deutsch)"
+                "(Deutsch)",
+                extra=_config_fields("language", language, "Deutsch"),
             )
             language_normalized = "Deutsch"
 
@@ -457,6 +599,15 @@ class LLMConnector:
             word_count,
             character_count,
             len(source_text),
+            extra=_fields(
+                {
+                    LLM_SUMMARY_LANGUAGE: language_normalized,
+                    LLM_SUMMARY_MAX_SENTENCES: sentences_count,
+                    LLM_SUMMARY_MAX_WORDS: word_count,
+                    LLM_SUMMARY_MAX_CHARACTERS: character_count,
+                    LLM_INPUT_CHARS: len(source_text),
+                }
+            ),
         )
         max_part = (
             (f"{sentences_count} Sätzen, " if sentences_count is not None else "")
@@ -492,6 +643,7 @@ class LLMConnector:
         LOGGER.debug(
             "Summarization completed (output_chars=%s)",
             len(extraction_result.zusammenfassung),
+            extra={LLM_OUTPUT_CHARS: len(extraction_result.zusammenfassung)},
         )
         return extraction_result.zusammenfassung
 
@@ -524,6 +676,7 @@ class LLMConnector:
         LOGGER.debug(
             "summarize_dokument completed (output_chars=%s)",
             len(extraction_result.zusammenfassung),
+            extra={LLM_OUTPUT_CHARS: len(extraction_result.zusammenfassung)},
         )
         return extraction_result.zusammenfassung
 
@@ -552,6 +705,7 @@ class LLMConnector:
         LOGGER.debug(
             "summarize_gesetzentwurf completed (output_chars=%s)",
             len(extraction_result.zusammenfassung),
+            extra={LLM_OUTPUT_CHARS: len(extraction_result.zusammenfassung)},
         )
         return extraction_result.zusammenfassung
 
@@ -632,6 +786,13 @@ class LLMConnector:
             len(normalized_prompt),
             validation_retries,
             self.max_retries,
+            extra={
+                GEN_AI_REQUEST_MODEL: self.model,
+                LLM_RESPONSE_MODEL: response_model.__name__,
+                LLM_PROMPT_CHARS: len(normalized_prompt),
+                LLM_VALIDATION_RETRIES: validation_retries,
+                LLM_MAX_RETRIES: self.max_retries,
+            },
         )
 
         estimated_tokens = self._estimate_request_tokens(messages)
@@ -641,7 +802,9 @@ class LLMConnector:
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
                 LOGGER.debug(
-                    "Waiting for local rate limiter slot (attempt=%s)", attempt + 1
+                    "Waiting for local rate limiter slot (attempt=%s)",
+                    attempt + 1,
+                    extra={GEN_AI_REQUEST_MODEL: self.model, LLM_ATTEMPT: attempt + 1},
                 )
                 await self._rate_limiter.acquire_slot(estimated_tokens=estimated_tokens)
 
@@ -651,6 +814,12 @@ class LLMConnector:
                     attempt + 1,
                     self.max_retries + 1,
                     self.timeout_seconds,
+                    extra={
+                        GEN_AI_REQUEST_MODEL: self.model,
+                        LLM_ATTEMPT: attempt + 1,
+                        LLM_MAX_RETRIES: self.max_retries,
+                        LLM_TIMEOUT: self.timeout_seconds,
+                    },
                 )
                 result = await asyncio.wait_for(
                     client.chat.completions.create(
@@ -672,6 +841,11 @@ class LLMConnector:
                     "Structured extraction successful (attempt=%s/%s)",
                     attempt + 1,
                     self.max_retries + 1,
+                    extra={
+                        GEN_AI_REQUEST_MODEL: self.model,
+                        LLM_ATTEMPT: attempt + 1,
+                        LLM_MAX_RETRIES: self.max_retries,
+                    },
                 )
                 return result  # type: ignore[no-any-return]
             except InstructorRetryException as exc:
@@ -692,6 +866,13 @@ class LLMConnector:
                     attempt + 1,
                     self.max_retries + 1,
                     type(mapped_error).__name__,
+                    extra={
+                        GEN_AI_REQUEST_MODEL: self.model,
+                        LLM_ATTEMPT: attempt + 1,
+                        LLM_MAX_RETRIES: self.max_retries,
+                        ERROR_TYPE: type(exc).__name__,
+                        LLM_MAPPED_ERROR_TYPE: type(mapped_error).__name__,
+                    },
                 )
             except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
                 mapped_error = LLMTemporaryProviderError("provider request timed out")
@@ -701,6 +882,14 @@ class LLMConnector:
                     attempt + 1,
                     self.max_retries + 1,
                     self.timeout_seconds,
+                    extra={
+                        GEN_AI_REQUEST_MODEL: self.model,
+                        LLM_ATTEMPT: attempt + 1,
+                        LLM_MAX_RETRIES: self.max_retries,
+                        LLM_TIMEOUT: self.timeout_seconds,
+                        ERROR_TYPE: type(exc).__name__,
+                        LLM_MAPPED_ERROR_TYPE: type(mapped_error).__name__,
+                    },
                 )
             except Exception as exc:
                 mapped_error = self._map_provider_exception(exc)
@@ -713,6 +902,14 @@ class LLMConnector:
                     type(exc).__name__,
                     type(mapped_error).__name__,
                     str(exc),
+                    extra={
+                        GEN_AI_REQUEST_MODEL: self.model,
+                        LLM_ATTEMPT: attempt + 1,
+                        LLM_MAX_RETRIES: self.max_retries,
+                        ERROR_TYPE: type(exc).__name__,
+                        LLM_MAPPED_ERROR_TYPE: type(mapped_error).__name__,
+                        EXCEPTION_MESSAGE: str(exc),
+                    },
                 )
 
             if mapped_error is None:  # pragma: no cover
@@ -726,6 +923,12 @@ class LLMConnector:
                     attempt + 1,
                     self.max_retries + 1,
                     type(mapped_error).__name__,
+                    extra={
+                        GEN_AI_REQUEST_MODEL: self.model,
+                        LLM_ATTEMPT: attempt + 1,
+                        LLM_MAX_RETRIES: self.max_retries,
+                        ERROR_TYPE: type(mapped_error).__name__,
+                    },
                 )
                 raise mapped_error from last_error
 
@@ -736,6 +939,13 @@ class LLMConnector:
                 attempt + 2,
                 self.max_retries + 1,
                 type(mapped_error).__name__,
+                extra={
+                    GEN_AI_REQUEST_MODEL: self.model,
+                    LLM_ATTEMPT: attempt + 2,
+                    LLM_MAX_RETRIES: self.max_retries,
+                    LLM_RETRY_DELAY: backoff_seconds,
+                    ERROR_TYPE: type(mapped_error).__name__,
+                },
             )
             await asyncio.sleep(backoff_seconds)
 
@@ -792,6 +1002,12 @@ class LLMConnector:
             len(chunks),
             chunk_size,
             chunk_overlap,
+            extra={
+                LLM_CHUNK_COUNT: len(chunks),
+                LLM_CHUNK_SIZE: chunk_size,
+                LLM_CHUNK_OVERLAP: chunk_overlap,
+                LLM_LINES_TOTAL: len(source_lines),
+            },
         )
 
         vorgang_vnr_part = f" (Drucksache {vorgang_vnr})" if vorgang_vnr else ""
@@ -812,6 +1028,11 @@ class LLMConnector:
                     consecutive_irrelevant,
                     chunk_idx + 1,
                     len(chunks),
+                    extra={
+                        LLM_CHUNK_CONSECUTIVE_IRRELEVANT: consecutive_irrelevant,
+                        LLM_CHUNK_INDEX: chunk_idx + 1,
+                        LLM_CHUNK_COUNT: len(chunks),
+                    },
                 )
                 break
 
@@ -828,6 +1049,12 @@ class LLMConnector:
                 len(chunks),
                 start_line + 1,
                 end_line,
+                extra={
+                    LLM_CHUNK_INDEX: chunk_idx + 1,
+                    LLM_CHUNK_COUNT: len(chunks),
+                    LLM_CHUNK_LINE_START: start_line + 1,
+                    LLM_CHUNK_LINE_END: end_line,
+                },
             )
 
             result: SectionExtractionResult = await self.extract(
@@ -847,6 +1074,11 @@ class LLMConnector:
                     chunk_idx + 1,
                     len(chunks),
                     consecutive_irrelevant,
+                    extra={
+                        LLM_CHUNK_INDEX: chunk_idx + 1,
+                        LLM_CHUNK_COUNT: len(chunks),
+                        LLM_CHUNK_CONSECUTIVE_IRRELEVANT: consecutive_irrelevant,
+                    },
                 )
                 continue
 
@@ -857,7 +1089,10 @@ class LLMConnector:
                 all_line_indices.update(range(lr.start - 1, lr.end))
 
         if not all_line_indices:
-            LOGGER.info("No relevant content found in any chunk")
+            LOGGER.info(
+                "No relevant content found in any chunk",
+                extra={LLM_LINES_EXTRACTED: 0, LLM_LINES_TOTAL: len(source_lines)},
+            )
             return None
 
         unique_indices = sorted(all_line_indices)
@@ -871,6 +1106,10 @@ class LLMConnector:
             "Extracted %s lines from %s total",
             len(unique_indices),
             len(source_lines),
+            extra={
+                LLM_LINES_EXTRACTED: len(unique_indices),
+                LLM_LINES_TOTAL: len(source_lines),
+            },
         )
         return extracted
 
@@ -1010,6 +1249,7 @@ class LLMConnector:
                 "Failed to estimate token count for model=%s; "
                 "skipping token-based rate limiting for this request",
                 self.model,
+                extra={GEN_AI_REQUEST_MODEL: self.model},
             )
             return 0
 
@@ -1019,6 +1259,12 @@ class LLMConnector:
             input_tokens,
             TOKEN_ESTIMATE_OUTPUT_BUFFER,
             total,
+            extra={
+                GEN_AI_REQUEST_MODEL: self.model,
+                LLM_TOKEN_ESTIMATE_INPUT: input_tokens,
+                LLM_TOKEN_ESTIMATE_OUTPUT_BUFFER: TOKEN_ESTIMATE_OUTPUT_BUFFER,
+                LLM_TOKEN_ESTIMATE_TOTAL: total,
+            },
         )
         return total
 
@@ -1060,12 +1306,18 @@ class LLMConnector:
             LOGGER.warning(
                 "API key is not a string (type=%s). Treating as no API key.",
                 type(api_key).__name__,
+                # Only the type: the value may be a secret.
+                extra={
+                    LLM_CONFIG_PARAMETER: "api_key",
+                    ERROR_TYPE: type(api_key).__name__,
+                },
             )
             return None
         normalized_api_key = api_key.strip()
         if not normalized_api_key:
             LOGGER.info(
-                "API key is empty or whitespace. Treating as no API key configured."
+                "API key is empty or whitespace. Treating as no API key configured.",
+                extra={LLM_CONFIG_PARAMETER: "api_key"},
             )
             return None
         return normalized_api_key
@@ -1086,17 +1338,30 @@ class LLMConnector:
 
         if isinstance(value, bool):
             LOGGER.warning(
-                "%s must be a positive integer. Ignoring value: %r", name, value
+                "%s must be a positive integer. Ignoring value: %r",
+                name,
+                value,
+                extra=_config_fields(name, value),
             )
             return None
 
         if isinstance(value, (int, float)):
             if value > 0:
                 if isinstance(value, float):
-                    LOGGER.debug("%s received float=%r, truncating to int", name, value)
+                    LOGGER.debug(
+                        "%s received float=%r, truncating to int",
+                        name,
+                        value,
+                        extra=_config_fields(name, value, int(value)),
+                    )
                 return int(value)
 
-        LOGGER.warning("%s must be a positive integer. Ignoring value: %r", name, value)
+        LOGGER.warning(
+            "%s must be a positive integer. Ignoring value: %r",
+            name,
+            value,
+            extra=_config_fields(name, value),
+        )
         return None
 
     @staticmethod
@@ -1116,6 +1381,7 @@ class LLMConnector:
                 "temperature must be a finite number. Treating %r as no explicit "
                 "temperature.",
                 temperature,
+                extra=_config_fields("temperature", temperature),
             )
             return None
 
@@ -1126,6 +1392,7 @@ class LLMConnector:
                 "temperature is out of range (type=%s). Treating it as no explicit "
                 "temperature.",
                 type(temperature).__name__,
+                extra=_config_fields("temperature", temperature),
             )
             return None
         if not math.isfinite(normalized_temperature):
@@ -1133,6 +1400,7 @@ class LLMConnector:
                 "temperature must be a finite number. Treating %r as no explicit "
                 "temperature.",
                 temperature,
+                extra=_config_fields("temperature", temperature),
             )
             return None
         return normalized_temperature
@@ -1154,6 +1422,9 @@ class LLMConnector:
                 "%.1fs instead of %r.",
                 REQUEST_TIMEOUT_SECONDS,
                 timeout_seconds,
+                extra=_config_fields(
+                    "timeout_seconds", timeout_seconds, REQUEST_TIMEOUT_SECONDS
+                ),
             )
             return REQUEST_TIMEOUT_SECONDS
 
@@ -1163,6 +1434,9 @@ class LLMConnector:
                 "%.1fs instead of %r.",
                 REQUEST_TIMEOUT_SECONDS,
                 timeout_seconds,
+                extra=_config_fields(
+                    "timeout_seconds", timeout_seconds, REQUEST_TIMEOUT_SECONDS
+                ),
             )
             return REQUEST_TIMEOUT_SECONDS
         try:
@@ -1173,6 +1447,9 @@ class LLMConnector:
                 "timeout=%.1fs.",
                 type(timeout_seconds).__name__,
                 REQUEST_TIMEOUT_SECONDS,
+                extra=_config_fields(
+                    "timeout_seconds", timeout_seconds, REQUEST_TIMEOUT_SECONDS
+                ),
             )
             return REQUEST_TIMEOUT_SECONDS
 
@@ -1182,6 +1459,9 @@ class LLMConnector:
                 "Using default timeout=%.1fs instead of %r.",
                 REQUEST_TIMEOUT_SECONDS,
                 timeout_seconds,
+                extra=_config_fields(
+                    "timeout_seconds", timeout_seconds, REQUEST_TIMEOUT_SECONDS
+                ),
             )
             return REQUEST_TIMEOUT_SECONDS
 
@@ -1208,6 +1488,7 @@ class LLMConnector:
                 "%s instead of %r.",
                 MAX_RETRIES,
                 max_retries,
+                extra=_config_fields("max_retries", max_retries, MAX_RETRIES),
             )
             return MAX_RETRIES
 
@@ -1220,12 +1501,14 @@ class LLMConnector:
                     "max_retries=%s instead of %r.",
                     MAX_RETRIES,
                     max_retries,
+                    extra=_config_fields("max_retries", max_retries, MAX_RETRIES),
                 )
                 return MAX_RETRIES
             if not max_retries.is_integer():
                 LOGGER.warning(
                     "max_retries received float=%r, truncating to int.",
                     max_retries,
+                    extra=_config_fields("max_retries", max_retries, int(max_retries)),
                 )
             normalized_retries = int(max_retries)
         else:
@@ -1234,6 +1517,7 @@ class LLMConnector:
                 "%s instead of %r.",
                 MAX_RETRIES,
                 max_retries,
+                extra=_config_fields("max_retries", max_retries, MAX_RETRIES),
             )
             return MAX_RETRIES
 
@@ -1243,6 +1527,7 @@ class LLMConnector:
                 "max_retries=%s instead of %r.",
                 MAX_RETRIES,
                 max_retries,
+                extra=_config_fields("max_retries", max_retries, MAX_RETRIES),
             )
             return MAX_RETRIES
 
@@ -1327,6 +1612,11 @@ class LLMConnector:
                 "(underlying_type=%s, message=%s)",
                 type(last_error).__name__,
                 str(last_error),
+                extra={
+                    GEN_AI_REQUEST_MODEL: self.model,
+                    ERROR_TYPE: type(last_error).__name__,
+                    EXCEPTION_MESSAGE: str(last_error),
+                },
             )
             return self._map_provider_exception(last_error)
 
@@ -1345,6 +1635,11 @@ class LLMConnector:
                     "(cause_type=%s, message=%s)",
                     type(cause).__name__,
                     str(cause),
+                    extra={
+                        GEN_AI_REQUEST_MODEL: self.model,
+                        ERROR_TYPE: type(cause).__name__,
+                        EXCEPTION_MESSAGE: str(cause),
+                    },
                 )
                 return self._map_provider_exception(cause)
             cause = getattr(cause, "__cause__", None)
@@ -1405,5 +1700,11 @@ class LLMConnector:
             capped_delay,
             jitter,
             total_delay,
+            extra={
+                LLM_ATTEMPT: attempt + 1,
+                LLM_RETRY_CAPPED_DELAY: capped_delay,
+                LLM_RETRY_JITTER: jitter,
+                LLM_RETRY_DELAY: total_delay,
+            },
         )
         return total_delay
