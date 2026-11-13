@@ -1006,11 +1006,10 @@ class LLMConnector:
                 for msg in messages
             )
         except Exception:
-            LOGGER.error(
+            LOGGER.exception(
                 "Failed to estimate token count for model=%s; "
                 "skipping token-based rate limiting for this request",
                 self.model,
-                exc_info=True,
             )
             return 0
 

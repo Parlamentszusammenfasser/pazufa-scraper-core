@@ -25,8 +25,10 @@ def _check_type(data: Any, expected_type: type) -> None:
         expected_type_name = expected_type.__name__
 
         LOGGER.error(
-            f"Type check failed in '{caller_name}': "
-            f"expected {expected_type_name}, got {actual_type_name}"
+            "Type check failed in '%s': expected %s, got %s",
+            caller_name,
+            expected_type_name,
+            actual_type_name,
         )
 
         raise TypeError(

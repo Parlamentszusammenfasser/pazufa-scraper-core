@@ -72,7 +72,7 @@ clean:
 	rm -rf dist/ coverage.xml
 
 install:
-	poetry install --with dev
+	poetry install --with dev --all-extras
 
 secrets-scan:
 	$(POETRY) detect-secrets scan --baseline .secrets.baseline

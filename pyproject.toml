@@ -11,8 +11,9 @@ keywords = [
     "open-data",
     "scraper",
     "germany",
+    "opentelemetry",
 ]
-requires-python = ">=3.12,<3.15"
+requires-python = ">=3.12,<3.16"
 dynamic = ["dependencies"]
 classifiers = [
     "Development Status :: 3 - Alpha", # based on pazufa-API instability
@@ -29,6 +30,20 @@ classifiers = [
     "Topic :: Text Processing"
 ]
 
+[project.optional-dependencies]
+# Layers 1 + 2: spans inside the corelib, trace IDs in (Scrapy) log records.
+# API only: without an SDK configured by the application every span is a no-op.
+otel = [
+    "opentelemetry-api>=1.27,<2",
+]
+# Layer 3: observability.configure() with readable span log lines and
+# optional OTLP export (HTTP/protobuf, no grpcio wheel needed).
+otel-otlp = [
+    "opentelemetry-api>=1.27,<2",
+    "opentelemetry-sdk>=1.27,<2",
+    "opentelemetry-exporter-otlp-proto-http>=1.27,<2",
+]
+
 [project.urls]
 Homepage = "https://pazufa.de"
 Repository = "https://codeberg.org/PaZuFa/pazufa-scraper-core"
@@ -40,7 +55,7 @@ Changelog = "https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/CHA
 packages = [{ include = "pazufa_corelib" }]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.15"
+python = ">=3.12,<3.16"
 litellm = "^1.96.2"
 instructor = { extras = ["litellm"], version = "^1.14.0" }
 w3lib = "^2.4.1"
@@ -65,6 +80,7 @@ pip-audit = "^2.9.0"
 twine = "^6.2.0"
 detect-secrets = "^1.5.0"
 pylic = "^5.0.1"
+opentelemetry-sdk = ">=1.27,<2"  # InMemorySpanExporter for observability tests
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -75,7 +91,7 @@ line-length = 88
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "D", "S", "ASYNC", "DTZ", "PLW1514"]
+select = ["E", "F", "I", "D", "S", "ASYNC", "DTZ", "PLW1514", "TID251", "TID253", "LOG", "G"]
 # PLW1514 (unspecified-encoding) is a preview rule. explicit-preview-rules keeps
 # every other preview rule/behaviour off unless it is selected by its full code.
 preview = true
@@ -88,7 +104,11 @@ ignore = [
     "S324", # unsecure hashes are used for deduplication
 ]
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D", "E501", "S101"]
+"tests/**" = ["D", "E501", "S101", "TID251", "TID253"]
+"pazufa_corelib/observability/**" = ["TID251"]
+# Subclasses the SDK's SpanExporter, so it needs the SDK at module level. It is
+# only ever imported lazily via observability.__getattr__.
+"pazufa_corelib/observability/_log_exporter.py" = ["TID251", "TID253"]
 "tools/**" = ["D"]
 "pazufa_corelib/api_client/**" = ["D", "E501"]
 "pazufa_corelib/_api_model_generated.py" = ["D", "E501"]
@@ -98,6 +118,20 @@ ignore = [
 # to auto generated ones, when the content chages.
 # This is needed to keep the diff between them clean.
 
+
+# OpenTelemetry is optional (extras "otel" / "otel-otlp"). Library code reaches it
+# only through pazufa_corelib.observability; SDK/exporter code is imported lazily
+# inside functions so a plain install never loads it.
+[tool.ruff.lint.flake8-tidy-imports]
+banned-module-level-imports = [
+    "opentelemetry.sdk",
+    "opentelemetry.exporter",
+    "litellm.integrations.opentelemetry",
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"opentelemetry".msg = "Use pazufa_corelib.observability (span(), TraceContextFilter) instead."
+"litellm.integrations.opentelemetry".msg = "Only pazufa_corelib.observability may enable the litellm OTel callback."
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -151,6 +185,7 @@ safe_licenses = [
     "BSD License",
     "BSD-2-Clause",
     "BSD-3-Clause",
+    "3-Clause BSD License",  # protobuf (via opentelemetry-exporter-otlp-proto-http)
     "Apache-2.0",
     "Apache Software License",
     "ISC License (ISCL)",
