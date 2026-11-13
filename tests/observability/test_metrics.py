@@ -77,6 +77,13 @@ def _metric(reader: InMemoryMetricReader, name: str) -> Any | None:
     return None
 
 
+def _required_metric(reader: InMemoryMetricReader, name: str) -> Any:
+    """Like ``_metric``, but fails the test if ``name`` was not recorded."""
+    metric = _metric(reader, name)
+    assert metric is not None, f"{name} not recorded"
+    return metric
+
+
 def _points(reader: InMemoryMetricReader, name: str) -> dict[frozenset, Any]:
     """Map each attribute set to its value (sum, or (count, sum) for histograms)."""
     metric = _metric(reader, name)
@@ -113,7 +120,7 @@ def test_token_usage_per_token_type(reader: InMemoryMetricReader) -> None:
         frozenset({**base, GEN_AI_TOKEN_TYPE: "input"}.items()): (1, 1200),
         frozenset({**base, GEN_AI_TOKEN_TYPE: "output"}.items()): (1, 34),
     }
-    metric = _metric(reader, METRIC_GEN_AI_TOKEN_USAGE)
+    metric = _required_metric(reader, METRIC_GEN_AI_TOKEN_USAGE)
     assert metric.unit == "{token}"
     assert metric.data.data_points[0].explicit_bounds[:3] == (1.0, 4.0, 16.0)
 
@@ -153,7 +160,7 @@ def test_gen_ai_operation_duration_with_error(reader: InMemoryMetricReader) -> N
             }.items()
         ): (1, 0.5),
     }
-    metric = _metric(reader, METRIC_GEN_AI_OPERATION_DURATION)
+    metric = _required_metric(reader, METRIC_GEN_AI_OPERATION_DURATION)
     assert metric.unit == "s"
     assert metric.data.data_points[0].explicit_bounds[:3] == (0.01, 0.02, 0.04)
 
@@ -275,7 +282,7 @@ def test_last_success_only_reported_after_success(
     assert _points(reader, METRIC_SCRAPER_RUN_LAST_SUCCESS) == {
         frozenset(): 1_700_000_000.0
     }
-    assert _metric(reader, METRIC_SCRAPER_RUN_LAST_SUCCESS).unit == "s"
+    assert _required_metric(reader, METRIC_SCRAPER_RUN_LAST_SUCCESS).unit == "s"
 
 
 def test_last_success_defaults_to_now(

@@ -13,17 +13,12 @@ import pytest
 from pydantic import BaseModel
 
 from pazufa_corelib import api_model, api_model_working
+from tools import generate_working_models
 
 
 def _source_models() -> list[type[BaseModel]]:
-    return [
-        obj
-        for obj in vars(api_model).values()
-        if inspect.isclass(obj)
-        and issubclass(obj, BaseModel)
-        and obj.__module__ == api_model.__name__
-        and not getattr(obj, "__pydantic_generic_metadata__", {}).get("parameters")
-    ]
+    # Same selection as the generator, so both agree on what gets mirrored.
+    return generate_working_models._source_models()
 
 
 def _source_enums() -> list[type[Enum]]:

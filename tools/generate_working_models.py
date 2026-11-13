@@ -80,17 +80,26 @@ def _source_models() -> list[type[BaseModel]]:
     Generic models are skipped: only their concrete parametrisations
     (`ReplacingEntry[Autor]` and friends) carry a JSON Schema, and those are
     pulled in as `$defs` by the models referencing them.
+
+    Parametrisations are skipped too. Subclassing e.g. `RootModel[A | B]` at
+    module level makes pydantic register the anonymous `RootModel[Union[A, B]]`
+    in `api_model`'s globals; it is not a handcrafted model, and its named
+    subclass is already mirrored.
     """
-    models: list[type[BaseModel]] = []
-    for obj in vars(api_model).values():
-        if not (inspect.isclass(obj) and issubclass(obj, BaseModel)):
-            continue
-        if obj.__module__ != api_model.__name__:
-            continue
-        if getattr(obj, "__pydantic_generic_metadata__", {}).get("parameters"):
-            continue
-        models.append(obj)
-    return models
+    return [
+        obj
+        for obj in vars(api_model).values()
+        if inspect.isclass(obj)
+        and issubclass(obj, BaseModel)
+        and obj.__module__ == api_model.__name__
+        and not _is_generic_or_parametrisation(obj)
+    ]
+
+
+def _is_generic_or_parametrisation(model: type[BaseModel]) -> bool:
+    """Whether `model` is a generic (`Foo[T]`) or a parametrisation (`Foo[int]`)."""
+    metadata = getattr(model, "__pydantic_generic_metadata__", {})
+    return bool(metadata.get("parameters")) or metadata.get("origin") is not None
 
 
 def _enum_overrides() -> dict[str, str]:

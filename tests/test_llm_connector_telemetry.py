@@ -324,7 +324,9 @@ def test_rate_limiter_records_wait_and_event(
     [event] = [
         e for e in _span(spans, "outer").events if e.name == EVENT_LLM_RATE_LIMITED
     ]
-    assert 0 < float(dict(event.attributes or {})[LLM_RATE_LIMITER_DELAY]) <= 0.05
+    delay = dict(event.attributes or {})[LLM_RATE_LIMITER_DELAY]
+    assert isinstance(delay, float)
+    assert 0 < delay <= 0.05
     # One point per acquired slot, including the one that did not wait.
     [(count, _)] = _points(metrics, METRIC_LLM_RATE_LIMITER_WAIT_DURATION).values()
     assert count == 2

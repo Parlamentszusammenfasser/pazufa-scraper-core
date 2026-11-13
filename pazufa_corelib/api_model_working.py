@@ -303,18 +303,6 @@ class WorkingReplacingEntryGremium(PaZuFaBaseModel):
     values: list[WorkingGremium] | None = None
 
 
-class WorkingRootModelUnionAnnotatedStrAfterValidatorListDokumentHash(
-    RootModel[str | list[WorkingDokumentHash] | None]
-):
-    root: str | list[WorkingDokumentHash] | None = None
-
-
-class WorkingRootModelUnionStrListZusammenfassungstupel(
-    RootModel[str | list[WorkingZusammenfassungstupel] | None]
-):
-    root: str | list[WorkingZusammenfassungstupel] | None = None
-
-
 class WorkingZusammenfassungWrapper(
     RootModel[str | list[WorkingZusammenfassungstupel] | None]
 ):
@@ -426,10 +414,6 @@ class WorkingGremienPutRequest(PaZuFaBaseModel):
 
     objects: list[WorkingGremium] | None = None
     replacing: list[WorkingReplacingEntryGremium] | None = None
-
-
-class WorkingRootModelUnionDokumentUUID(RootModel[WorkingDokument | UUID | None]):
-    root: WorkingDokument | UUID | None = None
 
 
 class WorkingStation(PaZuFaBaseModel):
