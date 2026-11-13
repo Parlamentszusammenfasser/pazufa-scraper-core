@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
+## [Unreleased]
+### Fixed
+- **`validate_for_upload` checked the No-Past-Stations-Rule the wrong way round.** It rejected Stationen that start before now, so every real Station. The backend rejects those that start after now. `PastStationError` is renamed to `FutureStationError`.
+
 ## [0.3.3] - 12.11.2026
 ### Changed
 - **Models updated to spec 0.2.9.** `Station.zp_start` and `Sitzung.termin` (both in PUT bodies) and `Dokument.zp_modifiziert` / `zp_referenz` are now optional (`None` by default). Code that reads these fields has to handle `None`; collectors without a date no longer need to invent one.
