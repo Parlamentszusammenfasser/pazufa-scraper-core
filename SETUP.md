@@ -138,6 +138,19 @@ from pazufa_corelib.observability import configure
 configure(service_name="pazufa-scraper-bw", instrument_litellm=True)
 ```
 
+### What the corelib records
+
+`LLMConnector` traces and measures its own calls; scrapers get this without extra code once `configure()` has run:
+
+| Signal | Name | Recorded |
+|---|---|---|
+| Span | `pazufa.llm.extract` | Per `extract()` call: model, provider, response model, final attempt, summed input/output tokens; events for retries (`pazufa.llm.retry`) and rate-limiter waits (`pazufa.llm.rate_limited`). Failures set `error.type` and the span status. |
+| Span | `pazufa.llm.summarize`, `pazufa.llm.extract_relevant_section` | Parents of the `extract` spans they trigger. |
+| Metric | `gen_ai.client.token.usage`, `gen_ai.client.operation.duration`, `pazufa.llm.reasoning_token.usage` | Per provider call (also failed ones), following the GenAI semantic conventions. |
+| Metric | `pazufa.llm.operation.duration`, `pazufa.llm.retries`, `pazufa.llm.rate_limiter.wait.duration` | Per operation incl. retries and waits, per retry, per rate-limiter slot. |
+
+The name resolvers record `pazufa.normalization.*` metrics; see `observability._attributes` for all names.
+
 ### Logs
 
 With an OTLP endpoint set, `configure()` adds a handler to the root logger that exports every stdlib log record at `log_level` (default `INFO`) and above:

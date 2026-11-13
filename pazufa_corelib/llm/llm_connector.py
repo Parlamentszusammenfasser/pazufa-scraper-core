@@ -44,8 +44,9 @@ import math
 import random
 import time
 from collections import deque
-from collections.abc import Mapping
-from typing import Final, Optional, TypeVar
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from typing import Final, NamedTuple, Optional, TypeVar
 
 import instructor
 import litellm
@@ -60,10 +61,16 @@ from instructor.core.exceptions import ValidationError as InstructorValidationEr
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
+import pazufa_corelib.observability as obs
 from pazufa_corelib.observability._attributes import (
     ERROR_TYPE,
+    EVENT_LLM_RATE_LIMITED,
+    EVENT_LLM_RETRY,
     EXCEPTION_MESSAGE,
+    GEN_AI_PROVIDER_NAME,
     GEN_AI_REQUEST_MODEL,
+    GEN_AI_USAGE_INPUT_TOKENS,
+    GEN_AI_USAGE_OUTPUT_TOKENS,
     LLM_API_KEY_SET,
     LLM_ATTEMPT,
     LLM_CHUNK_CONSECUTIVE_IRRELEVANT,
@@ -81,6 +88,7 @@ from pazufa_corelib.observability._attributes import (
     LLM_LINES_TOTAL,
     LLM_MAPPED_ERROR_TYPE,
     LLM_MAX_RETRIES,
+    LLM_OPERATION,
     LLM_OUTPUT_CHARS,
     LLM_PROMPT_CHARS,
     LLM_RATE_LIMITER_CALLS,
@@ -104,6 +112,9 @@ from pazufa_corelib.observability._attributes import (
     LLM_TOKEN_ESTIMATE_OUTPUT_BUFFER,
     LLM_TOKEN_ESTIMATE_TOTAL,
     LLM_VALIDATION_RETRIES,
+    SPAN_LLM_EXTRACT,
+    SPAN_LLM_EXTRACT_RELEVANT_SECTION,
+    SPAN_LLM_SUMMARIZE,
 )
 
 from .models import SectionExtractionResult, ZusammenfassungResult
@@ -123,6 +134,20 @@ LogValue = str | int | float | bool
 def _fields(values: Mapping[str, LogValue | None]) -> dict[str, LogValue]:
     """Build log ``extra`` fields, dropping ``None`` (attributes cannot hold it)."""
     return {key: value for key, value in values.items() if value is not None}
+
+
+class _Usage(NamedTuple):
+    """Provider-reported token usage of one call; missing values are 0."""
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    reasoning_tokens: int = 0
+
+
+def _provider_name(model: str) -> str | None:
+    """Return the LiteLLM provider prefix of ``model`` (``openai/...``), if any."""
+    provider, separator, _ = model.partition("/")
+    return provider if separator and provider else None
 
 
 def _number_or_none(value: object) -> int | float | None:
@@ -289,6 +314,7 @@ class RateLimiter:
                 f"estimated_tokens ({estimated_tokens}) exceeds max_tokens "
                 f"({self.max_tokens}); this request can never be scheduled"
             )
+        waited = 0.0
         while True:
             async with self._lock:
                 now = time.monotonic()
@@ -349,6 +375,11 @@ class RateLimiter:
                             }
                         ),
                     )
+                    obs.record_rate_limiter_wait(waited)
+                    if waited > 0:
+                        obs.record_event(
+                            EVENT_LLM_RATE_LIMITED, {LLM_RATE_LIMITER_DELAY: waited}
+                        )
                     return
 
                 # Compute wait time: pick the longest wait needed.
@@ -380,6 +411,7 @@ class RateLimiter:
                     ),
                 )
 
+            waited += max(wait_seconds, 0.0)
             await asyncio.sleep(max(wait_seconds, 0.0))
 
 
@@ -637,9 +669,10 @@ class LLMConnector:
             {"allow_short": True} if explicit_length_limit else None
         )
 
-        extraction_result = await self.extract(
-            prompt, ZusammenfassungResult, validation_context=validation_context
-        )
+        with self._operation(SPAN_LLM_SUMMARIZE, "summarize"):
+            extraction_result = await self.extract(
+                prompt, ZusammenfassungResult, validation_context=validation_context
+            )
         LOGGER.debug(
             "Summarization completed (output_chars=%s)",
             len(extraction_result.zusammenfassung),
@@ -672,7 +705,8 @@ class LLMConnector:
         prompt = ZUSAMMENFASSUNG_PROMPT.format(
             titel=titel_validated, text=text_validated
         )
-        extraction_result = await self.extract(prompt, ZusammenfassungResult)
+        with self._operation(SPAN_LLM_SUMMARIZE, "summarize"):
+            extraction_result = await self.extract(prompt, ZusammenfassungResult)
         LOGGER.debug(
             "summarize_dokument completed (output_chars=%s)",
             len(extraction_result.zusammenfassung),
@@ -701,7 +735,8 @@ class LLMConnector:
         prompt = ZUSAMMENFASSUNG_GESETZENTWURF_PROMPT.format(
             titel=titel_validated, text=text_validated
         )
-        extraction_result = await self.extract(prompt, ZusammenfassungResult)
+        with self._operation(SPAN_LLM_SUMMARIZE, "summarize"):
+            extraction_result = await self.extract(prompt, ZusammenfassungResult)
         LOGGER.debug(
             "summarize_gesetzentwurf completed (output_chars=%s)",
             len(extraction_result.zusammenfassung),
@@ -776,8 +811,6 @@ class LLMConnector:
         if normalized_system_prompt is not None:
             messages.insert(0, {"role": "system", "content": normalized_system_prompt})
 
-        client = self._instructor_client
-
         LOGGER.debug(
             "Starting structured extraction (model=%s, response_model=%s, "
             "prompt_chars=%s, validation_retries=%s, network_retries=%s)",
@@ -797,8 +830,36 @@ class LLMConnector:
 
         estimated_tokens = self._estimate_request_tokens(messages)
 
+        with self._operation(
+            SPAN_LLM_EXTRACT,
+            "extract",
+            {LLM_RESPONSE_MODEL: response_model.__name__},
+        ):
+            return await self._extract_with_retries(
+                messages,
+                response_model,
+                validation_retries,
+                validation_context,
+                estimated_tokens,
+            )
+
+    async def _extract_with_retries(
+        self,
+        messages: list[dict[str, str]],
+        response_model: type[T],
+        validation_retries: int,
+        validation_context: Optional[dict[str, object]],
+        estimated_tokens: int,
+    ) -> T:
+        """Run the provider call with network retries inside the extract span.
+
+        Records duration and token usage of every provider call, and a retry
+        event and counter for every retry.
+        """
         last_error: Exception | None = None
         mapped_error: LLMProviderError | None = None
+        input_tokens = 0
+        output_tokens = 0
         for attempt in range(self.max_retries + 1):
             if self._rate_limiter is not None:
                 LOGGER.debug(
@@ -808,6 +869,9 @@ class LLMConnector:
                 )
                 await self._rate_limiter.acquire_slot(estimated_tokens=estimated_tokens)
 
+            call_start = time.monotonic()
+            call_usage = _Usage()
+            call_error: str | None = None
             try:
                 LOGGER.debug(
                     "Calling Instructor (attempt=%s/%s, timeout=%.1fs)",
@@ -822,7 +886,7 @@ class LLMConnector:
                     },
                 )
                 result = await asyncio.wait_for(
-                    client.chat.completions.create(
+                    self._instructor_client.chat.completions.create(
                         model=self.model,
                         api_key=self.api_key,
                         messages=messages,
@@ -836,7 +900,7 @@ class LLMConnector:
                 )
                 # Same object create_with_completion() returns; may be absent.
                 raw_response = getattr(result, "_raw_response", None)
-                self._count_usage(getattr(raw_response, "usage", None))
+                call_usage = self._count_usage(getattr(raw_response, "usage", None))
                 LOGGER.debug(
                     "Structured extraction successful (attempt=%s/%s)",
                     attempt + 1,
@@ -849,8 +913,9 @@ class LLMConnector:
                 )
                 return result  # type: ignore[no-any-return]
             except InstructorRetryException as exc:
+                call_error = type(exc).__name__
                 # Failed attempts were billed too; Instructor sums their usage.
-                self._count_usage(getattr(exc, "total_usage", None))
+                call_usage = self._count_usage(getattr(exc, "total_usage", None))
                 classified = self._classify_instructor_retry(
                     exc, response_model.__name__, validation_retries
                 )
@@ -875,6 +940,7 @@ class LLMConnector:
                     },
                 )
             except (asyncio.TimeoutError, litellm.exceptions.Timeout) as exc:
+                call_error = type(exc).__name__
                 mapped_error = LLMTemporaryProviderError("provider request timed out")
                 last_error = exc
                 LOGGER.debug(
@@ -892,6 +958,7 @@ class LLMConnector:
                     },
                 )
             except Exception as exc:
+                call_error = type(exc).__name__
                 mapped_error = self._map_provider_exception(exc)
                 last_error = exc
                 LOGGER.debug(
@@ -910,6 +977,22 @@ class LLMConnector:
                         LLM_MAPPED_ERROR_TYPE: type(mapped_error).__name__,
                         EXCEPTION_MESSAGE: str(exc),
                     },
+                )
+            finally:
+                # Runs for every provider call: success, retry and final error.
+                input_tokens += call_usage.prompt_tokens
+                output_tokens += call_usage.completion_tokens
+                self._record_provider_call(
+                    time.monotonic() - call_start, call_usage, call_error
+                )
+                obs.set_span_attributes(
+                    _fields(
+                        {
+                            LLM_ATTEMPT: attempt + 1,
+                            GEN_AI_USAGE_INPUT_TOKENS: input_tokens or None,
+                            GEN_AI_USAGE_OUTPUT_TOKENS: output_tokens or None,
+                        }
+                    )
                 )
 
             if mapped_error is None:  # pragma: no cover
@@ -947,9 +1030,89 @@ class LLMConnector:
                     ERROR_TYPE: type(mapped_error).__name__,
                 },
             )
+            obs.add_llm_retry(
+                operation="extract",
+                model=self.model,
+                error_type=type(mapped_error).__name__,
+            )
+            obs.record_event(
+                EVENT_LLM_RETRY,
+                {
+                    ERROR_TYPE: type(mapped_error).__name__,
+                    LLM_ATTEMPT: attempt + 2,
+                    LLM_RETRY_DELAY: backoff_seconds,
+                },
+            )
             await asyncio.sleep(backoff_seconds)
 
         raise LLMConnectorError("unreachable retry loop state")
+
+    @property
+    def _provider(self) -> str | None:
+        """``gen_ai.provider.name``, derived from the model on access."""
+        return _provider_name(self.model)
+
+    @contextmanager
+    def _operation(
+        self,
+        span_name: str,
+        operation: str,
+        attributes: Mapping[str, LogValue] | None = None,
+    ) -> Iterator[None]:
+        """Trace and time one corelib LLM operation.
+
+        Opens the span ``span_name`` as the current span and records
+        ``pazufa.llm.operation.duration``. An exception leaving the block sets
+        ``error.type`` on both and propagates unchanged.
+
+        Args:
+            span_name: Span name, see ``observability._attributes``.
+            operation: ``pazufa.llm.operation``, e.g. ``"extract"``.
+            attributes: Further span attributes.
+
+        Yields:
+            Nothing; annotate the span via ``obs.set_span_attributes``.
+        """
+        start = time.monotonic()
+        error_type: str | None = None
+        span_attributes = _fields(
+            {
+                LLM_OPERATION: operation,
+                GEN_AI_REQUEST_MODEL: self.model,
+                GEN_AI_PROVIDER_NAME: self._provider,
+                LLM_MAX_RETRIES: self.max_retries,
+                **(attributes or {}),
+            }
+        )
+        with obs.span(span_name, span_attributes):
+            try:
+                yield
+            except Exception as exc:
+                error_type = type(exc).__name__
+                obs.set_span_attributes({ERROR_TYPE: error_type})
+                raise
+            finally:
+                obs.record_llm_operation_duration(
+                    time.monotonic() - start,
+                    operation=operation,
+                    model=self.model,
+                    error_type=error_type,
+                )
+
+    def _record_provider_call(
+        self, seconds: float, usage: _Usage, error_type: str | None
+    ) -> None:
+        """Record duration and token usage metrics of one provider call."""
+        obs.record_gen_ai_operation_duration(
+            seconds, model=self.model, error_type=error_type, provider=self._provider
+        )
+        obs.record_token_usage(
+            model=self.model,
+            input_tokens=usage.prompt_tokens,
+            output_tokens=usage.completion_tokens,
+            reasoning_tokens=usage.reasoning_tokens,
+            provider=self._provider,
+        )
 
     async def extract_relevant_section(
         self,
@@ -1010,6 +1173,28 @@ class LLMConnector:
             },
         )
 
+        with self._operation(
+            SPAN_LLM_EXTRACT_RELEVANT_SECTION,
+            "extract_relevant_section",
+            {
+                LLM_CHUNK_COUNT: len(chunks),
+                LLM_CHUNK_SIZE: chunk_size,
+                LLM_LINES_TOTAL: len(source_lines),
+            },
+        ):
+            return await self._extract_sections(
+                source_lines, chunks, normalized_titel, vorgang_vnr, early_stop_after
+            )
+
+    async def _extract_sections(
+        self,
+        source_lines: list[str],
+        chunks: list[tuple[int, int]],
+        normalized_titel: str,
+        vorgang_vnr: str | None,
+        early_stop_after: int,
+    ) -> str | None:
+        """Run the per-chunk extraction of :meth:`extract_relevant_section`."""
         vorgang_vnr_part = f" (Drucksache {vorgang_vnr})" if vorgang_vnr else ""
 
         all_line_indices: set[int] = set()
@@ -1207,12 +1392,21 @@ class LLMConnector:
         """
         return "\n".join(f"[{i + 1}] {lines[i]}" for i in range(start, end))
 
-    def _count_usage(self, usage: object) -> None:
-        """Add provider-reported token usage; missing values count as 0."""
+    def _count_usage(self, usage: object) -> _Usage:
+        """Add provider-reported token usage to the totals and return it.
+
+        Missing values count as 0.
+        """
         details = getattr(usage, "completion_tokens_details", None)
-        self.prompt_tokens += self._token_count(usage, "prompt_tokens")
-        self.completion_tokens += self._token_count(usage, "completion_tokens")
-        self.reasoning_tokens += self._token_count(details, "reasoning_tokens")
+        counted = _Usage(
+            prompt_tokens=self._token_count(usage, "prompt_tokens"),
+            completion_tokens=self._token_count(usage, "completion_tokens"),
+            reasoning_tokens=self._token_count(details, "reasoning_tokens"),
+        )
+        self.prompt_tokens += counted.prompt_tokens
+        self.completion_tokens += counted.completion_tokens
+        self.reasoning_tokens += counted.reasoning_tokens
+        return counted
 
     @staticmethod
     def _token_count(source: object, name: str) -> int:

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
         record_token_usage,
         set_run_last_success,
     )
-    from ._tracing import is_available, record_event, span
+    from ._tracing import is_available, record_event, set_span_attributes, span
 
 _METRIC_HELPERS: tuple[str, ...] = (
     "add_dropped",
@@ -60,6 +60,7 @@ _LAZY_MODULES: dict[str, str] = {
     "LoggingSpanExporter": "._log_exporter",
     "is_available": "._tracing",
     "record_event": "._tracing",
+    "set_span_attributes": "._tracing",
     "span": "._tracing",
     **dict.fromkeys(_METRIC_HELPERS, "._metrics"),
 }
@@ -117,5 +118,6 @@ __all__ = [
     "record_run_duration",
     "record_token_usage",
     "set_run_last_success",
+    "set_span_attributes",
     "span",
 ]

@@ -74,3 +74,17 @@ def record_event(name: str, attributes: Mapping[str, AttrValue] | None = None) -
     """
     if _otel_trace is not None:
         _otel_trace.get_current_span().add_event(name, attributes=attributes)
+
+
+def set_span_attributes(attributes: Mapping[str, AttrValue]) -> None:
+    """Set attributes on the currently active span.
+
+    Like :func:`record_event`, it needs no span handle, so library code never
+    touches OpenTelemetry objects. Does nothing without OpenTelemetry or
+    outside a span.
+
+    Args:
+        attributes: Attributes to set; existing keys are overwritten.
+    """
+    if _otel_trace is not None:
+        _otel_trace.get_current_span().set_attributes(attributes)

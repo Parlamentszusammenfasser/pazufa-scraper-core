@@ -73,9 +73,13 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(name, raising=False)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def installed(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[TracerProvider]]:
-    """Collect providers configure() would install; start with none installed."""
+    """Collect providers configure() would install; start with none installed.
+
+    Autouse: a test calling configure() without it would install a real global
+    provider (with an OTLP exporter if an endpoint is set) for the whole run.
+    """
     providers: list[TracerProvider] = []
 
     def current() -> Any:

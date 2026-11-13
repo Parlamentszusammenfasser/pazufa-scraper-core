@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Using `configure` without the extra raises an `ImportError` that names the extra to install.
   - `LLMConnector` logs carry structured `extra` fields (model, attempt, error types, retry delay, rate-limiter and chunk state, invalid config values), named as in `observability._attributes`, so they arrive as attributes when logs are exported. Message texts are unchanged.
   - Importing `pazufa_corelib.observability` or its `_attributes` loads no OpenTelemetry module; helpers are imported on first access.
+  - `LLMConnector` records spans (`pazufa.llm.extract`, `.summarize`, `.extract_relevant_section`) with retry and rate-limit events, and the GenAI and `pazufa.llm.*` metrics (token usage, call and operation duration, retries, rate-limiter wait). Without OpenTelemetry or `configure()` all of it is a no-op, and `import pazufa_corelib.llm` still loads no OpenTelemetry module.
+  - `set_span_attributes()` sets attributes on the current span without a span handle, like `record_event()`.
 - CI step `test-without-extras` checks that the plain package imports without OpenTelemetry.
 
 
