@@ -91,3 +91,25 @@ METRIC_SCRAPER_LLM_ENRICHMENTS: Final = "pazufa.scraper.llm.enrichments"
 METRIC_SCRAPER_RUN_DURATION: Final = "pazufa.scraper.run.duration"
 # Gauge s (Unix time), set only after a successful run
 METRIC_SCRAPER_RUN_LAST_SUCCESS: Final = "pazufa.scraper.run.last_success"
+
+# --- PaZuFa attributes: normalization ------------------------------------------
+# Fixed categories only: never the raw or resolved name (cardinality, personal data)
+NORMALIZATION_RESOLVER: Final = "pazufa.normalization.resolver"  # author, ...
+NORMALIZATION_OUTCOME: Final = "pazufa.normalization.outcome"  # exact, fuzzy, ...
+NORMALIZATION_RESOLVER_AUTHOR: Final = "author"
+NORMALIZATION_RESOLVER_ORGANIZATION: Final = "organization"
+NORMALIZATION_RESOLVER_SCHLAGWORT: Final = "schlagwort"
+NORMALIZATION_RESOLVER_SACHGEBIET: Final = "sachgebiet"
+NORMALIZATION_OUTCOME_EXACT: Final = "exact"
+NORMALIZATION_OUTCOME_FUZZY: Final = "fuzzy"
+NORMALIZATION_OUTCOME_UNRESOLVED: Final = "unresolved"
+
+# --- Metrics: normalization (recorded by the corelib) --------------------------
+# Counter {resolution}; pazufa.normalization.resolver, pazufa.normalization.outcome
+METRIC_NORMALIZATION_RESOLUTIONS: Final = "pazufa.normalization.resolutions"
+# Histogram, unit "1" (score 0-100), fuzzy matches only; pazufa.normalization.resolver
+METRIC_NORMALIZATION_MATCH_SCORE: Final = "pazufa.normalization.match.score"
+# Counter {resolution}; pazufa.normalization.resolver
+METRIC_NORMALIZATION_NEAR_TIES: Final = "pazufa.normalization.near_ties"
+# Counter {name}, values dropped with strict=True; pazufa.normalization.resolver
+METRIC_NORMALIZATION_DROPPED: Final = "pazufa.normalization.dropped"

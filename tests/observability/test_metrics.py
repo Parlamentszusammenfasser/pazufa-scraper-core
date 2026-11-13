@@ -4,6 +4,7 @@ Each test swaps the module instruments for ones on a local ``MeterProvider``
 with an in-memory reader: the global provider can only be set once per process.
 """
 
+from collections import Counter
 from collections.abc import Iterator
 from typing import Any
 
@@ -35,6 +36,10 @@ from pazufa_corelib.observability._attributes import (
     METRIC_LLM_RATE_LIMITER_WAIT_DURATION,
     METRIC_LLM_REASONING_TOKEN_USAGE,
     METRIC_LLM_RETRIES,
+    METRIC_NORMALIZATION_DROPPED,
+    METRIC_NORMALIZATION_MATCH_SCORE,
+    METRIC_NORMALIZATION_NEAR_TIES,
+    METRIC_NORMALIZATION_RESOLUTIONS,
     METRIC_SCRAPER_FAILED_ENTITIES,
     METRIC_SCRAPER_FOUND_ENTITIES,
     METRIC_SCRAPER_LLM_ENRICHMENTS,
@@ -42,6 +47,8 @@ from pazufa_corelib.observability._attributes import (
     METRIC_SCRAPER_RUN_LAST_SUCCESS,
     METRIC_SCRAPER_SKIPPED_ENTITIES,
     METRIC_SCRAPER_SUBMITTED_ENTITIES,
+    NORMALIZATION_OUTCOME,
+    NORMALIZATION_RESOLVER,
     SKIP_REASON,
     TRACER_NAME,
 )
@@ -279,6 +286,59 @@ def test_last_success_defaults_to_now(
     assert _points(reader, METRIC_SCRAPER_RUN_LAST_SUCCESS) == {frozenset(): 42.0}
 
 
+# --- Normalization ------------------------------------------------------------------
+
+
+def _resolution(resolver: str, outcome: str) -> frozenset:
+    return frozenset(
+        {NORMALIZATION_RESOLVER: resolver, NORMALIZATION_OUTCOME: outcome}.items()
+    )
+
+
+def _by_resolver(resolver: str) -> frozenset:
+    return frozenset({NORMALIZATION_RESOLVER: resolver}.items())
+
+
+def test_resolutions_per_outcome_skip_zero(reader: InMemoryMetricReader) -> None:
+    _metrics.add_resolutions(Counter(exact=3, fuzzy=1, unresolved=0), resolver="author")
+    _metrics.add_resolutions({"exact": 2}, resolver="author")
+    _metrics.add_resolutions({"unresolved": 4}, resolver="organization")
+
+    assert _points(reader, METRIC_NORMALIZATION_RESOLUTIONS) == {
+        _resolution("author", "exact"): 5,
+        _resolution("author", "fuzzy"): 1,
+        _resolution("organization", "unresolved"): 4,
+    }
+
+
+def test_match_scores_per_resolver(reader: InMemoryMetricReader) -> None:
+    _metrics.record_match_scores([91.0, 95.5], resolver="author")
+    _metrics.record_match_scores([], resolver="organization")
+
+    assert _points(reader, METRIC_NORMALIZATION_MATCH_SCORE) == {
+        _by_resolver("author"): (2, 186.5)
+    }
+    metric = _metric(reader, METRIC_NORMALIZATION_MATCH_SCORE)
+    assert metric is not None
+    assert metric.unit == "1"
+    point = metric.data.data_points[0]
+    assert tuple(point.explicit_bounds) == _metrics.MATCH_SCORE_BUCKETS
+
+
+def test_near_ties_and_dropped_skip_zero(reader: InMemoryMetricReader) -> None:
+    _metrics.add_near_ties(2, resolver="organization")
+    _metrics.add_near_ties(0, resolver="author")
+    _metrics.add_dropped(3, resolver="schlagwort")
+    _metrics.add_dropped(0, resolver="author")
+
+    assert _points(reader, METRIC_NORMALIZATION_NEAR_TIES) == {
+        _by_resolver("organization"): 2
+    }
+    assert _points(reader, METRIC_NORMALIZATION_DROPPED) == {
+        _by_resolver("schlagwort"): 3
+    }
+
+
 # --- Without OpenTelemetry --------------------------------------------------------
 
 
@@ -298,6 +358,10 @@ def test_all_helpers_are_noops_without_opentelemetry(
     _metrics.add_failed_entities(1, entity_type="procedure", error_type="e")
     _metrics.add_llm_enrichments(1, entity_type="procedure", field="f", source="llm")
     _metrics.record_run_duration(1.0)
+    _metrics.add_resolutions({"exact": 1}, resolver="author")
+    _metrics.record_match_scores([95.0], resolver="author")
+    _metrics.add_near_ties(1, resolver="author")
+    _metrics.add_dropped(1, resolver="author")
 
 
 def test_histogram_falls_back_without_bucket_advisory() -> None:
