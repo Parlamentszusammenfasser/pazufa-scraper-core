@@ -2,7 +2,7 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pazufa-corelib)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydantic/pydantic/main/docs/badge/v2.json)](https://docs.pydantic.dev/latest/concepts/pydantic_v2/)
-[![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-000?logo=opentelemetry&logoColor=fff)](#)
+[![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-000?logo=opentelemetry&logoColor=fff)](#optional-features)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
@@ -42,6 +42,10 @@ The library consists of three parts:
 - Poetry 2.x
 
  For the full dependency list, see [pyproject.toml](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/pyproject.toml). 
+
+## Optional features
+
+- **OpenTelemetry tracing** (`pazufa_corelib.observability`): spans, trace IDs in log records, and a one-call `configure()` that writes readable span log lines and, if `OTEL_EXPORTER_OTLP_ENDPOINT` is set, exports spans over OTLP/HTTP. Install it with `pip install "pazufa_corelib[otel-otlp]"`. A plain install never imports OpenTelemetry. See [SETUP.md](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/SETUP.md#opentelemetry-tracing-optional).
 
 ## Setup 
 

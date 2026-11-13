@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
+## [4.0.0rc1] - 13.11.2026
+
+### Added
+- **Optional OpenTelemetry support** via `pazufa_corelib.observability` and two new extras. Additive and opt-in: a plain install never imports OpenTelemetry, so no changes are needed in scrapers.
+  - Extra `otel` (`opentelemetry-api`): `span()` and `record_event()` for spans, plus `install_trace_context()` / `TraceContextFilter`, which add `trace_id` and `span_id` to log records (e.g. for Scrapy's `LOG_FORMAT`). Without OpenTelemetry these are no-ops and the IDs are `"-"`.
+  - Extra `otel-otlp` (adds the SDK and the OTLP/HTTP exporter, no `grpcio`): `configure(service_name=None, *, instrument_litellm=False)` sets up a tracer provider that writes one readable log line per corelib span (`LoggingSpanExporter`, logger `pazufa_corelib.telemetry`). If `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set, it also exports spans over OTLP. An existing SDK provider is kept. With `instrument_litellm=True`, litellm calls become child spans; prompt and response content is only recorded if `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` allows it.
+  - Using `configure` without the extra raises an `ImportError` that names the extra to install.
+- CI step `test-without-extras` checks that the plain package imports without OpenTelemetry.
+
+
 ## [0.3.4] - 13.11.2026
 ### Fixed
 - **`validate_for_upload` checked the No-Past-Stations-Rule the wrong way round.** It rejected Stationen that start before now, so every real Station. The backend rejects those that start after now. `PastStationError` is renamed to `FutureStationError`.
