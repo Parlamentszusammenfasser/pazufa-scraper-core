@@ -1,7 +1,7 @@
 """Optional OpenTelemetry support for pazufa_corelib.
 
-Library code only uses the API-level helpers (``span``, ``TraceContextFilter``),
-which work without OpenTelemetry installed. Application-side setup
+Library code only uses the API-level helpers (``span``, ``TraceContextFilter``,
+the metric helpers), which work without OpenTelemetry installed. Application-side setup
 (``configure``, ``LoggingSpanExporter``) needs the ``otel-otlp`` extra and is
 imported lazily on first access, so a plain install never loads the SDK.
 """
@@ -13,6 +13,20 @@ from ._log_context import (
     TraceContextFilter,
     current_trace_ids,
     install_trace_context,
+)
+from ._metrics import (
+    add_failed_entities,
+    add_found_entities,
+    add_llm_enrichments,
+    add_llm_retry,
+    add_skipped_entities,
+    add_submitted_entities,
+    record_gen_ai_operation_duration,
+    record_llm_operation_duration,
+    record_rate_limiter_wait,
+    record_run_duration,
+    record_token_usage,
+    set_run_last_success,
 )
 from ._tracing import is_available, record_event, span
 
@@ -59,10 +73,22 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     "LoggingSpanExporter",
     "TraceContextFilter",
+    "add_failed_entities",
+    "add_found_entities",
+    "add_llm_enrichments",
+    "add_llm_retry",
+    "add_skipped_entities",
+    "add_submitted_entities",
     "configure",
     "current_trace_ids",
     "install_trace_context",
     "is_available",
     "record_event",
+    "record_gen_ai_operation_duration",
+    "record_llm_operation_duration",
+    "record_rate_limiter_wait",
+    "record_run_duration",
+    "record_token_usage",
+    "set_run_last_success",
     "span",
 ]
