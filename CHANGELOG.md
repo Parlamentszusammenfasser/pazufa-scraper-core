@@ -5,9 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
-## [Unreleased]
+## [0.3.4] - 13.11.2026
 ### Fixed
 - **`validate_for_upload` checked the No-Past-Stations-Rule the wrong way round.** It rejected Stationen that start before now, so every real Station. The backend rejects those that start after now. `PastStationError` is renamed to `FutureStationError`.
+- **working_model supports new put functions.**
 
 ## [0.3.3] - 12.11.2026
 ### Changed
