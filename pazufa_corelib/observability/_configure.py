@@ -10,7 +10,12 @@ import uuid
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-from ._attributes import PAZUFA_SCRAPER_ID, SERVICE_INSTANCE_ID, SERVICE_NAME
+from ._attributes import (
+    PAZUFA_SCRAPER_ID,
+    SERVICE_INSTANCE_ID,
+    SERVICE_NAME,
+    TELEMETRY_LOGGER_NAME,
+)
 from ._tracing import AttrValue
 
 if TYPE_CHECKING:
@@ -26,6 +31,10 @@ OTLP_METRICS_ENDPOINT_ENV_VARS: tuple[str, ...] = (
     "OTEL_EXPORTER_OTLP_ENDPOINT",
     "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
 )
+OTLP_LOGS_ENDPOINT_ENV_VARS: tuple[str, ...] = (
+    "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT",
+)
 CAPTURE_CONTENT_ENV = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
 LITELLM_REQUEST_SPAN_ENV = "USE_OTEL_LITELLM_REQUEST_SPAN"
 LITELLM_OTEL_V2_ENV = "LITELLM_OTEL_V2"
@@ -40,8 +49,9 @@ def configure(
     *,
     resource_attributes: Mapping[str, AttrValue] | None = None,
     instrument_litellm: bool = False,
+    log_level: int = logging.INFO,
 ) -> None:
-    """Set up tracing and metrics with readable span logs and optional OTLP export.
+    """Set up tracing, metrics and logs with readable span logs and OTLP export.
 
     Traces: installs a global ``TracerProvider`` that writes one log line per
     corelib span (``LoggingSpanExporter``) and, if ``OTEL_EXPORTER_OTLP_ENDPOINT``
@@ -53,7 +63,17 @@ def configure(
     is set. Without an endpoint metrics stay no-ops. The final values are
     exported when the process exits normally.
 
-    Both providers share one resource. A provider that is already an SDK
+    Logs: if ``OTEL_EXPORTER_OTLP_ENDPOINT`` or
+    ``OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`` is set, installs a global
+    ``LoggerProvider`` and a handler on the root logger that exports stdlib log
+    records at ``log_level`` and above via OTLP/HTTP. ``extra`` fields become
+    log attributes; the active span is attached as native trace context, so
+    log records carry no trace ID fields. The readable span lines of the
+    ``pazufa_corelib.telemetry`` logger are not exported, the spans already
+    are. Call it after any ``logging.config.dictConfig`` or ``basicConfig(force=True)``
+    that replaces the root handlers.
+
+    All providers share one resource. A provider that is already an SDK
     provider (for example under ``opentelemetry-instrument``) is kept
     unchanged. Safe to call twice.
 
@@ -70,10 +90,13 @@ def configure(
             corelib spans, through the same provider. Prompt and response
             content is not recorded unless
             ``OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`` says so.
+        log_level: Minimum level of log records exported via OTLP. The root
+            logger's own level still applies first.
     """
     resource = build_resource(service_name, resource_attributes)
     _configure_tracing(resource)
     _configure_metrics(resource)
+    _configure_logs(resource, log_level)
     if instrument_litellm:
         _instrument_litellm()
 
@@ -149,6 +172,37 @@ def _configure_metrics(resource: "Resource") -> None:
     metrics.set_meter_provider(
         MeterProvider(resource=resource, metric_readers=[reader])
     )
+
+
+def _configure_logs(resource: "Resource", level: int) -> None:
+    from opentelemetry._logs import get_logger_provider, set_logger_provider
+    from opentelemetry.sdk._logs import LoggerProvider
+
+    if isinstance(get_logger_provider(), LoggerProvider):
+        LOGGER.info("OpenTelemetry logs already configured; keeping provider")
+        return
+    if not _is_set(OTLP_LOGS_ENDPOINT_ENV_VARS):
+        LOGGER.debug("No OTLP logs endpoint set; logs are not exported")
+        return
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import (
+        OTLPLogExporter,
+    )
+    from opentelemetry.instrumentation.logging.handler import LoggingHandler
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+
+    provider = LoggerProvider(resource=resource)
+    # Batch processor: network export never blocks the scraper. Flushed when
+    # the provider shuts down at process exit.
+    provider.add_log_record_processor(BatchLogRecordProcessor(OTLPLogExporter()))
+    set_logger_provider(provider)
+    handler = LoggingHandler(level=level, logger_provider=provider)
+    handler.addFilter(_not_span_lines)
+    logging.getLogger().addHandler(handler)
+
+
+def _not_span_lines(record: logging.LogRecord) -> bool:
+    """Keep LoggingSpanExporter lines out of the OTLP log export."""
+    return not record.name.startswith(TELEMETRY_LOGGER_NAME)
 
 
 def _is_set(env_vars: tuple[str, ...]) -> bool:

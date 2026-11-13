@@ -45,7 +45,7 @@ The library consists of three parts:
 
 ## Optional features
 
-- **OpenTelemetry tracing** (`pazufa_corelib.observability`): spans, trace IDs in log records, and a one-call `configure()` that writes readable span log lines and, if `OTEL_EXPORTER_OTLP_ENDPOINT` is set, exports spans over OTLP/HTTP. Install it with `pip install "pazufa_corelib[otel-otlp]"`. A plain install never imports OpenTelemetry. See [SETUP.md](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/SETUP.md#opentelemetry-tracing-optional).
+- **OpenTelemetry tracing** (`pazufa_corelib.observability`): spans, metrics, and a one-call `configure()` that writes readable span log lines and, if `OTEL_EXPORTER_OTLP_ENDPOINT` is set, exports spans, metrics and log records over OTLP/HTTP. Install it with `pip install "pazufa_corelib[otel-otlp]"`. A plain install never imports OpenTelemetry. See [SETUP.md](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/SETUP.md#opentelemetry-optional).
 
 ## Setup 
 

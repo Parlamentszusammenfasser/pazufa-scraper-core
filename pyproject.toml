@@ -31,17 +31,21 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Layers 1 + 2: spans inside the corelib, trace IDs in (Scrapy) log records.
+# Spans and metrics inside the corelib.
 # API only: without an SDK configured by the application every span is a no-op.
 otel = [
     "opentelemetry-api>=1.27,<2",
 ]
-# Layer 3: observability.configure() with readable span log lines and
-# optional OTLP export (HTTP/protobuf, no grpcio wheel needed).
+# observability.configure() with readable span log lines and
+# optional OTLP export of traces, metrics and logs (HTTP/protobuf, no grpcio
+# wheel needed). instrumentation-logging provides the stdlib logging handler;
+# the one in opentelemetry-sdk is deprecated since 1.39. Its 0.x betas are
+# released in lockstep with the SDK.
 otel-otlp = [
     "opentelemetry-api>=1.27,<2",
     "opentelemetry-sdk>=1.27,<2",
     "opentelemetry-exporter-otlp-proto-http>=1.27,<2",
+    "opentelemetry-instrumentation-logging>=0.66b0,<1",
 ]
 
 [project.urls]
@@ -133,7 +137,7 @@ banned-module-level-imports = [
 ]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"opentelemetry".msg = "Use pazufa_corelib.observability (span(), TraceContextFilter) instead."
+"opentelemetry".msg = "Use pazufa_corelib.observability (span(), metric helpers) instead."
 "litellm.integrations.opentelemetry".msg = "Only pazufa_corelib.observability may enable the litellm OTel callback."
 
 [tool.ruff.lint.pydocstyle]

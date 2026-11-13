@@ -11,7 +11,7 @@ from typing import Final
 
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from opentelemetry.trace import StatusCode, format_trace_id
+from opentelemetry.trace import StatusCode
 from opentelemetry.util.types import AttributeValue
 
 from ._attributes import (
@@ -47,14 +47,13 @@ class LoggingSpanExporter(SpanExporter):
     Example lines::
 
         pazufa.llm.extract ok 1.82s model=gpt-x input_tokens=1200
-            output_tokens=34 attempt=2 retries=1 waited=0.40s trace=4bf92f3a…
+            output_tokens=34 attempt=2 retries=1 waited=0.40s
         pazufa.llm.extract error 3.10s model=gpt-x error=RateLimitError
-            retries=2 trace=…
+            retries=2
 
     Successful spans are logged at INFO, failed ones at WARNING, on the
-    ``pazufa_corelib.telemetry`` logger. The full 32-character trace ID is
-    logged, so it can be pasted into a tracing backend and still matches the
-    8-character prefix from ``%(trace_id).8s`` in other log lines.
+    ``pazufa_corelib.telemetry`` logger. Trace IDs are deliberately left out:
+    log records link to traces only through OTLP's native trace context.
 
     Only spans from the ``scope_name`` instrumentation scope are logged, so
     litellm or HTTP spans going through the same provider do not flood the log.
@@ -107,7 +106,7 @@ class LoggingSpanExporter(SpanExporter):
         Returns:
             Name, status, duration, the attributes listed in
             ``_SHOWN_ATTRIBUTES``, the error type, retry count, total rate-limit
-            wait and the trace ID, separated by spaces.
+            wait, separated by spaces.
         """
         failed = span.status.status_code is StatusCode.ERROR
         parts = [span.name, "error" if failed else "ok"]
@@ -141,8 +140,6 @@ class LoggingSpanExporter(SpanExporter):
         if waited:
             parts.append(f"waited={waited:.2f}s")
 
-        if span.context is not None:
-            parts.append(f"trace={format_trace_id(span.context.trace_id)}")
         return " ".join(parts)
 
 

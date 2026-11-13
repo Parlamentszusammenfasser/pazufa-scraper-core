@@ -30,7 +30,7 @@ def _run_isolated(code: str) -> str:
         "import pazufa_corelib",
         "import pazufa_corelib.llm",
         "import pazufa_corelib.observability",
-        "from pazufa_corelib.observability import span, TraceContextFilter",
+        "from pazufa_corelib.observability import span, record_event",
         "import pazufa_corelib.observability._configure",
     ],
 )

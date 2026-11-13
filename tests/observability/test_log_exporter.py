@@ -5,7 +5,6 @@ import logging
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
-from opentelemetry.trace import format_trace_id
 
 from pazufa_corelib.observability._attributes import (
     ERROR_TYPE,
@@ -53,7 +52,6 @@ def test_successful_span_is_one_info_line(
             span.add_event(EVENT_LLM_RETRY, {ERROR_TYPE: "LLMRateLimitError"})
             span.add_event(EVENT_LLM_RATE_LIMITED, {LLM_RATE_LIMITER_DELAY: 0.25})
             span.add_event(EVENT_LLM_RATE_LIMITED, {LLM_RATE_LIMITER_DELAY: 0.15})
-            trace_id = format_trace_id(span.get_span_context().trace_id)
 
     [record] = caplog.records
     assert record.levelno == logging.INFO
@@ -63,7 +61,8 @@ def test_successful_span_is_one_info_line(
         "model=gpt-x input_tokens=1200 output_tokens=34 attempt=2 "
         "retries=1 waited=0.40s" in line
     )
-    assert line.endswith(f"trace={trace_id}")
+    assert line.endswith("retries=1 waited=0.40s")
+    assert "trace" not in line
     assert "hidden" not in line
 
 

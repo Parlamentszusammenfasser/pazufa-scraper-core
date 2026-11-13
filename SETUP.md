@@ -45,8 +45,8 @@ OpenTelemetry support is optional. A plain install never imports it.
 
 | Extra       | Installs                                                        | Use it for                                                                                   |
 |-------------|-----------------------------------------------------------------|----------------------------------------------------------------------------------------------|
-| `otel`      | `opentelemetry-api`                                             | Spans and trace IDs in log records, if the application sets up its own SDK                   |
-| `otel-otlp` | `opentelemetry-api`, `-sdk`, `-exporter-otlp-proto-http`        | `observability.configure()`: readable span log lines and optional OTLP export over HTTP      |
+| `otel`      | `opentelemetry-api`                                             | Spans and metrics, if the application sets up its own SDK                                    |
+| `otel-otlp` | `opentelemetry-api`, `-sdk`, `-exporter-otlp-proto-http`, `opentelemetry-instrumentation-logging` | `observability.configure()`: readable span log lines and optional OTLP export of traces, metrics and logs |
 
 ```bash
 poetry add "pazufa_corelib[otel-otlp]~=0.1"
@@ -54,7 +54,7 @@ uv add "pazufa_corelib[otel-otlp]~=0.1"
 pip install "pazufa_corelib[otel-otlp]~=0.1"
 ```
 
-The exporter uses OTLP over HTTP/protobuf, so no `grpcio` wheel is needed. See [OpenTelemetry tracing](#opentelemetry-tracing-optional) for usage.
+The exporter uses OTLP over HTTP/protobuf, so no `grpcio` wheel is needed. See [OpenTelemetry](#opentelemetry-optional) for usage.
 
 
 ### Development
@@ -116,17 +116,16 @@ from pazufa_corelib.llm import ZUSAMMENFASSUNG_PROMPT, SCHLAGWORTE_PROMPT
 **Observability** — optional OpenTelemetry helpers (see below):
 
 ```python
-from pazufa_corelib.observability import span, record_event, install_trace_context
+from pazufa_corelib.observability import span, record_event
 from pazufa_corelib.observability import configure  # needs the otel-otlp extra
 ```
 
-## OpenTelemetry tracing (optional)
+## OpenTelemetry (optional)
 
-`pazufa_corelib.observability` works in three layers. Each layer needs a bigger install:
+`pazufa_corelib.observability` works in two layers:
 
-1. **Spans** (`span()`, `record_event()`): no extra needed. Without `opentelemetry-api`, `span()` yields `None` and does nothing. With the API installed but no SDK, spans are no-ops.
-2. **Trace IDs in logs** (`install_trace_context()`, `TraceContextFilter`): add `trace_id` and `span_id` to every log record. Outside a span, or without OpenTelemetry, both are `"-"`, so format strings never fail.
-3. **Setup** (`configure()`): needs the `otel-otlp` extra. It installs a tracer provider that writes one readable log line per corelib span to the `pazufa_corelib.telemetry` logger (`INFO`, or `WARNING` for failed spans). If an OTLP endpoint is configured, it also exports all spans.
+1. **Instrumentation** (`span()`, `record_event()`, the metric helpers): no extra needed. Without `opentelemetry-api` they do nothing; with the API but no SDK they are no-ops.
+2. **Setup** (`configure()`): needs the `otel-otlp` extra. It installs a tracer provider that writes one readable log line per corelib span to the `pazufa_corelib.telemetry` logger (`INFO`, or `WARNING` for failed spans). If an OTLP endpoint is configured, it also exports spans, metrics and log records.
 
 Without the extra, `configure` raises an `ImportError` that names the extra to install.
 
@@ -134,15 +133,20 @@ Without the extra, `configure` raises an `ImportError` that names the extra to i
 
 ```python
 # settings.py
-from pazufa_corelib.observability import configure, install_trace_context
+from pazufa_corelib.observability import configure
 
-install_trace_context()  # early, so even startup log lines carry the IDs
 configure(service_name="pazufa-scraper-bw", instrument_litellm=True)
-
-LOG_FORMAT = "%(asctime)s [%(name)s] %(levelname)s [%(trace_id).8s] %(message)s"
 ```
 
-For a handler you own, attach `TraceContextFilter()` to the handler instead (not to a logger: logger filters do not see records from child loggers).
+### Logs
+
+With an OTLP endpoint set, `configure()` adds a handler to the root logger that exports every stdlib log record at `log_level` (default `INFO`) and above:
+
+- Fields passed via `extra=` become log attributes. Use the dotted names from `observability._attributes` (e.g. `gen_ai.request.model`, `pazufa.llm.attempt`), so logs, spans and metrics share their keys.
+- A record logged inside a span carries that span as native OTLP trace context. Log text and log attributes never contain trace IDs.
+- The readable span lines from `pazufa_corelib.telemetry` are not exported: the spans themselves already are.
+
+Call `configure()` after anything that replaces the root handlers (`logging.config.dictConfig` with a `root` section, `basicConfig(force=True)`). A `dictConfig` without a `root` section keeps the existing root handlers.
 
 `configure()` is safe to call twice. If an SDK provider is already set (for example under `opentelemetry-instrument`), it keeps that provider unchanged.
 
@@ -152,6 +156,8 @@ For a handler you own, attach `TraceContextFilter()` to the handler instead (not
 |------------------------------------------------------|----------------------------------------------------------------------------------------------------|
 | `OTEL_EXPORTER_OTLP_ENDPOINT`                        | Enables OTLP/HTTP export (e.g. `http://localhost:4318`). Unset means log lines only                |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`                 | Same, traces only (full URL incl. `/v1/traces`)                                                    |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`                | Same, metrics only (full URL incl. `/v1/metrics`)                                                  |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`                   | Same, logs only (full URL incl. `/v1/logs`)                                                        |
 | `OTEL_EXPORTER_OTLP_HEADERS`                         | Auth headers for the collector, e.g. `authorization=Bearer …`. Keep it in the environment, never in code |
 | `OTEL_SERVICE_NAME`                                  | `service.name`, if `configure()` gets no `service_name`                                            |
 | `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` | With `instrument_litellm=True`: whether prompts and responses are recorded. Default `NO_CONTENT`   |
