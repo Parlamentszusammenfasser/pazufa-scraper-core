@@ -15,6 +15,16 @@ from pazufa_corelib.names_model import (
 from pazufa_corelib.normalization._fuzzy import _EXACT_MATCH_THRESHOLD, fuzzy_resolve
 from pazufa_corelib.normalization.names import normalize_name
 
+from pazufa_corelib.observability import add_dropped, add_near_ties, add_resolutions, add_match_score
+
+from pazufa_corelib.observability._attributes import (
+    NORMALIZATION_OUTCOME_EXACT,
+    NORMALIZATION_OUTCOME_FUZZY,
+    NORMALIZATION_OUTCOME_UNRESOLVED,
+    NORMALIZATION_RESOLVER_AUTHOR,
+)
+
+
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
 
