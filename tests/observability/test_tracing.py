@@ -12,9 +12,9 @@ from opentelemetry.trace import StatusCode
 
 from pazufa_corelib.observability import _tracing
 from pazufa_corelib.observability._attributes import (
-    EVENT_RETRY,
+    EVENT_LLM_RETRY,
     GEN_AI_REQUEST_MODEL,
-    PAZUFA_ATTEMPT,
+    LLM_ATTEMPT,
     TRACER_NAME,
 )
 from pazufa_corelib.observability._tracing import is_available, record_event, span
@@ -38,7 +38,7 @@ def test_is_available_with_api_installed() -> None:
 def test_span_records_name_and_attributes(exporter: InMemorySpanExporter) -> None:
     with span("op", {GEN_AI_REQUEST_MODEL: "gpt-x"}) as current:
         assert current is not None
-        current.set_attribute(PAZUFA_ATTEMPT, 1)
+        current.set_attribute(LLM_ATTEMPT, 1)
 
     [finished] = exporter.get_finished_spans()
     assert finished.name == "op"
@@ -46,7 +46,7 @@ def test_span_records_name_and_attributes(exporter: InMemorySpanExporter) -> Non
     assert finished.instrumentation_scope.name == TRACER_NAME
     assert dict(finished.attributes or {}) == {
         GEN_AI_REQUEST_MODEL: "gpt-x",
-        PAZUFA_ATTEMPT: 1,
+        LLM_ATTEMPT: 1,
     }
 
 
@@ -73,16 +73,16 @@ def test_nested_spans_share_trace(exporter: InMemorySpanExporter) -> None:
 
 def test_record_event_lands_on_current_span(exporter: InMemorySpanExporter) -> None:
     with span("op"):
-        record_event(EVENT_RETRY, {PAZUFA_ATTEMPT: 2})
+        record_event(EVENT_LLM_RETRY, {LLM_ATTEMPT: 2})
 
     [finished] = exporter.get_finished_spans()
     [event] = finished.events
-    assert event.name == EVENT_RETRY
-    assert dict(event.attributes or {}) == {PAZUFA_ATTEMPT: 2}
+    assert event.name == EVENT_LLM_RETRY
+    assert dict(event.attributes or {}) == {LLM_ATTEMPT: 2}
 
 
 def test_record_event_outside_span_is_noop(exporter: InMemorySpanExporter) -> None:
-    record_event(EVENT_RETRY)
+    record_event(EVENT_LLM_RETRY)
     assert exporter.get_finished_spans() == ()
 
 
@@ -94,7 +94,7 @@ def test_without_opentelemetry_everything_is_noop(
 
     assert is_available() is False
     with span("op", {GEN_AI_REQUEST_MODEL: "gpt-x"}) as current:
-        record_event(EVENT_RETRY)
+        record_event(EVENT_LLM_RETRY)
         assert current is None
 
 
