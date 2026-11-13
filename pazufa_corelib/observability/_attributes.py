@@ -12,13 +12,13 @@ TRACER_NAME: Final = "pazufa_corelib"
 TELEMETRY_LOGGER_NAME: Final = "pazufa_corelib.telemetry"
 
 # Span names
-SPAN_LLM_EXTRACT: Final = "pazufa_scraper.llm.extract"
-SPAN_LLM_SUMMARIZE: Final = "pazufa_scraper.llm.summarize"
-SPAN_LLM_EXTRACT_RELEVANT_SECTION: Final = "pazufa_scraper.llm.extract_relevant_section"
+SPAN_LLM_EXTRACT: Final = "pazufa.scraper.llm.extract"
+SPAN_LLM_SUMMARIZE: Final = "pazufa.scraper.llm.summarize"
+SPAN_LLM_EXTRACT_RELEVANT_SECTION: Final = "pazufa.scraper.llm.extract_relevant_section"
 
 # Event names
-EVENT_RETRY: Final = "pazufa_scraper.llm.retry"
-EVENT_RATE_LIMIT_WAIT: Final = "pazufa_scraper.llm.rate_limit_wait"
+EVENT_RETRY: Final = "pazufa.scraper.llm.retry"
+EVENT_RATE_LIMIT_WAIT: Final = "pazufa.scraper.llm.rate_limit_wait"
 
 # OpenTelemetry semantic conventions
 GEN_AI_REQUEST_MODEL: Final = "gen_ai.request.model"
@@ -27,7 +27,7 @@ GEN_AI_USAGE_OUTPUT_TOKENS: Final = "gen_ai.usage.output_tokens"
 ERROR_TYPE: Final = "error.type"
 
 # Corelib-specific attributes
-PAZUFA_ATTEMPT: Final = "pazufa_scraper.llm.attempt"
-PAZUFA_MAX_RETRIES: Final = "pazufa_scraper.llm.max_retries"
-PAZUFA_BACKOFF_SECONDS: Final = "pazufa_scraper.llm.backoff_seconds"
-PAZUFA_WAIT_SECONDS: Final = "pazufa_scraper.llm.wait_seconds"
+PAZUFA_ATTEMPT: Final = "pazufa.scraper.llm.attempt"
+PAZUFA_MAX_RETRIES: Final = "pazufa.scraper.llm.max_retries"
+PAZUFA_BACKOFF_SECONDS: Final = "pazufa.scraper.llm.backoff_seconds"
+PAZUFA_WAIT_SECONDS: Final = "pazufa.scraper.llm.wait_seconds"
