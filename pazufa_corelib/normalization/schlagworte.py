@@ -14,6 +14,7 @@ import json
 import logging
 import re
 import unicodedata
+from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
@@ -22,6 +23,18 @@ from pydantic import AfterValidator, BaseModel
 from rapidfuzz import fuzz, process
 
 from pazufa_corelib.normalization._fuzzy import fuzzy_resolve
+from pazufa_corelib.observability import (
+    add_dropped,
+    add_resolutions,
+    record_match_scores,
+)
+from pazufa_corelib.observability._attributes import (
+    NORMALIZATION_OUTCOME_EXACT,
+    NORMALIZATION_OUTCOME_FUZZY,
+    NORMALIZATION_OUTCOME_UNRESOLVED,
+    NORMALIZATION_RESOLVER_SACHGEBIET,
+    NORMALIZATION_RESOLVER_SCHLAGWORT,
+)
 from pazufa_corelib.schlagworte_model import (
     RESERVED_SCHLAGWORT_IDS,
     Sachgebiet,
@@ -84,6 +97,7 @@ def _canonicalise_ids(
     strict: bool = False,
     cutoff: float = _FUZZY_MATCH_THRESHOLD,
     near_tie_epsilon: float = _NEAR_TIE_EPSILON,
+    resolver: str | None = None,
 ) -> list[SchlagwortIDResolution]:
     """Fuzzy-match raw IDs against canonical IDs and return resolutions.
 
@@ -98,6 +112,9 @@ def _canonicalise_ids(
         cutoff: Minimum fuzzy-match score; scores below are treated as 0.
         near_tie_epsilon: Score difference within which two candidates are
             considered a near-tie and logged as a warning.
+        resolver: ``pazufa.normalization.resolver`` to record the resolution
+            metrics under. ``None`` (vocabulary loading, checks) records
+            nothing.
 
     Returns:
         A list of SchlagwortIDResolution with the original ID, resolved ID,
@@ -114,11 +131,36 @@ def _canonicalise_ids(
         cutoff=cutoff,
         strict=strict,
         near_tie_epsilon=near_tie_epsilon,
+        resolver=resolver,
     )
+    if resolver is not None:
+        _record_resolutions(raw_ids, pairs, resolver)
     return [
         SchlagwortIDResolution(original_id=o, resolved_id=r, score=s)
         for o, r, s in pairs
     ]
+
+
+def _record_resolutions(
+    raw_ids: list[str], pairs: list[tuple[str, str, float]], resolver: str
+) -> None:
+    """Record the resolution metrics of one ``fuzzy_resolve`` batch.
+
+    There is no exact-lookup step here, so a score of 100 counts as exact.
+    Entries missing from *pairs* (dropped with ``strict=True``) and entries
+    with score 0 count as unresolved.
+    """
+    outcomes: Counter[str] = Counter()
+    fuzzy_scores: list[float] = []
+    for _, _, score in pairs:
+        if score >= _EXACT_MATCH_THRESHOLD:
+            outcomes[NORMALIZATION_OUTCOME_EXACT] += 1
+        elif score > 0:
+            outcomes[NORMALIZATION_OUTCOME_FUZZY] += 1
+            fuzzy_scores.append(score)
+    outcomes[NORMALIZATION_OUTCOME_UNRESOLVED] = len(raw_ids) - outcomes.total()
+    add_resolutions(outcomes, resolver=resolver)
+    record_match_scores(fuzzy_scores, resolver=resolver)
 
 
 def _load_tags(local_tags: list[Path] | None = None) -> list[Tag]:
@@ -379,7 +421,13 @@ class SchlagwortResolver:
             strict,
             cutoff=self._match_threshold,
             near_tie_epsilon=self._near_tie_epsilon,
+            resolver=NORMALIZATION_RESOLVER_SCHLAGWORT,
         )
+        if strict:
+            add_dropped(
+                len(tag_ids) - len(resolved_ids),
+                resolver=NORMALIZATION_RESOLVER_SCHLAGWORT,
+            )
         return [r.resolved_id for r in resolved_ids]
 
     def canonicalise_tag(self, tag_id: str, strict: bool = False) -> str | None:
@@ -560,6 +608,11 @@ class SchlagwortResolver:
             True,
             cutoff=self._match_threshold,
             near_tie_epsilon=self._near_tie_epsilon,
+            resolver=NORMALIZATION_RESOLVER_SACHGEBIET,
+        )
+        add_dropped(
+            len(sachgebiet_ids) - len(resolved_ids),
+            resolver=NORMALIZATION_RESOLVER_SACHGEBIET,
         )
 
         return [r.resolved_id for r in resolved_ids]

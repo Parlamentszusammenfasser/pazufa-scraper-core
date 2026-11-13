@@ -10,6 +10,8 @@ from typing import Any
 import numpy as np
 from rapidfuzz.process import cdist
 
+from pazufa_corelib.observability import add_near_ties
+
 LOGGER = logging.getLogger(__name__)
 
 # Sentinel score for exact matches — not a tunable cutoff. Lets callers
@@ -25,6 +27,7 @@ def fuzzy_resolve(
     cutoff: float,
     strict: bool = False,
     near_tie_epsilon: float = 1.0,
+    resolver: str | None = None,
 ) -> list[tuple[str, str, float]]:
     """Fuzzy-match raw strings against a canonical list.
 
@@ -39,6 +42,8 @@ def fuzzy_resolve(
             value set to the original string.
         near_tie_epsilon: Maximum score gap between the best and second-best
             match that triggers a near-tie warning log.
+        resolver: ``pazufa.normalization.resolver`` to count near-ties under
+            (metric ``pazufa.normalization.near_ties``). ``None`` records nothing.
 
     Returns:
         List of ``(original, resolved, score)`` tuples in the same order as
@@ -62,6 +67,7 @@ def fuzzy_resolve(
     )
 
     result: list[tuple[str, str, float]] = []
+    near_ties = 0
 
     for i, raw_str in enumerate(raw):
         row = matrix[i]
@@ -79,6 +85,7 @@ def fuzzy_resolve(
             second_best_score = float(row[second_best_idx])
             delta = best_score - second_best_score
             if second_best_score > 0 and delta <= near_tie_epsilon:
+                near_ties += 1
                 LOGGER.warning(
                     "Near-tie in fuzzy_resolve",
                     extra={
@@ -93,6 +100,9 @@ def fuzzy_resolve(
                 )
 
         result.append((raw_str, canonical[best_idx], best_score))
+
+    if resolver is not None:
+        add_near_ties(near_ties, resolver=resolver)
 
     if not result:
         LOGGER.warning(

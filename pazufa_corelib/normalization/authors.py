@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -14,16 +15,17 @@ from pazufa_corelib.names_model import (
 )
 from pazufa_corelib.normalization._fuzzy import _EXACT_MATCH_THRESHOLD, fuzzy_resolve
 from pazufa_corelib.normalization.names import normalize_name
-
-from pazufa_corelib.observability import add_dropped, add_near_ties, add_resolutions, add_match_score
-
+from pazufa_corelib.observability import (
+    add_dropped,
+    add_resolutions,
+    record_match_scores,
+)
 from pazufa_corelib.observability._attributes import (
     NORMALIZATION_OUTCOME_EXACT,
     NORMALIZATION_OUTCOME_FUZZY,
     NORMALIZATION_OUTCOME_UNRESOLVED,
     NORMALIZATION_RESOLVER_AUTHOR,
 )
-
 
 MAPPINGS_DIR: Path = Path(__file__).parent / "mappings"
 """Path to the mappings directory."""
@@ -99,6 +101,7 @@ def _canonicalize_names(
         cutoff=cutoff,
         strict=False,
         near_tie_epsilon=near_tie_epsilon,
+        resolver=NORMALIZATION_RESOLVER_AUTHOR,
     )
     result: list[AuthorIDResolution] = []
     for original, resolved_key, score in pairs:
@@ -298,6 +301,7 @@ class AuthorResolver:
                     unresolved,
                     extra={"strict": True, "query_count": len(queries)},
                 )
+                add_dropped(unresolved, resolver=NORMALIZATION_RESOLVER_AUTHOR)
             return result
 
         return [r.canonical_name for r in resolved]
@@ -340,6 +344,7 @@ class AuthorResolver:
                 query,
                 extra={"original_name": query, "strict": True},
             )
+            add_dropped(1, resolver=NORMALIZATION_RESOLVER_AUTHOR)
             return None
 
         if LOGGER.isEnabledFor(logging.DEBUG):
@@ -398,6 +403,8 @@ class AuthorResolver:
         results: list[AuthorIDResolution | None] = [None] * len(queries)
         fuzzy_idxs: list[int] = []
         fuzzy_keys: list[str] = []
+        outcomes: Counter[str] = Counter()
+        fuzzy_scores: list[float] = []
 
         for i, query in enumerate(queries):
             query_key = normalize_name(query)
@@ -409,9 +416,11 @@ class AuthorResolver:
                     canonical_name=query,
                     score=0.0,
                 )
+                outcomes[NORMALIZATION_OUTCOME_UNRESOLVED] += 1
                 continue
 
             if query_key in self._key_to_author:
+                outcomes[NORMALIZATION_OUTCOME_EXACT] += 1
                 author_id, canonical_name = self._key_to_author[query_key]
                 results[i] = AuthorIDResolution(
                     original_name=query,
@@ -426,6 +435,7 @@ class AuthorResolver:
 
         if fuzzy_idxs:
             if not self._canonical_keys:
+                outcomes[NORMALIZATION_OUTCOME_UNRESOLVED] += len(fuzzy_idxs)
                 for i in fuzzy_idxs:
                     results[i] = AuthorIDResolution(
                         original_name=queries[i],
@@ -444,6 +454,8 @@ class AuthorResolver:
                 for j, i in enumerate(fuzzy_idxs):
                     r = resolved[j]
                     if r.matched:
+                        outcomes[NORMALIZATION_OUTCOME_FUZZY] += 1
+                        fuzzy_scores.append(r.score)
                         results[i] = AuthorIDResolution(
                             original_name=queries[i],
                             resolved_id=r.resolved_id,
@@ -451,6 +463,7 @@ class AuthorResolver:
                             score=r.score,
                         )
                     else:
+                        outcomes[NORMALIZATION_OUTCOME_UNRESOLVED] += 1
                         results[i] = AuthorIDResolution(
                             original_name=queries[i],
                             resolved_id="",
@@ -458,6 +471,8 @@ class AuthorResolver:
                             score=0.0,
                         )
 
+        add_resolutions(outcomes, resolver=NORMALIZATION_RESOLVER_AUTHOR)
+        record_match_scores(fuzzy_scores, resolver=NORMALIZATION_RESOLVER_AUTHOR)
         return results  # type: ignore[return-value]  # all slots filled by construction
 
     def explain(self, query: str, k: int = 5) -> dict[str, Any]:
