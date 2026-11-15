@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+- **`LLMConnector.cost_usd`** sums the cost the provider reports (OpenRouter does) over successful calls, e.g. for run metrics. Failed attempts report none; for other providers it stays `0.0`. Additive, no changes needed in scrapers.
+- **SETUP.md "Observability"**: what the corelib reports (logs, LLM usage, resolution scores) and how a scraper traces API and LLM calls with existing OpenTelemetry instrumentation (#164).
+
 
 ## [0.3.4] - 13.11.2026
 ### Fixed

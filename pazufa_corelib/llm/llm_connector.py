@@ -56,6 +56,7 @@ from instructor.core.exceptions import (
     IncompleteOutputException,
 )
 from instructor.core.exceptions import ValidationError as InstructorValidationError
+from litellm.cost_calculator import get_response_cost_from_hidden_params
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
@@ -341,6 +342,9 @@ class LLMConnector:
         self.prompt_tokens: int = 0
         self.completion_tokens: int = 0
         self.reasoning_tokens: int = 0
+        # Cost in USD as reported by the provider (OpenRouter does), summed over
+        # successful calls. Failed attempts report none; other providers leave 0.0.
+        self.cost_usd: float = 0.0
         LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
 
         LOGGER.info(
@@ -668,6 +672,7 @@ class LLMConnector:
                 # Same object create_with_completion() returns; may be absent.
                 raw_response = getattr(result, "_raw_response", None)
                 self._count_usage(getattr(raw_response, "usage", None))
+                self._count_cost(raw_response)
                 LOGGER.debug(
                     "Structured extraction successful (attempt=%s/%s)",
                     attempt + 1,
@@ -974,6 +979,12 @@ class LLMConnector:
         self.prompt_tokens += self._token_count(usage, "prompt_tokens")
         self.completion_tokens += self._token_count(usage, "completion_tokens")
         self.reasoning_tokens += self._token_count(details, "reasoning_tokens")
+
+    def _count_cost(self, response: object) -> None:
+        """Add the cost the provider reported in *response*, if any."""
+        hidden_params = getattr(response, "_hidden_params", None)
+        if isinstance(hidden_params, dict):
+            self.cost_usd += get_response_cost_from_hidden_params(hidden_params) or 0.0
 
     @staticmethod
     def _token_count(source: object, name: str) -> int:

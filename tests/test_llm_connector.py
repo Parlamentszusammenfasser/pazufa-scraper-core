@@ -308,6 +308,30 @@ class TestExtractTokenUsage:
         assert connector.completion_tokens == 0
         assert connector.reasoning_tokens == 0
 
+    @pytest.mark.asyncio
+    async def test_sums_provider_reported_cost(self) -> None:
+        connector = _make_connector(model="openrouter/openai/gpt-4o-mini")
+        with_cost = Keywords(sachgebiete=[], schlagworte=[])
+        # Where litellm puts the cost OpenRouter reports (checked against 1.108.3).
+        with_cost._raw_response = MagicMock(  # type: ignore[attr-defined]
+            _hidden_params={
+                "additional_headers": {"llm_provider-x-litellm-response-cost": 0.25}
+            }
+        )
+        without_cost = Keywords(sachgebiete=[], schlagworte=[])
+        without_cost._raw_response = MagicMock(_hidden_params={})  # type: ignore[attr-defined]
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=[with_cost, without_cost, with_cost]
+        )
+        connector._instructor_client = mock_client
+
+        assert connector.cost_usd == 0.0
+        for prompt in ("a", "b", "c"):
+            await connector.extract(prompt=prompt, response_model=Keywords)
+
+        assert connector.cost_usd == 0.5
+
 
 # ---------------------------------------------------------------------------
 # extract() — validation failure → LLMValidationError
