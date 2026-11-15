@@ -99,8 +99,10 @@ from pazufa_corelib.llm import ZUSAMMENFASSUNG_PROMPT, SCHLAGWORTE_PROMPT
 
 ## Observability
 
-The corelib reports; the scraper decides where it goes (#164). The corelib has no telemetry dependency and sets up no
-handlers or exporters.
+**Decision (#164): the corelib stays out of observability.** It is a library, not an application, so it neither
+integrates OpenTelemetry nor depends on any metrics, logging or tracing stack. The scraper that uses it chooses and sets
+up its own (Loki, Prometheus, OTel, …). The corelib only hands over what it knows: plain log records and the numbers
+below, which the scraper pushes wherever it likes.
 
 - **Logs:** every module logs to `logging.getLogger(__name__)` (`pazufa_corelib.*`). Records reach whatever handlers the
   scraper puts on the root logger.
@@ -110,8 +112,11 @@ handlers or exporters.
 - **Normalization:** the resolution objects carry `score`, `matched` and `changed`, so a scraper can count outcomes
   itself.
 
-**Tracing.** The corelib passes no trace headers itself: OpenTelemetry carries the trace context in `contextvars`. A
-scraper that traces enables the existing instrumentation once, after setting up its tracer provider:
+**Tracing needs no corelib code.** OpenTelemetry carries the trace context in `contextvars`, not in function
+arguments. Setting up the OTel SDK alone is not enough, though: the `traceparent` header is added by the httpx
+instrumentation, which the scraper has to enable once, after setting up its tracer provider. Because the API client uses
+httpx, its requests to the backend then become child spans of the scraper's current span and carry the header.
+The litellm callback does the same for LLM calls:
 
 ```python
 import os
