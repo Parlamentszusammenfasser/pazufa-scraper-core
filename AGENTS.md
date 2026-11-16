@@ -60,16 +60,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for further detail on tooling and code ge
 
 ## CI Pipeline
 
-The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline runs on every push and pull request:
-
-| Step | What it does |
-|------|--------------|
-| `setup` | Installs Poetry and all dependencies (including dev) into `.venv` |
-| `check-lock` | Verifies `poetry.lock` is consistent with `pyproject.toml` |
-| `format-and-type-check` | Runs `ruff format --check`, `ruff check`, and `mypy` |
-| `test` | Runs the test suite via `pytest` |
-
-The last three steps run in parallel after `setup`. All steps use `python:3.12-slim`.
+The project uses [Woodpecker CI](https://woodpecker-ci.org/), defined in `.woodpecker/`: `checks.yml` (audit, secrets, lint, types, licenses, build), `test.yml` (pytest on Python 3.12–3.14) and `release.yml` (tags only). See the CI Workflow section in [SETUP.md](SETUP.md) for the individual steps.
 
 ## Tech Stack
 
@@ -189,9 +180,9 @@ poetry run pytest tests/test_specific.py::test_function
 
 ## Git Workflow
 
-- Branch from `develop` for features and fixes; branch from `main` for hotfixes only
+- Trunk-based: branch from `main` for everything; `develop` is deprecated
 - **Never push directly to `main`**
-- Open a PR for review; for PRs targeting `develop`, the author merges after approval
+- Open a PR against `main` for review; the author merges after approval
 - Keep commits small and focused
 
 **Branch naming:** `feat/short-description`, `fix/short-description`, `chore/short-description`

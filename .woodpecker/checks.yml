@@ -1,0 +1,95 @@
+# Lint, audit, secrets, licenses and a package build on every push, PR and tag.
+# test.yml waits for this workflow, release.yml for both.
+#
+# Images are pinned by digest and tools by exact version, each at least two
+# weeks old when pinned. Bump them by hand (same image in all three files).
+
+when:
+  - event: [push, pull_request, tag]
+
+# Route this workflow to the generic PaZuFa agents.
+labels:
+  pazufa_scope: generic
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git:2.11.0@sha256:9802cb7852dcf31f9c5c1d1ddeadfb9002d4fae85751f7b6a792eedb267bcc59
+    settings:
+      depth: 1
+
+steps:
+  - name: lint-pipeline
+    image: woodpeckerci/woodpecker-cli:v3.19.0-alpine@sha256:27a77117e38d7bbdc380f0e90ff3ee4871ab1eefa78b5d9136a2c969fbecd9f4
+    depends_on: []
+    commands:
+      - woodpecker-cli lint .woodpecker
+
+  - name: setup
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: []
+    environment:
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+      POETRY_INSTALLER_PARALLEL: "true"
+      # wheels only: no sdist build code runs while installing
+      POETRY_INSTALLER_ONLY_BINARY: ":all:"
+      PIP_ONLY_BINARY: ":all:"
+    commands:
+      - python -m pip install --quiet poetry==2.5.1
+      - poetry install --with dev --no-interaction --sync
+
+  - name: check-lock
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [setup]
+    environment:
+      PIP_ONLY_BINARY: ":all:"
+    commands:
+      - python -m pip install --quiet poetry==2.5.1
+      - poetry check --lock
+
+  # Gate: the remaining checks only run on dependencies without known advisories.
+  - name: audit
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [setup]
+    commands:
+      # Ignored vulnerabilities are listed in pip-audit-ignore.yaml
+      - .venv/bin/python -m tools.run_pip_audit
+
+  # Fails on any secret not already accepted in .secrets.baseline (exit 3 means
+  # the baseline is stale: run `make secrets-update` and commit it).
+  # detect-secrets-hook calls git, which the slim image lacks.
+  - name: secrets
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [setup]
+    commands:
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends git > /dev/null
+      - git config --global --add safe.directory "$CI_WORKSPACE"
+      - git ls-files -z | xargs -0 .venv/bin/detect-secrets-hook --baseline .secrets.baseline
+
+  - name: format-and-type-check
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [audit]
+    commands:
+      - .venv/bin/ruff format --check .
+      - .venv/bin/ruff check .
+      - .venv/bin/mypy .
+
+  - name: licenses
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [audit, check-lock]
+    commands:
+      - .venv/bin/pylic check
+
+  # Catches packaging breakage on every PR instead of at release time.
+  - name: build
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [audit]
+    environment:
+      PIP_ONLY_BINARY: ":all:"
+    commands:
+      - python -m pip install --quiet poetry==2.5.1
+      - poetry build
+      - .venv/bin/twine check dist/* --strict
+      # the wheel has to import outside the source tree
+      - python -m venv /tmp/smoke
+      - /tmp/smoke/bin/pip install --quiet dist/*.whl
+      - cd /tmp && /tmp/smoke/bin/python -c "import pazufa_corelib, pazufa_corelib.api_model; print(pazufa_corelib.__file__)"

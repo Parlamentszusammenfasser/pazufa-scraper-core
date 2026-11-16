@@ -50,6 +50,8 @@ See [SETUP.md](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/S
 
 See [CONTRIBUTING.md](https://codeberg.org/PaZuFa/pazufa-scraper-core/src/branch/main/CONTRIBUTING.md) for development setup, git workflow, code generation, documentation and project context.
 
+We develop trunk-based: short-lived branches from `main`, merged back into `main` by pull request. The `develop` branch is deprecated; don't branch from or open pull requests against it.
+
 ## License
 
 GPL-3.0

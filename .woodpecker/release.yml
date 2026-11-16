@@ -1,0 +1,128 @@
+# Publishes a pushed tag after checks.yml and test.yml passed:
+#   vX.Y.ZrcN -> TestPyPI (any branch), vX.Y.Z -> PyPI (commit must be on main).
+#
+# Woodpecker cannot scope secrets to a branch: anyone who can push can reach
+# them through a pipeline change. So in the repo settings, pypi_token and
+# testpypi_token must be limited to the "tag" event, and the tokens themselves
+# scoped to the pazufa_corelib project on (Test)PyPI.
+
+when:
+  - event: tag
+
+depends_on: [checks, test]
+
+# Route this workflow to the generic PaZuFa agents.
+labels:
+  pazufa_scope: generic
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git:2.11.0@sha256:9802cb7852dcf31f9c5c1d1ddeadfb9002d4fae85751f7b6a792eedb267bcc59
+    settings:
+      depth: 0  # check-on-main needs the history
+
+steps:
+  - name: check-version
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    commands:
+      - TAG_VERSION="${CI_COMMIT_TAG#v}"
+      - TOML_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+      - echo "Tag version:$TAG_VERSION  pyproject.toml version:$TOML_VERSION"
+      - |
+        if [ "$TAG_VERSION" != "$TOML_VERSION" ]; then
+          echo "ERROR: tag '$TAG_VERSION' does not match pyproject.toml version '$TOML_VERSION'" >&2
+          exit 1
+        fi
+
+  # A final release must come from reviewed code. Stops accidental releases of
+  # a branch tag; it cannot stop a deliberate pipeline edit (see header).
+  - name: check-on-main
+    image: woodpeckerci/plugin-git:2.11.0@sha256:9802cb7852dcf31f9c5c1d1ddeadfb9002d4fae85751f7b6a792eedb267bcc59
+    commands:
+      # rc tags may come from any branch; no `when:` so dependents never see a skipped step
+      - |
+        if echo "$CI_COMMIT_TAG" | grep -qE 'rc[0-9]+$'; then
+          echo "rc tag, not checked"
+          exit 0
+        fi
+      - git config --global --add safe.directory "$CI_WORKSPACE"
+      - git fetch --quiet "$CI_REPO_CLONE_URL" main
+      - |
+        if ! git merge-base --is-ancestor "$CI_COMMIT_SHA" FETCH_HEAD; then
+          echo "ERROR: $CI_COMMIT_TAG ($CI_COMMIT_SHA) is not on main; final releases are cut from main only" >&2
+          exit 1
+        fi
+
+  - name: check-not-published
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [check-version, check-on-main]
+    commands:
+      - VERSION="${CI_COMMIT_TAG#v}"
+      - |
+        if echo "$CI_COMMIT_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+rc[0-9]+$'; then
+          INDEX_URL="https://test.pypi.org/pypi/pazufa_corelib/$VERSION/json"
+          INDEX_NAME="TestPyPI"
+        elif echo "$CI_COMMIT_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+          INDEX_URL="https://pypi.org/pypi/pazufa_corelib/$VERSION/json"
+          INDEX_NAME="PyPI"
+        else
+          echo "ERROR: tag '$CI_COMMIT_TAG' does not match a recognized release pattern (vX.Y.Z or vX.Y.ZrcN)" >&2
+          exit 1
+        fi
+        export INDEX_URL INDEX_NAME VERSION
+        python -c "
+        import urllib.request, urllib.error, sys, os
+        url = os.environ['INDEX_URL']
+        name = os.environ['INDEX_NAME']
+        version = os.environ['VERSION']
+        try:
+            urllib.request.urlopen(url)
+            print(f'ERROR: v{version} already exists on {name} — bump the version in pyproject.toml or delete the tag', file=sys.stderr)
+            sys.exit(1)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                print(f'OK: v{version} not yet on {name}')
+            else:
+                print(f'ERROR: unexpected HTTP {e.code} from {name}', file=sys.stderr)
+                raise
+        "
+
+  # twine comes from poetry.lock (hash-checked), not a floating pip install,
+  # because the publish steps run it with the PyPI token.
+  - name: build
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [check-not-published]
+    environment:
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+      POETRY_INSTALLER_ONLY_BINARY: ":all:"
+      PIP_ONLY_BINARY: ":all:"
+    commands:
+      - python -m pip install --quiet poetry==2.5.1
+      - poetry install --only dev --no-root --no-interaction
+      - poetry build
+      - .venv/bin/twine check dist/* --strict
+
+  - name: publish-testpypi
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [build]
+    when:
+      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+[.][0-9]+[.][0-9]+rc[0-9]+$"'
+    environment:
+      TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+      TWINE_USERNAME: __token__
+      TESTPYPI_TOKEN:
+        from_secret: testpypi_token
+    commands:
+      - TWINE_PASSWORD=$TESTPYPI_TOKEN .venv/bin/twine upload dist/*
+
+  - name: publish-pypi
+    image: python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    depends_on: [build]
+    when:
+      - evaluate: 'CI_COMMIT_TAG matches "^v[0-9]+[.][0-9]+[.][0-9]+$"'
+    environment:
+      TWINE_USERNAME: __token__
+      PYPI_TOKEN:
+        from_secret: pypi_token
+    commands:
+      - TWINE_PASSWORD=$PYPI_TOKEN .venv/bin/twine upload dist/*

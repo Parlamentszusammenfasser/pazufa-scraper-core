@@ -50,24 +50,24 @@ cd pazufa-scraper-core
 poetry install --with dev
 ```
 
-Or install the latest development branch directly into another project:
+Or install the latest unreleased state of `main` directly into another project:
 
 **Poetry:**
 
 ```bash
-poetry add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
+poetry add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@main"
 ```
 
 **uv:**
 
 ```bash
-uv add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
+uv add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@main"
 ```
 
 **pip:**
 
 ```bash
-pip install "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
+pip install "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@main"
 ```
 ## Importing pazufa_corelib
 
@@ -97,31 +97,38 @@ from pazufa_corelib.llm import ZUSAMMENFASSUNG_PROMPT, SCHLAGWORTE_PROMPT
 
 ## CI Workflow
 
-The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline is defined in `.woodpecker.yml` and runs on every push, pull request, and tag.
+The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline consists of three workflows in `.woodpecker/`.
 
-**On push / pull request** — CI steps run in parallel after setup:
+**`checks.yml`** — on every push, pull request and tag:
 
 | Step                    | What it does                                                        |
 |-------------------------|---------------------------------------------------------------------|
-| `setup`                 | Installs Poetry and all dependencies (including dev) into a `.venv` |
+| `lint-pipeline`         | `woodpecker-cli lint` on the workflow files                         |
+| `setup`                 | Installs Poetry and all dependencies (including dev) into a `.venv`, wheels only |
 | `check-lock`            | Verifies the `poetry.lock` file is consistent with `pyproject.toml` |
+| `audit`                 | Scans dependencies for known vulnerabilities via `pip-audit`; the steps below wait for it |
+| `secrets`               | `detect-secrets-hook` against `.secrets.baseline`                   |
 | `format-and-type-check` | Runs `ruff format --check`, `ruff check`, and `mypy`                |
-| `audit`                 | Scans dependencies for known vulnerabilities via `pip-audit`        |
 | `licenses`              | Checks dependency license compliance via `pylic`                    |
-| `test`                  | Runs the test suite via `pytest`                                    |
+| `build`                 | `poetry build`, `twine check`, and an import of the installed wheel |
 
 If `audit` fails, follow the [vulnerability response guide](https://wiki.pazufa.de/books/scraper-core/page/vulnerability-response).
+If `secrets` reports a false positive, mark it with `# pragma: allowlist secret` or run `make secrets-update` and audit the baseline.
 
-**On tag push** — release steps run after all CI steps pass:
+**`test.yml`** — after `checks`: `pytest` (with the 85 % coverage gate) on Python 3.12, 3.13 and 3.14.
 
-| Step                | What it does                                             |
-|---------------------|----------------------------------------------------------|
-| `build`             | `poetry build` — produces wheel and sdist                |
-| `check-dist`        | `twine check` — validates metadata                       |
-| `publish-testpypi`  | Uploads to TestPyPI (tags matching `vX.Y.ZrcN`)          |
-| `publish-pypi`      | Uploads to PyPI (clean `vX.Y.Z` tags, maintainers only)  |
+**`release.yml`** — on tag push, after `checks` and `test` pass:
 
-All steps use `python:3.12-slim`. The virtualenv is created inside the project (`.venv/`) so later steps can use it directly without reinstalling.
+| Step                  | What it does                                                 |
+|-----------------------|--------------------------------------------------------------|
+| `check-version`       | Tag matches the version in `pyproject.toml`                  |
+| `check-on-main`       | Final `vX.Y.Z` tags must point at a commit on `main`         |
+| `check-not-published` | The version is not on (Test)PyPI yet                         |
+| `build`               | `poetry build` and `twine check`                             |
+| `publish-testpypi`    | Uploads to TestPyPI (tags matching `vX.Y.ZrcN`)              |
+| `publish-pypi`        | Uploads to PyPI (clean `vX.Y.Z` tags, maintainers only)      |
+
+Images are pinned by digest and Poetry by exact version; update them by hand in all three files. The `pypi_token` and `testpypi_token` secrets must be limited to the `tag` event in the repository settings.
 
 ## Usage
 

@@ -92,7 +92,7 @@ poetry run pytest tests/test_specific.py::test_function
 
 ## Git Workflow
 
-1. Create a feature branch from `develop` (or `main` for hotfixes)
+1. Create a short-lived branch from `main` (trunk-based; `develop` is deprecated)
 2. Make small, focused commits
 3. Open a PR for review
 4. **Never push directly to `main`**
@@ -102,7 +102,7 @@ Branch naming: `feat/short-description`, `fix/short-description`, `chore/short-d
 Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
 
 ### Pull-Requests
-For PRs targeting `develop`, the author merges after approval.
+PRs target `main`; the author merges after approval.
 
 
 ## Versioning

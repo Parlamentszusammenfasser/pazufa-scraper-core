@@ -1,0 +1,37 @@
+# pytest on every supported Python version (requires-python >=3.12,<3.15).
+# Runs after checks.yml so tests only see audited dependencies.
+
+when:
+  - event: [push, pull_request, tag]
+
+depends_on: [checks]
+
+matrix:
+  PYTHON_IMAGE:
+    - python:3.12.15-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+    - python:3.13.17-slim@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962
+    - python:3.14.9-slim@sha256:35caba83af2fe6da9a5d922f9b0156f21d1246a48278c58a08bd253303ba42e8
+
+# Route this workflow to the generic PaZuFa agents.
+labels:
+  pazufa_scope: generic
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git:2.11.0@sha256:9802cb7852dcf31f9c5c1d1ddeadfb9002d4fae85751f7b6a792eedb267bcc59
+    settings:
+      depth: 1
+
+steps:
+  - name: test
+    image: ${PYTHON_IMAGE}
+    environment:
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+      POETRY_INSTALLER_PARALLEL: "true"
+      POETRY_INSTALLER_ONLY_BINARY: ":all:"
+      PIP_ONLY_BINARY: ":all:"
+    commands:
+      - python -m pip install --quiet poetry==2.5.1
+      - poetry install --with dev --no-interaction --sync
+      # coverage gate (85 %) is set in pyproject.toml addopts
+      - .venv/bin/pytest
