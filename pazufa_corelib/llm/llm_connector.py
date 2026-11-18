@@ -1343,8 +1343,12 @@ class LLMConnector:
             )
             return self._map_provider_exception(last_error)
 
-        # Fallback: check the implicit __cause__ chain.
-        cause: BaseException | None = exc.__cause__
+        # Fallback: check the implicit __cause__ chain, only when args[0] says
+        # nothing. After a validation failure the cause is tenacity's RetryError,
+        # which is no provider error.
+        cause: BaseException | None = (
+            None if isinstance(last_error, _validation_types) else exc.__cause__
+        )
         while cause is not None:
             if isinstance(cause, Exception) and not isinstance(
                 cause, (_validation_types + (InstructorRetryException,))

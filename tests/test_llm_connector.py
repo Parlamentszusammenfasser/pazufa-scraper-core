@@ -365,6 +365,15 @@ class TestExtractValidationFailure:
         ):
             await connector.extract(prompt="test", response_model=Keywords)
 
+    @pytest.mark.asyncio
+    async def test_real_instructor_validation_failure(self) -> None:
+        # Instructor chains tenacity's RetryError as __cause__; it was read as a
+        # provider error, so this raised LLMProviderError.
+        connector = _connector_answering(_response(_INVALID), _response(_INVALID))
+
+        with pytest.raises(LLMValidationError):
+            await connector.extract(prompt="test", response_model=Keywords)
+
 
 # ---------------------------------------------------------------------------
 # extract() — network retry behaviour
