@@ -108,7 +108,7 @@ below, which the scraper pushes wherever it likes.
   scraper puts on the root logger.
 - **LLM usage:** `LLMConnector.prompt_tokens`, `completion_tokens`, `reasoning_tokens` (part of completion) and
   `cost_usd` add up over all calls of one connector. `cost_usd` is the cost the provider reports (OpenRouter does) for
-  successful calls; for other providers it stays `0.0`.
+  successful calls. It stays `None` until a provider reports a cost, so "not reported" can't be mistaken for "free".
 - **Normalization:** the resolution objects carry `score`, `matched` and `changed`, so a scraper can count outcomes
   itself.
 

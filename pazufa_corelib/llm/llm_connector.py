@@ -343,8 +343,8 @@ class LLMConnector:
         self.completion_tokens: int = 0
         self.reasoning_tokens: int = 0
         # Cost in USD as reported by the provider (OpenRouter does), summed over
-        # successful calls. Failed attempts report none; other providers leave 0.0.
-        self.cost_usd: float = 0.0
+        # successful calls. None until one is reported: not reported is not free.
+        self.cost_usd: float | None = None
         LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
 
         LOGGER.info(
@@ -983,8 +983,11 @@ class LLMConnector:
     def _count_cost(self, response: object) -> None:
         """Add the cost the provider reported in *response*, if any."""
         hidden_params = getattr(response, "_hidden_params", None)
-        if isinstance(hidden_params, dict):
-            self.cost_usd += get_response_cost_from_hidden_params(hidden_params) or 0.0
+        if not isinstance(hidden_params, dict):
+            return
+        cost = get_response_cost_from_hidden_params(hidden_params)
+        if cost is not None:
+            self.cost_usd = (self.cost_usd or 0.0) + cost
 
     @staticmethod
     def _token_count(source: object, name: str) -> int:

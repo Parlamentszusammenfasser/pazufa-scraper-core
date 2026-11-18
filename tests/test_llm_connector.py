@@ -322,12 +322,13 @@ class TestExtractTokenUsage:
         without_cost._raw_response = MagicMock(_hidden_params={})  # type: ignore[attr-defined]
         mock_client = MagicMock()
         mock_client.chat.completions.create = AsyncMock(
-            side_effect=[with_cost, without_cost, with_cost]
+            side_effect=[without_cost, with_cost, without_cost, with_cost]
         )
         connector._instructor_client = mock_client
 
-        assert connector.cost_usd == 0.0
-        for prompt in ("a", "b", "c"):
+        await connector.extract(prompt="a", response_model=Keywords)
+        assert connector.cost_usd is None  # not reported is not free
+        for prompt in ("b", "c", "d"):
             await connector.extract(prompt=prompt, response_model=Keywords)
 
         assert connector.cost_usd == 0.5
