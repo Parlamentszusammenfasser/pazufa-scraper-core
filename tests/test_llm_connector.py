@@ -5,8 +5,10 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import litellm
 import pytest
+from litellm.llms.openrouter.chat.transformation import OpenrouterConfig
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -216,14 +218,6 @@ class TestExtractHappyPath:
 # ---------------------------------------------------------------------------
 
 
-def _usage(prompt: int, completion: int, reasoning: int = 0) -> litellm.Usage:
-    return litellm.Usage(
-        prompt_tokens=prompt,
-        completion_tokens=completion,
-        completion_tokens_details={"reasoning_tokens": reasoning},
-    )
-
-
 _VALID = json.dumps({"sachgebiete": [], "schlagworte": []})
 _INVALID = "{}"  # misses both fields, so Instructor re-prompts
 
@@ -235,9 +229,26 @@ def _response(
     reasoning: int = 0,
     cost: float | None = None,
 ) -> litellm.ModelResponse:
-    """A provider response whose tool call answers with *arguments* for Keywords."""
-    response = litellm.ModelResponse(
-        choices=[
+    """An OpenRouter answer with *arguments* for Keywords, as litellm parses it.
+
+    The JSON body goes through litellm's own OpenRouter transform, so the cost
+    reaches the connector the way litellm hands it over: if litellm changes how
+    it passes on ``usage.cost``, the cost tests fail.
+    """
+    usage: dict[str, object] = {
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "total_tokens": prompt + completion,
+        "completion_tokens_details": {"reasoning_tokens": reasoning},
+    }
+    if cost is not None:
+        usage["cost"] = cost
+    body = {
+        "id": "gen",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "openai/gpt-4o-mini",
+        "choices": [
             {
                 "index": 0,
                 "finish_reason": "tool_calls",
@@ -254,14 +265,20 @@ def _response(
                 },
             }
         ],
-        usage=_usage(prompt, completion, reasoning),
+        "usage": usage,
+    }
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    return OpenrouterConfig().transform_response(
+        model="openai/gpt-4o-mini",
+        raw_response=httpx.Response(200, json=body, request=httpx.Request("POST", url)),
+        model_response=litellm.ModelResponse(),
+        logging_obj=MagicMock(),
+        request_data={},
+        messages=[],
+        optional_params={},
+        litellm_params={},
+        encoding=None,
     )
-    if cost is not None:
-        # Where litellm puts the cost OpenRouter reports (checked against 1.108.3).
-        response._hidden_params["additional_headers"] = {
-            "llm_provider-x-litellm-response-cost": cost
-        }
-    return response
 
 
 def _connector_answering(*responses: litellm.ModelResponse) -> LLMConnector:
