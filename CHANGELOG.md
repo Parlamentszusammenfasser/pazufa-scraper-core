@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 ### Added
-- **`LLMConnector.cost_usd`** sums the cost the provider reports (OpenRouter does) over successful calls, e.g. for run metrics. Failed attempts report none; it stays `None` until a provider reports a cost, so "not reported" isn't mistaken for "free". Additive, no changes needed in scrapers.
+- **`LLMConnector.cost_usd`** sums the cost the provider reports (OpenRouter does), e.g. for run metrics. It stays `None` until a provider reports a cost, so "not reported" isn't mistaken for "free". Additive, no changes needed in scrapers.
+
+### Changed
+- **Token counters and `cost_usd` count every provider response,** including validation retries and failed extractions, via Instructor's `completion:response` hook. Before, tokens and cost could count different responses.
 - **SETUP.md "Observability"**: what the corelib reports (logs, LLM usage, resolution scores) and how a scraper traces API and LLM calls with existing OpenTelemetry instrumentation (#164).
 
 

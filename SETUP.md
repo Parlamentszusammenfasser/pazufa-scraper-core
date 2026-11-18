@@ -107,8 +107,10 @@ below, which the scraper pushes wherever it likes.
 - **Logs:** every module logs to `logging.getLogger(__name__)` (`pazufa_corelib.*`). Records reach whatever handlers the
   scraper puts on the root logger.
 - **LLM usage:** `LLMConnector.prompt_tokens`, `completion_tokens`, `reasoning_tokens` (part of completion) and
-  `cost_usd` add up over all calls of one connector. `cost_usd` is the cost the provider reports (OpenRouter does) for
-  successful calls. It stays `None` until a provider reports a cost, so "not reported" can't be mistaken for "free".
+  `cost_usd` add up over every provider response of one connector, including validation retries and failed
+  extractions. `cost_usd` is the cost the provider reports (OpenRouter does). It stays `None` until a provider reports a
+  cost, so "not reported" can't be mistaken for "free". Calls that fail without a response (timeouts, connection errors)
+  count neither tokens nor cost.
 - **Normalization:** the resolution objects carry `score`, `matched` and `changed`, so a scraper can count outcomes
   itself.
 
