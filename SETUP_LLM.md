@@ -23,17 +23,22 @@ from pazufa_corelib import LLMConnector
 connector = LLMConnector(model="openai/gpt-4o-mini", api_key="sk-...")
 ```
 
-## Token usage
+## Token usage and cost
 
 Each connector sums the tokens its calls used, as reported by the provider
 (`0` if the provider reports none). Calls that fail validation count too,
 since they are billed; timeouts and provider errors report no usage.
+
+`cost_usd` sums the cost the provider reports (OpenRouter does). It stays
+`None` until a provider reports a cost, so "not reported" can't be mistaken
+for "free": don't treat `None` as `0`.
 
 ```python
 connector.model              # e.g. "openai/gpt-4o-mini"
 connector.prompt_tokens      # input tokens so far
 connector.completion_tokens  # output tokens so far, incl. reasoning
 connector.reasoning_tokens   # part of completion_tokens, not extra
+connector.cost_usd           # USD so far, or None if no cost was reported
 ```
 
 ## Further documentation
