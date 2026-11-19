@@ -337,14 +337,17 @@ class LLMConnector:
         self._instructor_client = instructor.from_litellm(
             litellm.acompletion, mode=instructor.Mode.TOOLS
         )
-        # Billed token usage summed over all extract() calls, for run metrics.
+        # Billed usage summed over every provider response, for run metrics:
+        # validation retries and failed extractions included.
         # reasoning_tokens is part of completion_tokens, not extra.
         self.prompt_tokens: int = 0
         self.completion_tokens: int = 0
         self.reasoning_tokens: int = 0
-        # Cost in USD as reported by the provider (OpenRouter does), summed over
-        # successful calls. Failed attempts report none; other providers leave 0.0.
-        self.cost_usd: float = 0.0
+        # Cost in USD as reported by the provider (OpenRouter does).
+        # None until one is reported: not reported is not free.
+        self.cost_usd: float | None = None
+        # Fires once per provider response, so tokens and cost count the same calls.
+        self._instructor_client.on("completion:response", self._count_response)
         LOGGER.debug("Initialized Instructor client (mode=TOOLS)")
 
         LOGGER.info(
@@ -669,10 +672,6 @@ class LLMConnector:
                     ),
                     self.timeout_seconds + 0.5,
                 )
-                # Same object create_with_completion() returns; may be absent.
-                raw_response = getattr(result, "_raw_response", None)
-                self._count_usage(getattr(raw_response, "usage", None))
-                self._count_cost(raw_response)
                 LOGGER.debug(
                     "Structured extraction successful (attempt=%s/%s)",
                     attempt + 1,
@@ -680,8 +679,6 @@ class LLMConnector:
                 )
                 return result  # type: ignore[no-any-return]
             except InstructorRetryException as exc:
-                # Failed attempts were billed too; Instructor sums their usage.
-                self._count_usage(getattr(exc, "total_usage", None))
                 classified = self._classify_instructor_retry(
                     exc, response_model.__name__, validation_retries
                 )
@@ -973,18 +970,22 @@ class LLMConnector:
         """
         return "\n".join(f"[{i + 1}] {lines[i]}" for i in range(start, end))
 
-    def _count_usage(self, usage: object) -> None:
-        """Add provider-reported token usage; missing values count as 0."""
+    def _count_response(self, response: object) -> None:
+        """Add the usage and the reported cost of one provider response.
+
+        Missing token counts count as 0; a missing cost leaves ``cost_usd`` as is.
+        """
+        usage = getattr(response, "usage", None)
         details = getattr(usage, "completion_tokens_details", None)
         self.prompt_tokens += self._token_count(usage, "prompt_tokens")
         self.completion_tokens += self._token_count(usage, "completion_tokens")
         self.reasoning_tokens += self._token_count(details, "reasoning_tokens")
-
-    def _count_cost(self, response: object) -> None:
-        """Add the cost the provider reported in *response*, if any."""
         hidden_params = getattr(response, "_hidden_params", None)
-        if isinstance(hidden_params, dict):
-            self.cost_usd += get_response_cost_from_hidden_params(hidden_params) or 0.0
+        if not isinstance(hidden_params, dict):
+            return
+        cost = get_response_cost_from_hidden_params(hidden_params)
+        if cost is not None:
+            self.cost_usd = (self.cost_usd or 0.0) + cost
 
     @staticmethod
     def _token_count(source: object, name: str) -> int:
@@ -1342,8 +1343,12 @@ class LLMConnector:
             )
             return self._map_provider_exception(last_error)
 
-        # Fallback: check the implicit __cause__ chain.
-        cause: BaseException | None = exc.__cause__
+        # Fallback: check the implicit __cause__ chain, only when args[0] says
+        # nothing. After a validation failure the cause is tenacity's RetryError,
+        # which is no provider error.
+        cause: BaseException | None = (
+            None if isinstance(last_error, _validation_types) else exc.__cause__
+        )
         while cause is not None:
             if isinstance(cause, Exception) and not isinstance(
                 cause, (_validation_types + (InstructorRetryException,))
