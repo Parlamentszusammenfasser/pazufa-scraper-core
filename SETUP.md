@@ -51,24 +51,24 @@ cd pazufa-scraper-core
 poetry install --with dev
 ```
 
-Or install the latest development branch directly into another project:
+Or install the latest unreleased state of `main` directly into another project:
 
 **Poetry:**
 
 ```bash
-poetry add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
+poetry add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@main"
 ```
 
 **uv:**
 
 ```bash
-uv add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
+uv add "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@main"
 ```
 
 **pip:**
 
 ```bash
-pip install "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@develop"
+pip install "git+https://codeberg.org/PaZuFa/pazufa-scraper-core.git@main"
 ```
 
 ## Importing pazufa_corelib
@@ -143,9 +143,9 @@ For this to keep working, the API client stays open to instrumentation (`httpx_a
 ## CI Workflow
 
 The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline is defined in `.woodpecker.yml` and runs on
-every push, pull request, and tag.
+pull requests, pushes to `main`, tags, and manual runs.
 
-**On push / pull request** — CI steps run in parallel after setup:
+**Always** — CI steps run in parallel after setup:
 
 | Step                    | What it does                                                        |
 |-------------------------|---------------------------------------------------------------------|
@@ -159,10 +159,16 @@ every push, pull request, and tag.
 If `audit` fails, follow
 the [vulnerability response guide](https://wiki.pazufa.de/books/scraper-core/page/vulnerability-response).
 
-**On tag push** — release steps run after all CI steps pass:
+**On manual run** — after all CI steps pass, `release` bumps the version, commits, tags and pushes to `main` (see
+[Releasing](CONTRIBUTING.md#releasing)). Runs on other branches fail.
+
+**On tag push** — publish steps run after all CI steps pass:
 
 | Step               | What it does                                            |
 |--------------------|---------------------------------------------------------|
+| `check-version`    | Tag matches the version in `pyproject.toml`             |
+| `check-on-main`    | Final `vX.Y.Z` tags must point at a commit on `main`    |
+| `check-not-published` | The version is not on (Test)PyPI yet                 |
 | `build`            | `poetry build` — produces wheel and sdist               |
 | `check-dist`       | `twine check` — validates metadata                      |
 | `publish-testpypi` | Uploads to TestPyPI (tags matching `vX.Y.ZrcN`)         |

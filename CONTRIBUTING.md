@@ -92,17 +92,37 @@ poetry run pytest tests/test_specific.py::test_function
 
 ## Git Workflow
 
-1. Create a feature branch from `develop` (or `main` for hotfixes)
-2. Make small, focused commits
-3. Open a PR for review
-4. **Never push directly to `main`**
+We work trunk-based: `main` is the only long-lived branch and stays releasable.
+`develop` is deprecated; don't branch from it or open PRs against it.
 
-Branch naming: `feat/short-description`, `fix/short-description`, `chore/short-description`.
+1. Branch from an up-to-date `main`: `feat/short-description`, `fix/…`, `chore/…`, `docs/…`
+2. Keep the branch short-lived (days, not weeks) and rebase it onto `main` when `main` moves
+3. Make small, focused commits in conventional-commit style (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
+   Mark breaking changes with `!` (`feat!:`) or a `BREAKING CHANGE:` footer; the release job reads them to pick the version
+4. Note user-facing changes under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), in the same PR
+5. Open a PR against `main`; CI must be green. The author merges after approval
+6. **Never push directly to `main`**; only the release job does, for its version-bump commit
 
-Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
+## Releasing
 
-### Pull-Requests
-For PRs targeting `develop`, the author merges after approval.
+Merging to `main` publishes nothing. A maintainer cuts a release by hand:
+
+1. Check that `## [Unreleased]` in CHANGELOG.md is complete.
+2. In Woodpecker, run the pipeline manually on `main`, optionally with the variable `RELEASE_VERSION`
+   (`0.4.0`, or `0.4.0rc1` for a TestPyPI pre-release).
+3. After all checks pass, the `release` step runs [tools/release.py](tools/release.py): it sets the version in
+   `pyproject.toml`, turns `[Unreleased]` into `[X.Y.Z] - DD.MM.YYYY` (final releases only), commits
+   `chore(release): vX.Y.Z`, tags `vX.Y.Z` and pushes both to `main`.
+4. The tag pipeline checks that the tag matches `pyproject.toml`, final tags are on `main` and the version is not
+   published yet, then uploads `vX.Y.ZrcN` to TestPyPI and `vX.Y.Z` to PyPI.
+
+Without `RELEASE_VERSION` the version follows the commits since the last tag. Before 1.0: breaking change → minor,
+anything else → patch. From 1.0: breaking → major, `feat` → minor, anything else → patch. An rc version is finalised
+(`0.4.0rc1` → `0.4.0`). The job refuses to run on any branch but `main`, with an empty `[Unreleased]` (final releases),
+or for a version that is already tagged. If `main` moved during the run, the push is rejected; run it again.
+
+One-time setup by a repo admin: a Woodpecker secret `release_token` (Codeberg token of an account that may push to the
+protected `main`), limited to the `manual` event; `pypi_token` and `testpypi_token` limited to the `tag` event.
 
 
 ## Versioning

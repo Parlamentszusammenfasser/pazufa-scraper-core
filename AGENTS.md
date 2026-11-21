@@ -60,7 +60,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for further detail on tooling and code ge
 
 ## CI Pipeline
 
-The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline runs on every push and pull request:
+The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline runs on pull requests, pushes to `main`, tags (publish) and manual runs on `main` (release, see [CONTRIBUTING.md](CONTRIBUTING.md#releasing)). The checks:
 
 | Step | What it does |
 |------|--------------|
@@ -189,9 +189,10 @@ poetry run pytest tests/test_specific.py::test_function
 
 ## Git Workflow
 
-- Branch from `develop` for features and fixes; branch from `main` for hotfixes only
+- Trunk-based: branch from `main` for everything; `develop` is deprecated
 - **Never push directly to `main`**
-- Open a PR for review; for PRs targeting `develop`, the author merges after approval
+- Open a PR against `main` for review; the author merges after approval
+- Add user-facing changes under `## [Unreleased]` in `CHANGELOG.md`; never bump the version by hand, the release job does
 - Keep commits small and focused
 
 **Branch naming:** `feat/short-description`, `fix/short-description`, `chore/short-description`
