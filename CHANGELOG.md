@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+## [0.3.5] - 19.11.2026
+### Added
+- **`LLMConnector.cost_usd`** sums the cost the provider reports (OpenRouter does), e.g. for run metrics. It stays `None` until a provider reports a cost, so "not reported" isn't mistaken for "free". Additive, no changes needed in scrapers.
+- **SETUP.md "Observability"**: what the corelib reports (logs, LLM usage, resolution scores) and how a scraper traces API and LLM calls with existing OpenTelemetry instrumentation (#164).
+
+### Changed
+- **Token counters and `cost_usd` count every provider response,** including validation retries and failed extractions, via Instructor's `completion:response` hook. Before, tokens and cost could count different responses.
+
+### Fixed
+- **A model answer that fails validation raises `LLMValidationError` again.** With Instructor 1.14 it raised `LLMProviderError("provider request failed")`, because tenacity's `RetryError` in the exception chain was read as a provider error. Scrapers that catch `LLMValidationError`, e.g. for a fallback, now get it.
+
 
 ## [0.3.4] - 13.11.2026
 ### Fixed

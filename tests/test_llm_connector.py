@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import litellm
 import pytest
+from litellm.llms.openrouter.chat.transformation import OpenrouterConfig
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -15,6 +18,7 @@ from pazufa_corelib.llm.llm_connector import (
     TOKEN_ESTIMATE_OUTPUT_BUFFER,
     LLMAuthenticationError,
     LLMConnector,
+    LLMConnectorError,
     LLMProviderError,
     LLMQuotaExceededError,
     LLMRateLimitError,
@@ -214,46 +218,92 @@ class TestExtractHappyPath:
 # ---------------------------------------------------------------------------
 
 
-def _usage(prompt: int, completion: int, reasoning: int = 0) -> litellm.Usage:
-    return litellm.Usage(
-        prompt_tokens=prompt,
-        completion_tokens=completion,
-        completion_tokens_details={"reasoning_tokens": reasoning},
+_VALID = json.dumps({"sachgebiete": [], "schlagworte": []})
+_INVALID = "{}"  # misses both fields, so Instructor re-prompts
+
+
+def _response(
+    arguments: str,
+    prompt: int = 0,
+    completion: int = 0,
+    reasoning: int = 0,
+    cost: float | None = None,
+) -> litellm.ModelResponse:
+    """An OpenRouter answer with *arguments* for Keywords, as litellm parses it.
+
+    The JSON body goes through litellm's own OpenRouter transform, so the cost
+    reaches the connector the way litellm hands it over: if litellm changes how
+    it passes on ``usage.cost``, the cost tests fail.
+    """
+    usage: dict[str, object] = {
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "total_tokens": prompt + completion,
+        "completion_tokens_details": {"reasoning_tokens": reasoning},
+    }
+    if cost is not None:
+        usage["cost"] = cost
+    body = {
+        "id": "gen",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "openai/gpt-4o-mini",
+        "choices": [
+            {
+                "index": 0,
+                "finish_reason": "tool_calls",
+                "message": {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call",
+                            "type": "function",
+                            "function": {"name": "Keywords", "arguments": arguments},
+                        }
+                    ],
+                },
+            }
+        ],
+        "usage": usage,
+    }
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    return OpenrouterConfig().transform_response(
+        model="openai/gpt-4o-mini",
+        raw_response=httpx.Response(200, json=body, request=httpx.Request("POST", url)),
+        model_response=litellm.ModelResponse(),
+        logging_obj=MagicMock(),
+        request_data={},
+        messages=[],
+        optional_params={},
+        litellm_params={},
+        encoding=None,
     )
 
 
-def _with_usage(
-    result: BaseModel, prompt: int, completion: int, reasoning: int = 0
-) -> BaseModel:
-    # Instructor attaches the raw litellm response as `_raw_response`.
-    result._raw_response = MagicMock(  # type: ignore[attr-defined]
-        usage=_usage(prompt, completion, reasoning)
-    )
-    return result
+def _connector_answering(*responses: litellm.ModelResponse) -> LLMConnector:
+    """A connector whose real Instructor client gets *responses* from litellm."""
+    with patch("litellm.acompletion", AsyncMock(side_effect=list(responses))):
+        return _make_connector()
 
 
-class TestExtractTokenUsage:
-    """Verify extract() accumulates provider-reported token usage."""
+class TestExtractUsage:
+    """extract() sums tokens and reported cost of every provider response."""
 
-    @pytest.mark.asyncio
-    async def test_starts_at_zero(self) -> None:
+    def test_starts_empty(self) -> None:
         connector = _make_connector()
 
         assert connector.prompt_tokens == 0
         assert connector.completion_tokens == 0
         assert connector.reasoning_tokens == 0
+        assert connector.cost_usd is None  # not reported is not free
 
     @pytest.mark.asyncio
     async def test_accumulates_across_calls(self) -> None:
-        connector = _make_connector()
-        mock_client = MagicMock()
-        mock_client.chat.completions.create = AsyncMock(
-            side_effect=[
-                _with_usage(Keywords(sachgebiete=[], schlagworte=[]), 100, 20, 8),
-                _with_usage(Keywords(sachgebiete=[], schlagworte=[]), 50, 5),
-            ]
+        connector = _connector_answering(
+            _response(_VALID, 100, 20, reasoning=8, cost=0.25),
+            _response(_VALID, 50, 5, cost=0.25),
         )
-        connector._instructor_client = mock_client
 
         await connector.extract(prompt="a", response_model=Keywords)
         await connector.extract(prompt="b", response_model=Keywords)
@@ -262,51 +312,44 @@ class TestExtractTokenUsage:
         assert connector.completion_tokens == 25
         # Reasoning is part of completion, not extra.
         assert connector.reasoning_tokens == 8
+        assert connector.cost_usd == 0.5
 
     @pytest.mark.asyncio
-    async def test_counts_usage_of_failed_validation(self) -> None:
-        from instructor.core import InstructorRetryException
-
-        connector = _make_connector()
-        mock_client = MagicMock()
-        mock_client.chat.completions.create = AsyncMock(
-            side_effect=InstructorRetryException(
-                n_attempts=3,
-                messages=[],
-                last_completion=None,
-                # Instructor sums usage over all attempts; its `int` hint is
-                # wrong, at runtime this is a usage object.
-                total_usage=_usage(300, 60, 10),  # type: ignore[arg-type]
-            )
+    async def test_counts_validation_retries(self) -> None:
+        connector = _connector_answering(
+            _response(_INVALID, 100, 10, cost=0.25),
+            _response(_VALID, 100, 20, cost=0.25),
         )
-        connector._instructor_client = mock_client
 
-        with pytest.raises(LLMValidationError):
+        await connector.extract(prompt="a", response_model=Keywords)
+
+        assert connector.prompt_tokens == 200
+        assert connector.completion_tokens == 30
+        assert connector.cost_usd == 0.5
+
+    @pytest.mark.asyncio
+    async def test_counts_failed_extraction(self) -> None:
+        connector = _connector_answering(
+            _response(_INVALID, 100, 10, cost=0.25),
+            _response(_INVALID, 100, 10, cost=0.25),
+        )
+
+        # Which error it raises doesn't matter here, only that both responses count.
+        with pytest.raises(LLMConnectorError):
             await connector.extract(prompt="a", response_model=Keywords)
 
-        assert connector.prompt_tokens == 300
-        assert connector.completion_tokens == 60
-        assert connector.reasoning_tokens == 10
+        assert connector.prompt_tokens == 200
+        assert connector.completion_tokens == 20
+        assert connector.cost_usd == 0.5
 
     @pytest.mark.asyncio
-    async def test_missing_usage_does_not_break_call(self) -> None:
-        connector = _make_connector()
-        expected = Keywords(sachgebiete=["Bildung"], schlagworte=[])
-        no_usage = Keywords(sachgebiete=[], schlagworte=[])
-        no_usage._raw_response = MagicMock(usage=None)  # type: ignore[attr-defined]
-        mock_client = MagicMock()
-        mock_client.chat.completions.create = AsyncMock(
-            side_effect=[expected, no_usage]
-        )
-        connector._instructor_client = mock_client
+    async def test_unreported_cost_stays_none(self) -> None:
+        connector = _connector_answering(_response(_VALID, 10, 1))
 
-        result = await connector.extract(prompt="a", response_model=Keywords)
-        await connector.extract(prompt="b", response_model=Keywords)
+        await connector.extract(prompt="a", response_model=Keywords)
 
-        assert result is expected
-        assert connector.prompt_tokens == 0
-        assert connector.completion_tokens == 0
-        assert connector.reasoning_tokens == 0
+        assert connector.prompt_tokens == 10
+        assert connector.cost_usd is None
 
 
 # ---------------------------------------------------------------------------
@@ -337,6 +380,15 @@ class TestExtractValidationFailure:
         with pytest.raises(
             LLMValidationError, match="could not produce valid Keywords"
         ):
+            await connector.extract(prompt="test", response_model=Keywords)
+
+    @pytest.mark.asyncio
+    async def test_real_instructor_validation_failure(self) -> None:
+        # Instructor chains tenacity's RetryError as __cause__; it was read as a
+        # provider error, so this raised LLMProviderError.
+        connector = _connector_answering(_response(_INVALID), _response(_INVALID))
+
+        with pytest.raises(LLMValidationError):
             await connector.extract(prompt="test", response_model=Keywords)
 
 
