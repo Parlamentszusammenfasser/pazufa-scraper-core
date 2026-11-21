@@ -69,7 +69,7 @@ The project uses [Woodpecker CI](https://woodpecker-ci.org/). The pipeline runs 
 | `format-and-type-check` | Runs `ruff format --check`, `ruff check`, and `mypy` |
 | `test` | Runs the test suite via `pytest` |
 
-The last three steps run in parallel after `setup`. All steps use `python:3.12-slim`.
+The last three steps run in parallel after `setup`. These steps use `python:3.12-slim`; the release and publish steps are listed under CI Workflow in [SETUP.md](SETUP.md).
 
 ## Tech Stack
 
