@@ -121,6 +121,10 @@ anything else → patch. From 1.0: breaking → major, `feat` → minor, anythin
 (`0.4.0rc1` → `0.4.0`). The job refuses to run on any branch but `main`, with an empty `[Unreleased]` (final releases),
 for a `RELEASE_VERSION` not above the current version, or for a version that is already tagged. If `main` moved during the run, the push is rejected; run it again.
 
+If the tag pipeline fails after the push, `main` already carries the version and its tag. A transient failure (upload
+error, token setting): restart the tag pipeline in Woodpecker. Anything that needs a fix on `main`: merge the fix and
+run the release again; it picks the next version, and the unpublished tag can be deleted.
+
 One-time setup by a repo admin: a Woodpecker secret `release_token` (Codeberg token of an account that may push to the
 protected `main`), limited to the `manual` event; `pypi_token` and `testpypi_token` limited to the `tag` event.
 
