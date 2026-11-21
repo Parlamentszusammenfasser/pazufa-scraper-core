@@ -1,5 +1,9 @@
+# Trunk-based: branches get CI through their pull request, main on every
+# push. `manual` is the release run (see the `release` step).
 when:
-  - event: [push, pull_request, tag]
+  - event: push
+    branch: main
+  - event: [pull_request, tag, manual]
 
 # Route this workflow to the generic PaZuFa agents.
 labels:
@@ -59,7 +63,34 @@ steps:
     commands:
       - .venv/bin/pytest
 
-  # --- Release steps — only run on tag push ---
+  # --- Cut a release — manual run on main only ---
+  # tools/release.py bumps pyproject.toml + CHANGELOG.md, commits and tags
+  # vX.Y.Z; this step pushes both to main, and the tag push runs the publish
+  # steps below. Optional pipeline variable RELEASE_VERSION, empty = semver
+  # from commits. release_token: Codeberg token allowed to push to main,
+  # limited to the "manual" event in the Woodpecker secret settings.
+  - name: release
+    image: python:3.12-slim
+    depends_on: [check-lock, format-and-type-check, audit, test, licenses]
+    when:
+      - event: manual
+    environment:
+      RELEASE_TOKEN:
+        from_secret: release_token
+    commands:
+      - |
+        if [ "${CI_COMMIT_BRANCH}" != "main" ]; then
+          echo "ERROR: releases are cut from main only, not '${CI_COMMIT_BRANCH}'" >&2
+          exit 1
+        fi
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends git > /dev/null
+      - git config --global --add safe.directory "${CI_WORKSPACE}"
+      - git fetch --quiet --unshallow --tags "${CI_REPO_CLONE_URL}"
+      - python tools/release.py
+      # rejected without changes if main moved since this run started
+      - git push --atomic --follow-tags "https://release:$${RELEASE_TOKEN}@codeberg.org/${CI_REPO}.git" HEAD:refs/heads/main
+
+  # --- Publish steps — only run on tag push ---
 
   - name: check-version
     image: python:3.12-slim
@@ -76,9 +107,30 @@ steps:
           exit 1
         fi
 
+  # A final release must come from reviewed code on main; rc tags may come
+  # from any branch.
+  - name: check-on-main
+    image: woodpeckerci/plugin-git
+    depends_on: [check-version]
+    when:
+      - event: tag
+    commands:
+      - |
+        if echo "${CI_COMMIT_TAG}" | grep -qE 'rc[0-9]+$'; then
+          echo "rc tag, not checked"
+          exit 0
+        fi
+      - git config --global --add safe.directory "${CI_WORKSPACE}"
+      - git fetch --quiet --unshallow "${CI_REPO_CLONE_URL}" main
+      - |
+        if ! git merge-base --is-ancestor "${CI_COMMIT_SHA}" FETCH_HEAD; then
+          echo "ERROR: ${CI_COMMIT_TAG} (${CI_COMMIT_SHA}) is not on main; final releases are cut from main only" >&2
+          exit 1
+        fi
+
   - name: check-not-published
     image: python:3.12-slim
-    depends_on: [check-version]
+    depends_on: [check-on-main]
     when:
       - event: tag
     commands:
