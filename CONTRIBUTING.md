@@ -97,7 +97,7 @@ We work trunk-based: `main` is the only long-lived branch and stays releasable.
 
 1. Branch from an up-to-date `main`: `feat/short-description`, `fix/…`, `chore/…`, `docs/…`
 2. Keep the branch short-lived (days, not weeks) and rebase it onto `main` when `main` moves
-3. Make small, focused commits in conventional-commit style (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
+3. Make small, focused commits in [conventional-commit](https://www.conventionalcommits.org/en/v1.0.0/) style (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
    Mark breaking changes with `!` (`feat!:`) or a `BREAKING CHANGE:` footer; the release job reads them to pick the version
 4. Note user-facing changes under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), in the same PR
 5. Open a PR against `main`; CI must be green. The author merges after approval
