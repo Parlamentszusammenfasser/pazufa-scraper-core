@@ -19,6 +19,7 @@ _spec.loader.exec_module(_module)
 next_version = _module.next_version
 set_pyproject_version = _module.set_pyproject_version
 bump_changelog = _module.bump_changelog
+version_key = _module.version_key
 
 
 @pytest.mark.parametrize(
@@ -42,6 +43,24 @@ def test_next_version(current: str, messages: list[str], expected: str) -> None:
 def test_next_version_refuses(current: str, messages: list[str]) -> None:
     with pytest.raises(ValueError):
         next_version(current, messages)
+
+
+@pytest.mark.parametrize(
+    ("lower", "higher"),
+    [
+        ("0.3.5rc1", "0.3.5"),
+        ("0.3.5", "0.3.6rc1"),
+        ("0.3.5rc2", "0.3.5rc10"),
+        ("0.9.9", "0.10.0"),
+    ],
+)
+def test_version_key_orders_rc_below_final(lower: str, higher: str) -> None:
+    assert version_key(lower) < version_key(higher)
+
+
+def test_version_key_refuses_other_forms() -> None:
+    with pytest.raises(ValueError):
+        version_key("v1.0")
 
 
 def test_set_pyproject_version_on_the_real_file() -> None:

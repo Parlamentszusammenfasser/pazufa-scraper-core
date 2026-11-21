@@ -3,7 +3,8 @@
 Run by the manual ``release`` step in ``.woodpecker.yml``, which then pushes
 the commit and the tag; the tag pipeline publishes to (Test)PyPI.
 
-``RELEASE_VERSION`` (env) sets the version, e.g. ``0.4.0`` or ``0.4.0rc1``.
+``RELEASE_VERSION`` (env) sets the version, e.g. ``0.4.0`` or ``0.4.0rc1``;
+it must be above the current one.
 Without it the version is bumped from the conventional commits since the last
 tag: before 1.0 a breaking change bumps the minor version and everything else
 the patch version; from 1.0 on breaking -> major, ``feat`` -> minor, else patch.
@@ -53,6 +54,15 @@ def next_version(current: str, messages: list[str]) -> str:
     return f"{major}.{minor}.{patch + 1}"
 
 
+def version_key(version: str) -> tuple[int, int, int, float]:
+    match = VERSION_RE.match(version)
+    if not match:
+        raise ValueError(f"version {version!r} is not X.Y.Z or X.Y.ZrcN")
+    major, minor, patch, rc = match.groups()
+    # an rc sorts below its final version
+    return int(major), int(minor), int(patch), int(rc[2:]) if rc else float("inf")
+
+
 def set_pyproject_version(text: str, version: str) -> str:
     new, count = _PYPROJECT_VERSION_RE.subn(f'version = "{version}"', text, count=1)
     if count != 1:
@@ -96,8 +106,8 @@ def main() -> None:
     try:
         if not version:
             version = next_version(current, _commit_messages_since_last_tag())
-        elif not VERSION_RE.match(version):
-            raise ValueError(f"RELEASE_VERSION {version!r} is not X.Y.Z or X.Y.ZrcN")
+        elif version_key(version) <= version_key(current):
+            raise ValueError(f"RELEASE_VERSION {version} is not above {current}")
         if _git("tag", "--list", f"v{version}"):
             raise ValueError(f"v{version} is already tagged")
         # Build both files before writing either, so a refusal changes nothing.

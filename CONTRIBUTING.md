@@ -119,7 +119,7 @@ Merging to `main` publishes nothing. A maintainer cuts a release by hand:
 Without `RELEASE_VERSION` the version follows the commits since the last tag. Before 1.0: breaking change → minor,
 anything else → patch. From 1.0: breaking → major, `feat` → minor, anything else → patch. An rc version is finalised
 (`0.4.0rc1` → `0.4.0`). The job refuses to run on any branch but `main`, with an empty `[Unreleased]` (final releases),
-or for a version that is already tagged. If `main` moved during the run, the push is rejected; run it again.
+for a `RELEASE_VERSION` not above the current version, or for a version that is already tagged. If `main` moved during the run, the push is rejected; run it again.
 
 One-time setup by a repo admin: a Woodpecker secret `release_token` (Codeberg token of an account that may push to the
 protected `main`), limited to the `manual` event; `pypi_token` and `testpypi_token` limited to the `tag` event.
