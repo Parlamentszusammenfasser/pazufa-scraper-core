@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Changed
+- **Unreleased code is installed from `main`, not `develop`.** Development is trunk-based now; `develop` is deprecated and no longer updated.
 
 ## [0.3.5] - 19.11.2026
 ### Added
