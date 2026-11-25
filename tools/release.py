@@ -124,7 +124,8 @@ def main() -> None:
     CHANGELOG.write_text(changelog, encoding="utf-8")
 
     identity = ["-c", "user.name=PaZuFa Release", "-c", "user.email=pub@pazufa.de"]
-    _git(*identity, "commit", "--all", "--message", f"chore(release): v{version}")
+    files = [str(PYPROJECT), str(CHANGELOG)]
+    _git(*identity, "commit", "--message", f"chore(release): v{version}", "--", *files)
     _git(*identity, "tag", "--annotate", f"v{version}", "--message", f"v{version}")
     print(f"Prepared v{version} ({current} -> {version})")
 
