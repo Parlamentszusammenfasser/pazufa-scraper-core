@@ -126,7 +126,13 @@ error, token setting): restart the tag pipeline in Woodpecker. Anything that nee
 run the release again; it picks the next version, and the unpublished tag can be deleted.
 
 One-time setup by a repo admin: a Woodpecker secret `release_token` (Codeberg token of an account that may push to the
-protected `main`), limited to the `manual` event; `pypi_token` and `testpypi_token` limited to the `tag` event.
+protected `main`), limited to the `manual` event; `pypi_token` and `testpypi_token` limited to the `tag` event. Protect
+`v*` tags in Codeberg so only the release account can push them.
+
+Known risk: Woodpecker reads the pipeline config from the commit it runs on and gives a manual run its secrets on any
+branch. Anyone with push access can therefore read `release_token` from a branch with an edited `.woodpecker.yml`, use
+it to push to `main` and tags without review, and through a tag reach `pypi_token`. The `main` check in the config does
+not prevent this. Give push access only to maintainers, and rotate the tokens when one leaves.
 
 
 ## Versioning
